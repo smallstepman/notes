@@ -1509,20 +1509,27 @@ All Rust crates are versioned and are expected to follow Cargo’s implementatio
 - compiler conditional compilation flag for test configuration q
   - lets, which you can then use with conditional compilation to have code that is compiled out unless it is specifically being tested. On the surface, this may seem odd: don’t you want to test exactly the same code that’s going into production? You do, but having code exclusively available when testing allows you to write better, more thorough tests, in a few ways.
 
-*** COMMENT mocking
-
-- tight control over the code you’re testing as well as any other types that your code may interact with
+*** mocking
+- =mockall= crate
 - a key feature of any extensive unit test suite
+- tight control over the tested code, as well as any other types that the code may interact with
 - examples:
-  - testing a network client, you probably do not want to run your unit tests over a real network but instead want to directly control what bytes are emitted by the “network” and when.
-  - if you’re testing a data structure, you want your test to use types that allow you to control what each method returns on each invocation. You may also want to gather metrics such as how often a given method was called or whether a given byte sequence was emitted.
+  - testing a network client
+    - running unit tests over a real network is undesired
+    - instead, mocking allows to directly control what bytes are emitted by the “network” and when
+  - testing a data structure
+    - test should use types that allow for control what each method returns on each invocation ??
+    - gather metrics such as how often a given method was called or whether a given byte sequence was emitted
 - mocking library will have facilities for
   - generating types (including functions) with particular properties or signatures
   - well as mechanisms to control and introspect those generated items during a test execution
-
-- generally happens through generics—as long as your program, data structure, framework, or tool is generic over anything you might want to mock (or takes a trait object), you can use a mocking library to generate conforming types that will instantiate those generic parameters
-- you then write your unit tests by instantiating your generic constructs with the generated mock types, and you’re off to the races!  In situations where generics are inconvenient or inappropriate, such as if you want to avoid making a particular aspect of your type generic to users, you can instead encapsulate the state and behavior you want to mock in a dedicated struct. You would then generate a mocked version of that struct and its methods and use conditional compilation to use either the real or mocked implementation depending on cfg(test) or a test-only feature like cfg(feature = "test_mock_foo").  At the moment, there isn’t a single mocking library, or even a single mocking approach, that has emerged as the One True Answer in the Rust community. The most extensive and thorough mocking library I know of is the mockall crate, but that is still under active development, and there are many other contenders.
-
+- use a mocking library to generate conforming types that will instantiate generic parameters
+  - as long as the program, data structure, framework, or tool is generic over anything you might want to mock (or takes a trait object)
+- write unit tests by instantiating generic constructs with the generated mock types
+- in situations where generics are inconvenient or inappropriate...
+  - such as avoiding making a particular aspect of your type generic to users
+  - instead of using generics, encapsulate the state and behavior to mock in a dedicated struct
+  - then generate a mocked version of that struct and its methods and use conditional compilation to use either the real or mocked implementation depending on cfg(test) or a test-only feature like cfg(feature = "test_mock_foo")
 *** test-only APIs
 - check not only that the public API behaves correctly but also that the internal state is correct
 - having test-only code allows to expose additional methods, fields, and types to unit tests so the tests can
@@ -1554,9 +1561,9 @@ impl RawTable {
 
 *** COMMENT bookkeeping for test assertions
 - another benefit of having code that exists only during testing is that you can augment the program to perform additional runtime bookkeeping that can then be inspected by tests
-- imagine you’re writing your own version of the BufWriter type from the standard library. When testing it, you want to make sure that BufWriter does not issue system calls  unnecessarily. The most obvious way to do so is to have the BufWriter keep track of how many times it has invoked write on the underlying Write. However, in production this information isn’t important, and keeping track of it introduces (marginal) performance and memory overhead. With #[cfg(test)], you can have the bookkeeping happen only when testing, as shown in Listing 6-4.
 - Keep in mind that test is set only for the crate that is being compiled as a test. For unit tests, this is the crate being tested, as you would expect. For integration tests, however, it is the integration test binary being compiled as a test—the crate you are testing is just compiled as a library and so will not have test set.
 **** COMMENT example
+- imagine you’re writing your own version of the BufWriter type from the standard library. When testing it, you want to make sure that BufWriter does not issue system calls  unnecessarily. The most obvious way to do so is to have the BufWriter keep track of how many times it has invoked write on the underlying Write. However, in production this information isn’t important, and keeping track of it introduces (marginal) performance and memory overhead. With #[cfg(test)], you can have the bookkeeping happen only when testing, as shown in Listing 6-4.
 #+begin_src rust
 struct BufWriter<T> {
   #[cfg(test)]
@@ -1663,6 +1670,8 @@ is_send::<MyNonSendType>();
     - =missing_docs= and =missing_debug_implementations= (when enabled warn if you’ve forgotten to document any public items in your crate or add Debug implementations for any public types)
 ** test generation
 - automatically generate input to use to check your application’s correctness
+- most testers have support for minimizing inputs, so they will search for the smallest sequence of operations that still violates a property if a property-violating input is found
+- fuzzers and property testers allow you to generate arbitrary Rust types
 - https://github.com/altsysrq/proptest
 - https://github.com/BurntSushi/quickcheck
 - https://rust-fuzz.github.io/book/cargo-fuzz/tutorial.html
@@ -1705,8 +1714,11 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
 - downside of property-based testing is that it relies more heavily on the provided descriptions of the inputs
 - property testing tends to be guided by developer annotations like “a number between 0 and 64” or “a string that contains three commas.”
   - this allows property testing to more quickly reach cases that fuzzers may take a long time to encounter randomly, but it does require manual work and may miss important but niche buggy inputs
-**** COMMENT testing sequences of operations
-Since fuzzers and property testers allow you to generate arbitrary Rust types, you aren’t limited to testing a single function call in your crate. For example, say you want to test that some type Foo behaves correctly if you perform a particular sequence of operations on it. You could define an enum Operation that lists operations, and make your test function take a Vec<Operation>. Then you could instantiate a Foo and perform each operation on that Foo, one after the other. Most testers have support for minimizing inputs, so they will even search for the smallest sequence of operations that still violates a property if a property-violating input is found
+**** testing sequences of operations
+- test that some type Foo behaves correctly if particular sequence of operations is performed on it
+- steps
+  1. define an enum Operation that lists operations, and make your test function take a Vec<Operation>
+  2. instantiate a Foo and perform each operation on that Foo, one after the other
 
 ** test augmentation
 - if tests inexplicably fails or crashes with a segmentation fault, it might be cuz of:
