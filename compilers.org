@@ -1,0 +1,12 @@
+:PROPERTIES:
+:ID:       e7afbe7b-a4c9-4599-958f-6e0fcff9a54e
+:END:
+#+title: Compilers
+
+* terms
+** LLVM IR is designed to host mid-level analyses
+** transformations that you find in the optimizer section of a compiler
+** lightweight runtime optimizations
+** cross-function/interprocedural optimizations
+** whole program analysis
+** aggressive restructuring transformation
