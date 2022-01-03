@@ -1,0 +1,1891 @@
+:PROPERTIES:
+:ID:       f608b65b-0ab7-4978-9385-0da0c8fa2d19
+:END:
+#+TITLE: rust
+
+* memory
+** value
+- combination of a type and an element of that type’s domain of values
+- can be turned into a sequence of bytes using its type’s representation
+- it’s meaning is independent of the location where those bytes are stored
+- is stored in a place; this place can be on the stack, on the heap, or other
+** variable
+- [[https://doc.rust-lang.org/reference/variables.html][reference]]
+- the most common place to store a value
+- named value slot on the stack
+- when assigned, the slot is filled, and its old value (if it had one) is dropped and replaced
+- when accessed, the compiler checks that the slot isn’t empty, as that would mean the variable is uninitialized or its value has been moved
+- a pointer to a variable refers to the variable’s backing memory and can be dereferenced to  get at its value
+- if multiple variables are declared with the same name, they still end up with different chunks of memory backing them
+*** const
+constant items can be completely computed at compile time, and any code that refers to them is replaced with the constant’s computed value during compilation. A constant has no memory or other storage associated with it (it is not a place).
+** pointer
+- value that holds the address of a region of memory (the pointer points to a place)
+- can be dereferenced to access the value stored in the memory location it points to
+- can store the same pointer in more than one variable and therefore have multiple variables that indirectly refer to the same location in memory and thus the same underlying value
+- dereferencing a pointer is consiered unsafe, because pointers have no lifetime (as opposed to a reference), therefore the compiler cannot check if the pointer is valid to use
+** items
+- items of a program are those functions, modules, and types that have their value calculated at compile-time
+- stored uniquely in the memory image of the rust process
+- not dynamically allocated
+- not freed
+** regions
+*** stack
+- a segment of memory that the program uses as scratch space for function calls
+- each time a function is called, a contiguous chunk of memory called a [[id:b1026cb9-a5e5-41c7-ba7b-b36084a864ad][frame]] is allocated at the top of the stack
+- near the bottom of the stack is the frame for the main function, and as functions call other functions, additional frames are pushed onto the stack
+- function’s frame contains all the variables within that function, along with any arguments the function takes
+- when the function returns, its stack frame is reclaimed
+  - the bytes that make up the values of the function’s local variables are not immediately wiped, but it’s not safe to access them as they may have been overwritten by a subsequent function call whose frame overlaps with the reclaimed one, and even if they haven’t been overwritten, they may contain values that are illegal to use, such as ones that were moved when the function returned
+  - stack frames, and crucially the fact that they eventually disappear, are very closely tied to the notion of lifetimes in Rust - any variable stored in a frame on the stack cannot be accessed after that frame goes away, so any  reference to it must have a lifetime that is at most as long as the lifetime of the frame
+- if that value is the function’s return value, the calling function can leave some space on its stack for the called function to write that value into before it returns
+**** sharing stack between threads
+An executing Rust program consists of a collection of native OS threads, each with their own stack and local state. To share stacks between threads we can use following crates:
+- [[https://stackoverflow.com/questions/32750829/how-can-i-pass-a-reference-to-a-stack-variable-to-a-thread][StackOverflow question]]
+- [[https://docs.rs/crossbeam/0.8.1/crossbeam/fn.scope.html][crossbeam - scoped threads]]
+- [[https://crates.io/crates/rayon][rayon - work-stealing]]
+*** heap
+- a pool of memory that isn’t tied to the current call stack of the program
+- values in heap memory live until they are explicitly deallocated, i.e. can live beyond the lifetime of the current function’s frame
+- storing value on the heap allows to send the value to a different thread
+- the heap allows to explicitly allocate contiguous segments of memory
+  - you get a pointer to the start of that segment of memory
+  - that memory segment is reserved for you until you later deallocate it (freeing)
+- the primary mechanism for interacting with the heap in Rust is the =Box= type
+  - when rust invokes =Box::new(value)=, the value is placed on the heap, and returns back the =Box<T>= - a pointer to that value on the heap
+  - when the Box is eventually dropped, that memory is freed
+  - if you forget to deallocate heap memory, it will stick around forever, and your application will eventually eat up all the memory on your machine - this is called leaking memory and is usually something you want to avoid
+    - there are some cases where you explicitly want to leak memory. For example, say you have a read-only configuration that the entire program should be able to access. You can allocate that on the heap and explicitly leak it with Box::leak to get a 'static reference to it. *** static memory
+- lifetime of an allocation in the heap depends on the lifetime of the box values pointing to it
+- box values may themselves be passed in and out of frames, or stored in the heap
+- heap allocations may outlive the frame they are allocated within
+- allocation in the heap is guaranteed to reside at a single location in the heap for the whole lifetime of the allocation - it will never be relocated as a result of moving a box value
+*** static memory
+- holds:
+  - program’s static memory contains the program’s binary code, which is usually mapped as read-only; as the program executes, it walks through the binary code in the text segment instruction by instruction and jumps around whenever a function is called
+  - memory for variables declared with the =static= keyword, as well as certain constant values in your code (e.g. strings)
+- automatically loaded into program’s memory when that program is executed
+- values in static memory live for the entire execution of the program (not deallocated until the program shuts down)
+- the special lifetime ='static= (which gets its name from the static memory region) marks a reference as being valid for “as long as static memory is  around,” which is until the program shuts down
+  - there can be ='static= references that do not point to static memory
+- a bound like =T: 'static= indicates that the type parameter T is able to live for however long we keep it around for, up to and including the remaining execution of the program
+  - this bound requires that T is owned and self-sufficient, either in that it does not borrow other (non-static) values or that anything it does borrow is also 'static and thus will stick around until the end of the program.
+- example of ='static= as a bound is the =std::thread::spawn= function that creates a new thread, which requires that the closure you pass it is 'static
+  - the new thread cannot refer to anything stored on the old thread’s stack, since the new thread may outlive the current thread
+  - the new thread can refer only to values that will live for its entire lifetime
+** ownership
+- all values have a single owner (that is, exactly one location (usually a scope) is responsible for ultimately deallocating each value)
+- is enforced through the borrow checker
+- value can be moved by e.g.:
+  - assigning it to a new variable
+  - pushing it to a vector
+  - placing it on the heap
+- if the value is moved, the ownership of the value moves from the old location to the new one, and permits access of values from old location (even tho the values are still there)
+  - an exception from above rule are values which type implements the special Copy trait - the value is not considered to have moved even if it is reassigned to a new memory location, instead, the value is copied, and both the old and new locations remain accessible. To be Copy, it must be possible to duplicate the type’s values simply by copying their bits. This eliminates all types that contain non-Copy types as well as any type that owns a resource it must deallocate when the value is dropped
+- when a value’s owner no longer has use for it, it is the owner’s responsibility to do any necessary cleanup for that value by dropping it.
+  - dropping happens automatically when the variable that holds the value is no longer in scope
+  - types usually recursively drop values they contain, so dropping a variable of a complex type may result in many values being dropped
+  - a variable that holds a reference to another value does not own that other value, so the value isn’t dropped when the variable drops
+  - variables (including function arguments) are dropped in reverse order
+  - nested values are dropped in source-code order
+
+** borrowing
+- references serve as a mechanism which allows the owner of a value to lend out that value to others, without giving up ownership
+- references are pointers that come with an additional contract for how they can be used, such as:
+  - whether the reference provides exclusive access to the referenced value
+  - whether the referenced value may also have other references point to it
+
+*** shared references
+- values behind shared references are not mutable
+- a shared reference, &T, is, as the name implies, a pointer that may be shared
+- any number of other references may exist to the same value, and each shared reference is Copy, so you can trivially make more of them
+- its not possible to modify or reassign the value a shared reference points to
+- its not possible to cast a shared reference to a mutable one
+- compiler is allowed to assume that the value a shared reference points to will not change while that reference lives
+- if compiler sees that the value behind a shared reference is read multiple times in a function, it is within its rights to read it only once and reuse that value
+  - whether or not the compiler chooses to apply a given optimization is more or less irrelevant. The compiler heuristics change over time, so you generally want to code against what the compiler is allowed to do rather than what it actually does in a particular case at a particular moment in time.
+
+*** mutable references
+- the alternative to a shared reference is a mutable reference: &mut T. With mutable references, the Rust compiler is again allowed to make full use of the contract that the reference comes with: the compiler assumes that there are no other threads accessing the target value, whether through a shared reference or a mutable one.
+- in other words, it assumes that the mutable reference is exclusive.
+- a mutable reference lets you mutate only the memory location that the reference points to. Whether you can mutate values that lie beyond the immediate reference depends on the methods provided by the type that lies between
+- the primary difference between owning a value and having a mutable reference to it is that the owner is responsible for dropping the value when it is no longer necessary
+- if the value sitting behind mutable reference is moved, then another value must be left in its place (otherwise, the owner would still think it needed to drop the value, but there would be no value for it to drop!)
+
+*** interior mutability
+- Some types provide interior mutability, meaning they allow you to mutate a value through a shared reference.
+- These types usually rely on additional mechanisms (like atomic CPU instructions) or invariants to provide safe mutability without relying on the semantics of exclusive references
+- These normally fall into two categories: those that let you get a mutable reference through a shared reference, and those that let you replace a value given only a shared referece.
+
+**** Mutex, RefCell, UnsafeCell
+- types like Mutex and RefCell, contain safety mechanisms to ensure that, for any value they give a mutable reference to, only one mutable reference (and no shared references) can exist at a time
+- under the hood, these types (and those like them) all rely on a type called UnsafeCell
+
+**** Atomic, Cell
+- types which provide methods for manipulating that value in place
+- types do not give out a mutable reference to the inner value
+- e.g. its not possible to get a reference directly to the usize or i32 behind such a type, but it is possible to read and replace its value at a given point in time
+***** std::cell::Cell
+an interesting example of safe interior mutability through invariants:
+- it is not shareable across threads and never gives out a reference to the value contained in the Cell
+- the methods all either replace the value entirely or return a copy of the contained value
+- since no references can exist to the inner value, it is always okay to move it
+- since Cell isn’t shareable across threads, the inner value will never be concurrently mutated even though mutation happens through a shared reference
+** lifetimes
+- is a name for a region of code that some reference must be valid for
+- oversimplistic explanation: a lifetime begins when you take a reference to some variable and ends when that variable is moved or goes out of scope
+- when a reference with some lifetime 'a is used, the borrow checker checks that 'a is still alive
+  - it does this by tracing the path back to where 'a starts—where the reference was taken—from the point of use and checking that there are no conflicting uses along that path.
+  - this ensures that the reference still points to a value that it is safe to access.
+- anonymous lifetime syntax ='_=
+  - "lifetime inference"
+  - useful when there is only one lifetime to guess
+    - e.g. a function accepts a reference and returns the reference, however they both share same lifetime
+      #+begin_src rust
+      fn example(a: &str) -> &'_ str { ... }
+      #+end_src
+    - e.g. a function accepts two references, and returns one
+      #+begin_src rust
+      fn example(a: &str, b: &'_ str) -> &'_ str { ... }
+      #+end_src
+      which means: =b= has unique arbitrary lifetime, and return type gets turned into lifetime inference, therefore the compiler infers the return type lifetime must be tied to a lifetime of =a=
+  - signals to the compiler, that it should guess the lifetime
+*** generic lifetimes
+- rust allows to make a type definition generic over one or more lifetimes, this allows ... :
+  - store references within your own types - those references need to have a lifetime so that the borrow checker can check their validity when they are used in the various methods on that type
+  - a method on custom type can return a reference that outlives the reference to self
+- if custom type also implements Drop, then dropping your type counts as a use of any lifetime or type your type is generic over
+  - when an instance of your type is dropped, the borrow checker will check that it’s still legal to use any of your type’s generic lifetimes before dropping it.
+  - this is necessary in case your drop code does use any of those references.
+  - If your type does not implement Drop, dropping the type does not count as a use,  and users are free to ignore any references stored in your type as long as they do not use it anymore
+
+ - while a type can be generic over multiple lifetimes, making it so often only serves to unnecessarily complicate your type signature.
+  - Usually, a type being generic over a single lifetime is fine, and the compiler will use the shorter of the lifetimes for any references inserted into your type as that one lifetime.
+  - You should only really use multiple generic lifetime parameters if you have a type that contains multiple references, and its methods return references that should be tied to the lifetime of only one of those references.
+
+*** lifetime variance
+- [[id:17b47502-f697-47cc-b941-50d60ebf20eb][variance]] describes what types are subtypes of other types and when a subtype can be used in place of a supertype (and vice versa)
+  - 'static is a subtype of 'a because a 'static lives at least as long as any 'a and so is more useful
+  - more generally: if 'b: 'a ('b outlives 'a), then 'b is a subtype of 'a
+- three kinds of variance: covariant, invariant, and contravariant.
+  - covariant: if you can just use a subtype in place of the type
+    For example, if a variable is of type &'a T, you can provide a value of type &'static T to it, because &'a T is covariant in 'a. &'a T is also covariant in T, so you can pass a &Vec<&'static str> to a function that takes &Vec<&'a str>.
+  - invariant: which means that you must provide exactly the given type
+    &mut T is an example of this—if a function takes a &mut Vec<&'a str>, you cannot pass it a &mut Vec<&'static str>. That is, &mut T is invariant in T. If you could, the function could put a short-lived string inside the Vec, which the caller would then continue using, thinking that it were a Vec<&'static str> and thus that the contained string were 'static! Any type that provides mutability is generally invariant for the same reason—for example, Cell<T> is invariant in T.
+  - contravariance: comes up for function arguments - function types are more useful if they’re okay with their arguments being less useful.
+    This is clearer if you contrast the variance of the argument types on their own with their variance when used as function arguments:
+    #+begin_src rust
+    let x: &'static str; // more useful, lives longer
+    let x: &'a      str; // less useful, lives shorter
+
+    fn take_func1(&'static str) // stricter, so less useful
+    fn take_func2(&'a str)      // less strict, more useful
+    #+end_src
+- lifetime variance becomes relevant when you consider how generic lifetime parameters interact with the borrow checker
+
+
+
+** COMMENT CODE EXAMPLES
+*** mutable reference to immutable variable
+#+begin_src rust :exports both
+fn main() {
+    let x = 5;
+    let y = &mut x;
+    ,*y = 8;
+}
+#+end_src
+
+#+RESULTS:
+: error[E0596]: cannot borrow `x` as mutable, as it is not declared as mutable
+
+*** immutable reference to mutable variable
+#+begin_src rust :exports both
+fn main() {
+    let mut x = 5;
+    let y = &x;
+    *y = 8;
+}
+#+end_src
+
+#+RESULTS:
+: error[E0594]: cannot assign to `*y`, which is behind a `&` reference
+: |     let y = &x;
+: |             -- help: consider changing this to be a mutable reference: `&mut x`
+: |     *y = 8;
+: |     ^^^^^^ `y` is a `&` reference, so the data it refers to cannot be written
+
+*** borrow checker computes lifetime
+allowing for something that wouldn't be allowed if lifetimes weren't a thing
+(having immutable reference and simoutenously mutating value behind the smart pointer)
+#+begin_src rust :exports both
+fn main() {
+    let rand = 0.5;
+    let mut x = Box::new(42);
+    let r = &x;           // 'a
+    if rand > 0.5 {
+        *x = 84;
+    } else {
+        println!("{}", r);  // 'a
+    }
+    // the compiler is smart enough to figure the flow of computation can
+    // go either of two ways:
+    // 1. dereferece x and assign value to it (and simoutenously (and quietly)
+    //    disregards the fact there is a immutable reference `r` in the scope)
+    // 2. read value behind immutable reference r (and disregard line of code
+    //    which tries to dereference and modify x, despite the fact immutable
+    //    reference has been already declared in the scope)
+
+    // uncommenting below line --
+    // println!("{}", r);
+    // -- will result in a following error
+    //     error[E0506]: cannot assign to `*x` because it is borrowed
+    //   --> src/main.rs:7:9
+    //    |
+    // 5  |     let r = &x;           // 'a
+    //    |             -- borrow of `*x` occurs here
+    // 6  |     if rand > 0.5 {
+    // 7  |         *x = 84;
+    //    |         ^^^^^^^ assignment to borrowed `*x` occurs here
+    // ...
+    // 11 |     println!("{}", r);  // 'a
+    //    |                    - borrow later used here
+}
+#+end_src
+
+**** another example
+#+begin_src rust :exports both
+fn main() {
+    let mut x = Box::new(42);
+                            //     first iteration       | second iteration      | ...
+    let mut z = &x;         // 1   lifetime 'a - created
+    for i in 0..3 {
+        println!("{}", z);  // 2   lifetime 'a - checked,  lifetime 'b - checked
+        x = Box::new(i);    // 3   lifetime 'a - deleted,  lifetime 'b - deleted
+        z = &x;             // 4   lifetime 'b - created,  lifetime 'c - created
+    }
+    println!("{}", z);
+}
+#+end_src
+
+#+RESULTS:
+: 42
+: 0
+: 1
+: 2
+*** generic lifetimes
+#+begin_src rust
+struct StrSplit<'s, 'p> {
+  delimiter: &'p str,
+  document: &'s str,
+}
+
+impl<'s, 'p> Iterator for StrSplit<'s, 'p> {
+  type Item = &'s str;
+  fn next(&mut self) -> Option<Self::Item> {
+    self.document.split(self.delimiter).next()
+}}
+
+fn main() {
+    let mut a = "ast,ars";
+    let d = ",";
+    let mut x = StrSplit{delimiter: &d, document:&a};
+    a = "ff,ff";
+    for i in x.next() {println!("{}", i);}
+    println!("{}", a);
+}
+#+end_src
+
+#+RESULTS:
+: ast
+: ff,ff
+*** lifetime variance
+#+begin_src rust :exports both
+struct MutStr<'a, 'b> { s: &'a mut &'b str }
+// below will also work, since both "hello" an "world" are 'static
+// struct MutStr<'a> { s: &'a mut &'static str }
+
+// if two lifetimes are replaced with a single 'a, the code fails to compile --
+// struct MutStr<'a> { s: &'a mut &'a str }
+// -- that's because, the compiler will infer that string "hello" and "world"
+// are 'static, therefore the compiler will do sth like this:
+// struct MutStr { s: &'static mut &'static str }
+// which will not fly, because in `main` the code tries to modify the reference
+// but it is unable to do so since it was marked as 'static
+// aka: 'static and mut can't work together ... UNLESS,
+// the value would never be accessed again
+// fn main() {
+//     let mut s = "hello";
+//     *MutStr { s: &mut s }.s = "world";
+//     no println here.....
+// }
+// the real reason why we can't println `s` later is:
+// lifetime variance incompability -- &mut T is invariant in T, therefore
+// compiler is unable to shortend mutable borrow
+
+// we could however do --
+// struct MutStr { s: &'static &'static str }
+// -- but this would force us to write:
+// fn main() {
+//     MutStr { s: &"hello" };
+// }
+// which defeats whole purpose
+
+fn main() {
+    let mut s = "hello";
+    ,*MutStr { s: &mut s }.s = "world";
+    println!("{}", s);
+}
+#+end_src
+
+#+RESULTS:
+: world
+
+* types
+- one of their most fundamental roles of types is to hint how to interpret bits of memory
+** alignment
+- byte-aligned: to be placed at an address that is a multiple of 8 bits
+- describes where the bytes for a type can be stored
+- the hardware constrains where a given type can be placed, for example: pointers point to bytes, not bits
+  - if you placed a value of type T starting at bit 4 of your computer’s memory, you would have no way to refer to its location; you can create a pointer pointing only to byte 0 or byte 1 (bit 8). For this reason, all values, no matter their type, must start at a byte boundary.
+  - Some values have more stringent alignment rules than just being byte-aligned. In the CPU and the memory system, memory is often accessed in blocks larger than a single byte. For example, on a 64-bit CPU, most values are accessed in chunks of 8 bytes (64 bits), with each operation starting at an 8-byte-aligned address. This is referred to as the CPU’s word size.
+** layout
+- an in-memory representation of a type
+*** C-compatible layout
+- place all fields in the same order that they appear in the original struct definition
+- deterministic field ordering for types that happen to have the same fields
+#+begin_src rust
+#[repr(C)]
+struct Foo {
+  tiny: bool,
+  normal: u32,
+  small: u8,
+  long: u64,
+  short: u16,
+}
+#+end_src
+|------------------+-----------+-------------------------------------|
+| 8-byte alligment | bit count | values (0 = padding)                |
+|------------------+-----------+-------------------------------------|
+|                1 |   000-032 | tinytiny 00000000 00000000 00000000 |
+|                2 |   033-064 | normnorm normnorm normnorm normnorm |
+|                3 |   065-096 | smalsmal 00000000 00000000 00000000 |
+|                4 |   097-128 | 00000000 00000000 00000000 00000000 |
+|                5 |   129-160 | longlong longlong longlong longlong |
+|                6 |   161-192 | longlong longlong longlong longlong |
+|                7 |   193-224 | shorshor shorshor 00000000 00000000 |
+|------------------+-----------+-------------------------------------|
+*** Rust layout with =#[repr(Rust)]=
+- fields can be reordered
+- even two different types that share all the same fields, of the same type, in the same order, are not guaranteed to be laid out the same when using the default Rust layout
+(below is an example, however it may or may not be compatible with what the compiler would acctually produce)
+|------------------+-----------+-------------------------------------|
+| 8-byte alligment | bit count | values (0 = padding)                |
+|------------------+-----------+-------------------------------------|
+|                1 |   000-032 | tinytiny smalsmal shorshor shorshor |
+|                2 |   033-064 | normnorm normnorm normnorm normnorm |
+|                3 |   065-096 | longlong longlong longlong longlong |
+|                4 |   097-128 | longlong longlong longlong longlong |
+|------------------+-----------+-------------------------------------|
+*** packed layout with =#[repr(packed)]=
+- reduces the in-memory size, but also the performance
+- useful for memory-cnstrained devices
+|------------------+-----------+-------------------------------------|
+| 8-byte alligment | bit count | values (X = next value)             |
+|------------------+-----------+-------------------------------------|
+|                1 |   000-032 | Tsmalsma lshorsho rshorsho rnormnor |
+|                2 |   033-064 | mnormnor mnormnor mnormnor mlonglon |
+|                3 |   065-096 | glonglon glonglog glonglog glonglog |
+|                4 |   097-128 | glonglog glonglog glonglog gXXXXXXX |
+|------------------+-----------+-------------------------------------|
+*** custom aligned layout with =#[repr(align(n))]=
+- gives a particular field or type a larger alignment than it technically requires
+- common use case for this is to ensure that different values stored contiguously in memory (like in an array) end up in different cache lines on the CPU, this avoids false sharing, which can cause huge performance degradations in concurrent programs
+  - false sharing occurs when two different CPUs access different values that happen to share a cache line; while they can theoretically operate in parallel, they both end up contending to update the same single entry in the cache
+*** complex types
+- =Tuple= - represented like a struct with fields of the same type as the tuple values in the same order
+- =Array= - represented as a contiguous sequence of the contained type with no padding between the elements
+- =Union= - layout is chosen independently for each variant. alignment is the maximum across all the variants
+- =Enum= - same as union, but with one additional hidden shared field that stores the enum variant discriminant. the discriminant is the value thecode uses to determine which of the enum variants a given value holds. the size of the discriminant field depends on the number of variants
+
+** dynamically sized types (DST) and
+- most types in Rust implement Sized automatically
+  - that is, they have a size that’s known at compile time
+- two common types do not: trait objects and slices
+  - a dyn Iterator or a [u8], do not have a well-defined size
+  - their size depends on some information that is known only when the program runs and not at compile time, which is why they are called dynamically sized types
+- often the compiler must know the size of something in order to produce valid code, such as how much space to allocate to a tuple of type (i32, dyn Iterator, [u8], i32) or what offset to use if your code tries to access the fourth field
+- the compiler requires types to be Sized nearly everywhere.
+  - struct fields, function arguments, return values, variable types, and array types must all be Sized
+  - explicitly opt out with =T: ?Sized= (the ? means “may not be”)
+*** wide pointers
+- to make a function able to accept trait object or slice as argument (DST) (to bridge this gap between unsized and sized types), is to place unsized types behind a wide pointer (also known as a fat pointer)
+  - a wide pointer is just like a normal pointer, but it includes an extra word-sized field that gives the additional information about that pointer that the compiler needs to generate reasonable code for working with the pointer
+    - wide pointer is Sized - it is twice the size of a usize (the size of a word on the target platform): one usize for holding the pointer, and one usize for holding the extra information needed to “complete” the type
+    - when taking reference to a DST, the compiler automatically constructs a wide pointer
+      - for a slice, the extra information is simply the length of the slice
+      - for a trait object ...
+  - =Box= and =Arc= also support storing wide pointers, which is why they both support =T: ?Sized=
+** compilation and dispatch
+- [[id:1d75277b-af26-4a7f-969b-a8357a5be931][method dispatch]] describes how a language or environment will select which implementation of a method or function to use
+when choosing between static and dynamic dispatch, there is rarely a clear-cut right answer, however, broadly speaking, static dispatch should be utilized in libraries and dynamic dispatch in binaries
+|----------+------------------------------+-------------------------------|
+| dispatch | library                      | binary                        |
+|----------+------------------------------+-------------------------------|
+| static   | users of libarary can choose | slower compilation time,      |
+|          | whether they want to use     | marinally better performance, |
+|          | static or dynamic dispatch   | more convoluted               |
+|----------+------------------------------+-------------------------------|
+| dynamic  | users are forced to follow   | cleaner code,                 |
+|          | library implementation       | quicker compilation time,     |
+|          |                              | smaller binary size           |
+|----------+------------------------------+-------------------------------|
+*** static dispatch
+#+begin_src rust
+impl String {
+  pub fn contains(&self, p: impl Pattern) -> bool {
+    p.is_contained_in(self)
+  }
+}
+#+end_src
+- when a type or function that is generic over T, compiler makes a copy of that type or function for each type T
+  - the compiler does only copy parts of the code that are used
+- =impl Trait= is shorthand for =<T: Trait>=
+- for any given copy of the method, the address we are “dispatching to” is known statically.
+**** monomorphization
+- a process of converting code with generic types into many non-generic types
+- it’s part of the reason generic Rust code usually performs just as well as non-generic code
+- monomorphization can increase compile time and can make the program larger
+**** optimizations
+- each instance is optimized separately and with all of the types known. As a result, the code is just as efficient as if the trait method of the pattern that is passed in were called directly without any traits present
+- compiler has full knowledge of the types involved and can even inline the implementation called method
+**** drawbacks
+- because instructions aren’t shared between different instantiations of a generic type’s methods, the CPU’s instruction cache is less effective as it now needs to hold multiple copies of effectively the same instructions
+*** dynamic dispatch
+#+begin_src rust
+impl String {
+  pub fn contains(&self, p: &dyn Pattern) -> bool {
+    p.is_contained_in(&*self)
+  }
+}
+#+end_src
+- enables code to call a trait method on a generic type without knowing what that type is
+- reduces compile times, since it’s no longer necessary to compile multiple copies of types and methods
+- can improve the efficiency of CPU instruction cache
+- prevents the compiler from optimizing for the specific types that are used
+  - with dynamic dispatch, all the compiler can do is insert a call to the function through the vtable
+  - it can no longer perform any additional optimizations as it does not know what code will sit on the other side of that function call
+  - every method call on a trait object requires a lookup in the vtable, which adds a small amount of overhead over calling the method directly
+- the caller gives a pointer to a chunk of memory called a virtual method table, or vtable,
+- allows to use the same function body regardless of what type the caller wants to use
+
+- use the =&dyn= keyword to opt-in to dynamic dispatch
+  - the reason to use =&=: compiler at compile time doesn't know the size of the pattern type that the caller passes in, so it don’t know how much space to set aside for it
+  - in other words, =dyn Trait= is =!Sized= (where the =!= means not)
+  - to make possible to take it as argument, it has to be =Sized=
+  - placing it behind a pointer (which size of is known) makes it =Sized=
+  - since it also need to pass along the table of method addresses, this pointer becomes a wide pointer, where the extra word holds the pointer to the vtable
+  - =&mut=, =Box=, =Arc= types are able to hold a wide pointer and therefor can be used for dynamic dispatch
+
+
+**** vtable
+- example of an explicit vtable: [[https://doc.rust-lang.org/std/task/struct.RawWakerVTable.html][std::task::RawWakerVTable]]
+- holds the address of the implementation of all the trait’s methods for the type in question
+- when the code inside the method wants to call a trait method on the provided pattern, it looks up the address of that pattern’s implementation of trait method in the vtable and then calls the function at that address
+- every vtable also contains information about the concrete type’s layout and alignment since that information is always needed to work with a type
+**** trait object
+- the combination of a type that implements a trait and its vtable is known as a trait object
+- non-object-safe traits cannot be turned into trait objects
+- trait bound =Self: Sized= implies that Self is not being used through a trait object (since it would then be !Sized).
+  - because methods with a =where Self: Sized= bound are exempted when checking if a trait is object-safe, that bound can be placed on:
+    a. a trait to require that the trait never use dynamic dispatch, or you can place it on
+    b. a specific method to make that method unavailable when the trait is accessed through a trait object.
+**** object-safe
+- to be object-safe,
+  - none of a trait’s methods can be generic or use the Self type
+  - the trait cannot have any static methods (that is, methods whose first argument does not dereference to Self), since it would be impossible to know which instance of the method to call
+- examples of traits that are not object-safe
+  - the Clone trait, whose clone method returns Self, cannot be turned into a trait object. If we accept a dyn Clone trait object and then call clone on it, the compiler won’t know what type to return.
+  - the Extend trait from the standard library, which has a method extend that is generic over the type of the provided iterator (so there may be many instances of it). If you were to call a method that took a dyn Extend, there would be no single address for extend to place in the trait object’s vtable; there would have to be one entry for every type extend might ever be called with.
+
+** generic traits
+#+begin_src rust
+trait Seq<T> {
+    fn len(&self) -> u32;
+    fn elt_at(&self, n: u32) -> T;
+    fn iter<F>(&self, f: F) where F: Fn(T);
+}
+#+end_src
+- the rule of thumb:
+  - use an associated type if only one implementation of the trait for a given type is expected
+  - use a generic type parameter otherwise
+
+*** generic type parameters
+- =trait Foo<T>=
+- users must always specify all the generic parameters and repeat any bounds on those parameters.
+  - This can quickly get messy and hard to maintain.
+  - If you add a generic parameter to a trait, all users of that trait must also be updated to reflect the change.
+  - And since multiple implementations of a trait may exist for a given type, the compiler may have a hard time deciding which instance of the trait you meant to use, leading to awful disambiguating function calls like FromIterator::<u32>::from_iter.
+- the upside is that you can implement the trait multiple times for the same type—for example, you can implement PartialEq against multiple right-hand side types for your type, or you can implement both FromIterator<T> and FromIterator<&T> where T: Clone, precisely because of the flexibility that generic traits provide.
+
+*** associated types
+- =trait Foo { type Bar; }=
+- associated types are often significantly easier to work with,
+- won't allow multiple implementations
+- the compiler needs to know only the type that implements the trait, and all the associated types follow (since there is only one implementation).
+- This means the bounds can all live in the trait itself and do not need to be repeated on use.
+- In turn, this allows the trait to add further associated types without affecting its users.
+- And because the type dictates all the associated types of the trait, you never have to disambiguate with the unified function calling syntax shown in the previous paragraph.
+- However, you cannot implement Deref against multiple Target types, nor can you implement Iterator with multiple different Item types.
+**** COMMENT example
+#+begin_src jupyter-rust :session xxx :exports both
+trait Foo { type Bar; }
+#[derive(Debug)]
+struct X ;
+impl Foo for X { type Bar = String; }
+let x = X {};
+x
+#+end_src
+
+#+RESULTS:
+: X
+
+** coherence and the orphan rule
+- coherence property: for any given type and method, there is only ever one correct choice for which implementation of the method to use for that type
+- orphan rule: you can implement a trait for a type only if the trait or the type is local to your crate
+
+  - blanket implementations
+    - allows to implement traits over a range of types with code like impl<T> MyTrait for T where T: and so on.
+    - not limited to just one particular type but instead applies to a wide range of types.
+    - only the crate that defines a trait is allowed to write a blanket implementation - adding a blanket implementation to an existing trait is considered a breaking change
+
+  - fundamental types
+    - types marked with the =#[fundamental]= attribute (=&=, =&mut=, =Box=, =Pin=)
+    - some types are so essential that it’s necessary to allow anyone to implement traits on them, even if this seemingly violates the orphan rule
+    - adding a blanket implementation over a fundamental type is also considered a breaking change.
+
+  - covered implementations
+    - There are some limited cases where we want to allow implementing a foreign trait for a foreign type, which the orphan rule does not normally allow. The simplest example of this is when you want to write something like impl From<MyType> for Vec<i32>. Here, the From trait is foreign, as is the Vec type, yet there is no danger of violating coherence. This is because a conflicting implementation could be added only through a blanket implementation in the standard library (the standard library cannot otherwise name MyType), which is a breaking change anyway.
+
+- [[https://doc.rust-lang.org/reference/items/implementations.html?highlight=orphan#orphan-rules][reference]]
+- valid
+#+begin_src rust
+impl<T> From<T> for MyType
+impl<T> From<T> for MyType<T>
+impl<T> From<MyType> for Vec<T>
+impl<T> ForeignTrait<MyType, T> for Vec<T>
+impl<T> ForeignTrait<LocalType, T> for ForeignType
+#+end_src
+- invalid
+#+begin_src rust
+impl<T> ForeignTrait for T
+impl<T> From<T> for T
+impl<T> From<Vec<T>> for T
+impl<T> From<MyType<T>> for T
+impl<T> From<T> for Vec<T>
+impl<T> ForeignTrait<T, MyType> for Vec<T>
+impl<T> ForeignTrait<T, LocalType> for ForeignType
+#+end_src
+
+** trait bounds
+- trait bounds do not have to be of the form T: Trait where T is some type your implementation or type is generic over. The bounds can be arbitrary type restrictions and do not even need to include generic parameters, types of arguments, or local types.
+- generic type parameters do not need to appear only on the left-hand side =io::Error: From<MyError<T>>=
+- if your method wants to construct a =HashMap<K, V, S>= whose keys are some generic type =T= and whose value is a =usize=, instead of writing the bounds out like
+  =where T: Hash + Eq, S: BuildHasher + Default=, you could write
+  =where HashMap<T, usize, S>: FromIterator=
+  - [[https://doc.rust-lang.org/std/iter/trait.FromIterator.html#impl-FromIterator%3C(K%2C%20V)%3E-1][reference]]
+*** derive trait
+- many =#[derive (Trait)]= expansions desugar into =impl Trait for Foo<T> where T: Trait=
+  - if we try to derive Clone this way for Foo<T> and Foo contains an Arc<T>. Arc implements Clone regardless of whether T implements Clone, but due to the derived bounds, Foo will implement Clone only if T does
+*** bounds on associated types of types generic over
+  - If a type Item has an associated type Assoc from a trait Trait, then <Item as Trait>::Assoc is a type that is an alias of the type specified in the associated type definition. Furthermore, if Item is a type parameter, then Item::Assoc can be used in type parameters.
+**** COMMENT examples
+#+begin_src jupyter-rust :session assoc1 :exports both
+trait AssociatedType { type Assoc; type Aff; }
+struct Struct;
+#[derive(Debug)]
+struct OtherStruct;
+impl AssociatedType for Struct { type Assoc = OtherStruct; type Aff = String; }
+impl OtherStruct {
+    fn new() -> OtherStruct { OtherStruct }
+}
+println!("{:?}\n{:?}",
+         <Struct as AssociatedType>::Assoc::new(),
+         <Struct as AssociatedType>::Aff::new());
+#+end_src
+
+#+RESULTS:
+: OtherStruct
+: ""
+
+***** ?
+#+begin_src rust
+impl Debug for AnyIterable
+where for<'a> &'a Self: IntoIterator,
+        for<'a> <&'a Self as IntoIterator>::Item: Debug {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        f.debug_list().entries(self).finish()
+}}
+#+end_src
+
+
+** marker traits
+- https://doc.rust-lang.org/std/marker/index.html
+- indicate a property of the implementing type
+- they have no methods or associated types and serve just to tell that a particular type can or cannot be used in a certain way
+- example: =Send= - safe to send across thread boundaries
+  - There is no call to send in code that requires that a type is Send. Instead, the code assumes that the given type is fine to use in a separate thread, and without marker traits the compiler would have no way of checking that assumption
+- purpose: they allow you to write bounds that capture semantic requirements not directly expressed in the code.
+** auto-traits
+- the compiler automatically implements them for types unless the type contains something that does not implement the marker trait
+- [[https://doc.rust-lang.org/reference/special-types-and-traits.html#auto-traits][reference]] [[https://doc.rust-lang.org/nightly/unstable-book/language-features/auto-traits.html][nightly]]
+** marker types
+- unit types (like =struct MyMarker;=) that hold no data and have no methods.
+- useful for marking a type as being in a particular state ([[id:72caa898-b8a5-4045-8eea-c1a9656514a1][typestate]])
+- useful when you want to make it impossible for a user to misuse an API
+** existential types
+- type inference is much easier when you have at least some known points to start the inference from
+- all functions marked as async fn or with a return type of impl Trait have an existential return type: the signature does not give the true type of the return value, just a hint that the function returns some type that implements some set of traits that the caller can rely on
+- the caller can only rely on the return type implementing those traits, and nothing else
+  - it isn’t strictly true that the caller relies on the return type and nothing else.
+  - the compiler will also propagate auto-traits like Send and Sync through impl Trait in return position
+- name origin: we are asserting that there exists some concrete type that matches the signature, and we leave it up to the compiler to find what that type is
+- compiler will usually then go figure that out by applying type inference on the body of the function
+- not all instances of impl Trait use existential types
+  - if impl Trait is used in argument position for a function, it’s really just shorthand for an unnamed generic parameter to that function
+  - =fn foo(s: impl ToString)= is only syntax sugar for =fn foo<S: ToString>(s: S)=
+- useful when: implementing traits that have associated types
+  1. imagine you’re implementing the IntoIterator trait
+  2. it has an associated type IntoIter that holds the type of the iterator that the type in question can be turned into
+  3. with existential types, you do not need to define a separate iterator type to use for IntoIter
+  4. instead, you can give the associated type as impl =Iterator<Item = Self::Item>= and just write an expression inside the =fn into_iter(self)= that evaluates to an =Iterator=, such as by using maps and filters over some existing iterator type
+- allow to perform zero-cost type erasure
+  - instead of exporting helper types just because they appear in a public signature somewhere (iterators and futures are common examples of this) you can use existential types to hide the underlying concrete type
+  - users of your interface are shown only the traits that the relevant type implements, while the concrete type is left as an implementation detail
+  - not only does this simplify the interface, but it also enables you to change that implementation as you wish without breaking downstream code in the future
+* design api & patterns
+** best practices
+- interfaces should be intuitive enough that if the user has to guess, they usually guess correctly
+- by reusing common names for the same purpose, you make it easier for the user to guess what things do and allow them to more easily understand the things that are different about your interface
+- good rule of thumb is to avoid imposing unnecessary restrictions and to only make promises you can keep. Adding restrictions or removing promises usually requires a major semantic version change and is likely to break code elsewhere. Relaxing restrictions or giving additional promises, on the other hand, is usually backward compatible.
+- it’s critical to make it as easy as possible for users to understand your interface and as hard as possible for them to use it incorrectly. The two primary techniques at your disposal for this are your documentation and the type system
+*** implementing common traits
+- users expect to be able to print any type with {:?} (=Debug=) and send anything and everything to another thread (=Send= and =Sync=), and they expect that every type is =Clone=. Its also great to implement: =Default=, =PartialEq=, =PartialOrd=, =Hash=, =Eq=, =Ord=, =serde::Serialize/Deserialize=
+  - because of type coherence, users aren’t allowed to implement a foreign trait (like Clone) for a foreign type like one from your interface
+**** ergonomic trait implementations
+- Rust does not automatically implement traits for references to types that implement traits
+- you cannot call =fn foo<T: Trait>(t: T)= with a =&Bar=, even if =Bar: Trait=. This is because Trait may contain methods that take =&mut self= or =self=, which obviously cannot be called on &Bar
+- for this reason, when you define a new trait, you’ll usually want to provide blanket implementations as appropriate for that trait for
+  - =&T where T: Trait=
+  - =&mut T where T: Trait=
+  - =Box<T> where T: Trait=
+- for any type that can be iterated over, consider implementing =IntoIterator= for both =&MyType= and =&mut MyType= where applicable
+  - this makes for loops work with borrowed instances of your type as well out of the box
+**** wrapper types
+  - =deref= trait and =AsRef= both provide something a little like oop inheritance, they allow to have a value of type T and call methods on some type U by calling them directly on the T-typed value if =T: Deref<Target = U>=
+    - implementing =Deref= will allow users to call methods on the inner type by just using the =.= operator
+    - if accessing the inner type does not require any complex or potentially slow logic, consider also implementing =AsRef=, which allows users to easily use a =&WrapperType= as an =&InnerType=
+      - For most wrapper types, you will also want to implement =From<InnerType>= and =Into<InnerType>= where possible so that your users can easily add or remove your wrapping
+  - =Borrow trait= allows the caller to supply any one of multiple essentially identical variants of the same type
+    - example:, for a HashSet<String>, Borrow allows the caller to supply either a &str or a &String. While the same could have been achieved with AsRef, that would not be safe without Borrow’s additional requirement that the target type implements Hash, Eq, and Ord exactly the same as the implementing type.
+    - Borrow also has a blanket implementation of Borrow<T> for T, &T, and &mut T, which makes it convenient to use in trait bounds to accept either owned or referenced values of a given type
+    - intended only for when your type is essentially equivalent to another type, whereas Deref and AsRef are intended to be implemented more widely for anything your type can “act as”
+
+***** COMMENT TODO Deref and Inherent Methods
+The magic around the dot operator and Deref can get confusing and surprising when there are methods on T that take self. For example, given a value t: T, it is not clear whether t.frobnicate() frobnicates the T or the underlying U!   For this reason, types that allow you to transparently call methods on some inner type that isn’t known in advance should avoid inherent methods. It’s fine for Vec to have a push method even though it dereferences to a slice, since you know that slices won’t get a push method any time soon. But if your type dereferences to a user-controlled type, any inherent method you add may also exist on that user-controlled type, and thus cause issues. In these cases, favor static methods of the form fn frobnicate (t: T). That way, t.frobnicate() always calls U::frobnicate, and T::frobnicate(t) can be used to frobnicate the T itself.
+*** interface design decisions
+#+begin_src rust
+fn frobnicate1(s: String) -> String
+fn frobnicate2(s: &str) -> Cow<'_, str>
+fn frobnicate3(s: impl AsRef<str>) -> impl AsRef<str>
+#+end_src
+
+**** generic arguments
+- A good rule of thumb is to make an argument generic if you can think of other types a user might reasonably and frequently want to use instead of the concrete type you started with.
+- making lots of arguments generic might make you worried about overly enlarging your binaries
+- for arguments that you take by reference anyway (recall that dyn Trait is not Sized, and that you need a wide pointer to use them), you can easily replace your generic argument with one that uses dynamic dispatch
+  - example: instead of =impl AsRef<str>=, take =&dyn AsRef<str>=
+  - this choice is made on behalf of your users, who cannot opt out of dynamic dispatch
+  - using dynamic dispatch will work only when you have a simple trait bound like T: AsRef<str> or impl AsRef<str>
+    - for more complex bounds, Rust does not know how to construct a dynamic dispatch vtable, so you cannot take, say, &dyn Hash + Eq
+  - with generics, the caller can always choose dynamic dispatch themselves by passing in a trait object. The reverse is not true
+***** steps
+1. start with the argument fully generic with no bounds, and then just
+2. follow the compiler errors to discover what bounds you need to add
+**** object safety
+- object safety is a part of public interface
+- you should prefer your traits to be object-safe even if that comes at a slight cost to the ergonomics of using them (such as taking impl AsRef<str> over &str), since object safety enables new ways to use your traits
+  - if the trait is object-safe, users can treat different types that implement your trait as a single common type using dyn Trait
+  - if it isn’t, the compiler will disallow dyn Trait for that trait
+- if your trait must have a generic method, consider whether its generic parameters can be on the trait itself or if its generic arguments can also use dynamic dispatch to preserve the object safety of the trait.
+  - alternatively, add a =where Self: Sized= trait bound to that method, which makes it possible to call the method only with a concrete instance of the trait (and not through dyn Trait)
+  - examples of this pattern: =Iterator= / =Read= traits (which are object-safe but provide some additional convenience methods on concrete instances)
+**** Borrowed vs. Owned
+- When your code must own data, it should generally also make the caller provide owned data, rather than taking values by reference and cloning them. This leaves the caller in control of allocation, and it is upfront about the cost of using the interface in question.
+- if users are struggling to get code to compile on top of your interface, that’s a sign that you may want to (even unnecessarily) take ownership of certain pieces of data
+  - start with data that is cheap to clone or is not part of anything performance-sensitive
+***** owned
+- if the code you write needs ownership of the data, such as to call methods that take self or to move the data to another thread
+***** borrowed
+- if your code doesn’t need to own the data, it should operate on references instead
+  - one common exception to this rule is with small types like i32, bool, or f64, which are just as cheap to store and copy directly as to store through references
+***** =cow=
+Cow type lets you operate on references if the data allows, and it lets you produce an owned value if necessary
+**** COMMENT TODO fallible and blocking destructors
+#+begin_comment
+sth like `with` in python
+#+end_comment
+- types centered on I/O often need to perform cleanup when they’re dropped (writes to disk, closing files, or gracefully terminating connections to remote hostsa)
+- the natural place to perform this cleanup is in the type’s Drop implementation
+- make sure to highlight the explicit destructor in your documentation
+- the moment you add an explicit destructor, you will run into two issues
+  1. since your type implements Drop, you can no longer move out of any of that type’s fields in the destructor, because Drop::drop will still be called after your explicit destructor runs, and it takes &mut self, which requires that no part of self has been moved
+  2. drop takes &mut self, not self, so your Drop implementation cannot simply call your explicit destructor and ignore its result (because it doesn’t own self). There are a couple of ways around these problems, none of which are perfect.
+     a. make your top-level type a newtype wrapper around an Option, which in turn holds some inner type that holds all of the type’s fields.
+        - You can then use Option::take in both destructors, and call the inner type’s explicit destructor only if the inner type has not already been taken
+        - Since the inner type does not implement Drop, you can take ownership of all the fields there
+        - The downside of this approach is that all the methods you wish to provide on the top-level type must now include code to get through the Option (which you know is always Some since drop has not yet been called) to the fields on the inner type
+     b. make each of your fields takeable
+        - You can “take” an Option by replacing it with None (which is what Option::take does), but you can do this with many other types as well. For example, you can take a Vec or HashMap by simply replacing them with their cheap-to-construct default values—std::mem::take is your friend here. This approach works great if your types have sane “empty” values but gets tedious if you must wrap nearly every field in an Option and then modify every access of those fields with a matching unwrap.
+     c. The third option is to hold the data inside the ManuallyDrop type, which dereferences to the inner type, so there’s no need for unwraps. You can also use ManuallyDrop::take in drop to take ownership at destruction time. The primary downside of this approach is that ManuallyDrop::take is unsafe. There are no safety mechanisms in place to ensure that you don’t try to use the value inside the ManuallyDrop after you’ve called take or that you don’t call take multiple times. If you do, your program will silently exhibit undefined behavior, and bad things will happen.
+
+I would err on the side of going with the second option, and switching to the
+others only if you find yourself in a sea of Options. The ManuallyDrop solution is
+excellent if the code is simple enough that you can easily check the safety of your
+code, and you are confident in your ability to do so.
+*** documentation
+- clearly document any cases where your code may do something unexpected, or where it relies on the user doing something beyond what’s dictated by the type signature
+  - if your code can panic, document that fact, along with the circumstances it might panic under
+  - if your code might return an error, document the cases in which it does
+  - for unsafe functions, document what the caller must guarantee in order for the call to be safe.
+- include end-to-end usage examples for your code on a crate and module level
+  - they give the user a feel for how everything fits together
+  - end-to-end examples also give the user a starting point for customizing their usage
+- organize the documentation
+  - take advantage of modules to group together semantically related items
+  - use intra-documentation links to interlink items - if it's easy for the user to explore your interface, they are less likely to miss important connections or dependencies
+  - consider marking parts of your interface with #[doc(hidden)]
+    - often used to expose methods and types that are needed by macros, but not by user code
+    - hidden inherent methods and hidden trait methods on sealed traits are not generally part of your interface contract, though you should make sure to state this clearly in the documentation for those methods, but yes - hidden items should still be documented
+  - use #[doc(cfg(..))] to highlight items that are available only under certain configurations so the user quickly realizes why some method that’s listed in the documentation isn’t available
+- enrich your documentation
+  - in the top-level documentation, point the user to commonly used modules, features, types, traits, and methods
+  - link to external resources that explain concepts, data structures, algorithms, or other aspects of your interface that may have good explanations elsewhere, RFCs, blog posts, and whitepapers
+  - use #[doc(alias = "...")] to make types and methods discoverable under other names that users may search for them by
+*** type system guidance
+**** semantic typing
+- adding types to represent the meaning of a value, not just its primitive type
+  - example: function which takes three bool arguments (using Enum insted)
+  - newtype around a numeric type may provide a unit for the contained value, or it could constrain raw pointer arguments to only those that have been returned by another method.
+**** zero-sized types
+- indicate that a particular fact is true about an instance of a type ([[id:72caa898-b8a5-4045-8eea-c1a9656514a1][typestate]])
+
+***** COMMENT zero-sized types code example
+:PROPERTIES:
+:ID:       907a6bf6-cb91-49f2-bb80-8ee003b2317f
+:END:
+Consider, for instance, a type called Rocket that represents the state of a real rocket. Some operations (methods) on Rocket should be available no matter what state the rocket is in, but some make sense only in particular situations. It is, for example, impossible to launch a rocket if it has already been launched. Similarly, it should probably not be possible to separate the fuel tank if the rocket has not yet launched. We could model these as enum variants, but then all the methods would be available at every stage, and we’d need to introduce possible panics.
+#+begin_src jupyter-rust :session xrf
+#[derive(Debug)]
+struct Grounded;
+#[derive(Debug)]
+struct Launched;
+#[derive(Debug)]
+struct Rocket<Stage = Grounded> {
+  stage: std::marker::PhantomData<Stage>,
+}
+
+impl Default for Rocket<Grounded> { fn default() -> Self { todo!() }}
+impl Rocket<Grounded> {
+  pub fn launch(self) -> Rocket<Launched> { Rocket { stage: std::marker::PhantomData::<Launched>} }
+}
+impl Rocket<Launched> {
+  pub fn accelerate(&mut self) { println!("accelerating"); }
+  pub fn decelerate(&mut self) { }
+}
+
+impl<Stage> Rocket<Stage> {
+  pub fn color(&self) -> String { String::new() }
+  pub fn weight(&self) -> String { String::new() }
+}
+let mut r = Rocket {stage: std::marker::PhantomData::<Grounded>};
+let mut rl = r.launch();
+// rl.launch()
+// : struct Rocket<Stage = Grounded> {
+// : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method `launch` not found for this
+// : rr.launch()
+// :    ^^^^^^ method not found in `Rocket<Launched>`
+// : no method named `launch` found for struct `Rocket<Launched>` in the current scope
+rl.accelerate()
+#+end_src
+
+#+RESULTS:
+:RESULTS:
+: accelerating
+
+:END:
+
+**** enum variants
+if function ignores a pointer argument unless a given Boolean argument is true, it’s better to combine the two arguments instead
+- with an enum type with one variant for false (and no pointer) and one variant for true that holds a pointer, neither the caller nor the implementer can misunderstand the relationship between the two
+***** COMMENT example
+#+begin_src jupyter-rust :session xxxi
+#[derive(Debug)]
+enum S<'a> {
+    Nope,
+    Yup(&'a str)
+}
+fn pokayoke(v: S) {
+    println!("works: {:?}", v);
+}
+pokayoke(S::Nope);
+pokayoke(S::Yup("hello"));
+#+end_src
+
+#+RESULTS:
+: works: Nope
+: works: Yup("hello")
+
+**** #[must_use] annotation
+- add it to any type, trait, or function, and the compiler will issue a warning if the user’s code receives an element of that type or trait, or calls that function, and does not explicitly handle it
+
+***** COMMENT TODO? example
+#+begin_src jupyter-rust :session xxxii
+#[derive(Debug)]
+#[must_use]
+struct MustUse {
+    // some fields
+}
+// impl MustUse { fn new() -> Self { MustUse {  } }}
+// Violates the `unused_must_use` lint.
+// MustUse::new();
+// MustUse {}
+let x = 5;
+#+end_src
+
+#+RESULTS:
+*** stablizing library interface
+**** type modifications
+- The #[non_exhaustive] attribute indicates that a type or variant may have more fields or variants added in the future. It can be applied to structs, enums, and enum variants.
+  - compiler will disallow the use of implicit constructors and nonexhaustive pattern matches (that is, patterns without a trailing , ..) on that type
+  - this is a great attribute to add if you suspect that you’re likely to modify a particular type in the future
+  - it constrains the user code, by taking away users’ ability to rely on exhaustive pattern matches
+**** trait implementations
+- be careful about implementing any trait for an existing type, because coherence rules disallow multiple implementations of a given trait for a given type, therefore, generally, it is a breaking change to:
+  - add a blanket implementation of an existing trait
+  - implement a foreign trait for an existing type, or an existing trait for a foreign (owner of the foreign  trait or type may simultaneously add a conflicting implementation)
+  - remove a trait implementation
+- however, implementing traits for a new type is never a problem, since no crate can have implementations that conflict with that type
+***** COMMENT example
+i dont get it
+#+begin_src rust
+// crate1 1.0
+pub struct Unit;
+put trait Foo1 { fn foo(&self) }
+// note that Foo1 is not implemented for Unit
+
+// crate2; depends on crate1 1.0
+use crate1::{Unit, Foo1};
+trait Foo2 { fn foo(&self) }
+impl Foo2 for Unit { .. }
+fn main() {
+  Unit.foo();
+}
+#+end_src
+
+
+**** trait modifications
+- most changes to existing traits are breaking changes:
+  - changing a method signature (breaks all implementations, and probably many uses, of the trait)
+  - adding a new method (“just” breaks all implementations)
+- adding a new method with a default implementation is fine (existing implementations will continue to apply)
+***** sealed trait
+- can only be used by other crates - cannot be implemented by other crates
+- most commonly used for derived traits (traits that provide blanket implementations for types that implement particular other traits)
+- makes a number of breaking changes non-breaking:
+  - adding a new method to a sealed trait (there are no implementations outside of the current crate to consider)
+  - implement a sealed trait for new foreign types (the foreign crate that defined that type cannot have added a conflicting implementation)
+- restricts:
+  - the usefulness of the trait (downstream crates will no longer be able to implement it for  their own types)
+  - which types can be used as type arguments (such as restricting the Stage type in the [[id:907a6bf6-cb91-49f2-bb80-8ee003b2317f][rocket example]])
+- seal a trait only if it does not make sense for a foreign crate to implement your trait
+- make sure you document that
+***** COMMENT example & how-to
+1. add a private, empty trait as a supertrait of the trait you wish to seal =1=.
+2. since the supertrait is in a private module, other crates cannot reach it and thus cannot implement it
+3. the sealed trait requires the underlying type to implement Sealed, so only the types that we explicitly allow =2= are able to ultimately implement the trait
+#+begin_src rust
+pub trait CanUseCannotImplement: sealed::Sealed /*1*/ { .. }
+mod sealed {
+      pub trait Sealed {}
+/*2*/ impl<T> Sealed for T where T: TraitBounds {}
+}
+impl<T> CanUseCannotImplement for T where T: TraitBounds {}
+#+end_src
+
+
+
+
+**** hidden contracts
+***** re-exports
+- breaking change in your interface
+- if crate moves from itercrate 1.0 to itercrate 2.0 but otherwise does not change, the code in this listing will no longer compile
+  - even though no types have changed, the compiler believes (correctly) that itercrate1.0::Empty and itercrate2.0::Empty are different types
+- if any part of interface exposes foreign types, then any change to one of those foreign types is also a change to that interface
+  - consider what happens if you move to a new major version of a dependency and expose a type from that dependency as, say, an iterator type in your interface
+  - a user that depends on your interface may also depend directly on that dependency and expect that the type your interface provides is the same as the one by the same name in that dependency. If you change the major version of your dependency, that is no longer true even though the name of the type is the same
+- to mitigate this:
+  - wrap foreign types using the newtype pattern, and then expose only the parts of the foreign type that are useful
+  - using impl Trait to provide only the very minimal contract to the caller (avoids newtype wrapper)
+****** COMMENT code example
+crate: bestiter
+#+begin_src rust
+pub fn iter<T>() -> itercrate::Empty<T> { .. }
+#+end_src
+crate: their
+#+begin_src rust
+struct EmptyIterator { it: itercrate::Empty<()> }
+EmptyIterator { it: bestiter::iter() }
+
+***** semver trick
+- semantic versioning happens at the crate level, not the type level, so a breaking change anywhere is a breaking change everywhere
+- if some type T stays the same across a breaking change (from 1.0 to 2.0, say), then after releasing 2.0, you can release a new 1.0 minor version that depends on 2.0 and replaces T with a re-export of T from 2.0.
+  - this ensures that there is in fact only a single type T across both major versions
+  - this means that any crate that depends on 1.0 will be able to use a T from 2.0, and vice versa
+  - because this happens only for types you explicitly opt into with this trick, changes that were in fact breaking will continue to be
+***** auto-traits
+- These traits even propagate through otherwise type-erased types like impl Trait.
+- Implementations for these traits are (generally) automatically added by the compiler, but that also means that they are not automatically added if they no longer apply
+  1. public type A that contains a private type B
+  2. change B so that it is no longer =Send=,
+  3. A is now also not Send - a breaking change
+- include some simple tests in your test suite that check that all your types implement these traits the way you expect
+****** COMMENT example
+notice that this test does not run any code, but simply tests that the code compiles
+#+begin_src rust
+fn is_normal<T: Sized + Send + Sync + Unpin>() {}
+#[test]
+fn normal_types() {
+  is_normal::<MyType>();
+}
+#+end_src
+
+* error handling
+** error representation via enumeration
+#+begin_src rust
+pub enum CopyError {
+  In(std::io::Error),
+  Out(std::io::Error),
+}
+#+end_src
+- each variant includes the error that was encountered to provide the caller with as much information about went wrong as possible
+- error type should be 'static
+  - it allows the caller to more easily propagate the error up the call stack without running into lifetime issues
+  - it enables the error type to be used more easily with type-erased error types
+- error type should implement
+  - =std::error::Error trait=, which provides callers with common methods for introspecting error types
+    - the main method of interest is Error::source, which provides a mechanism to find the underlying cause of an error (most commonly used to print a backtrace that displays a trace all the way back to the error’s root cause)
+  - =Display= and =Debug= traits, so that callers can meaningfully print error (required if Error trait is implemented)
+    - =Display= implementation should give a one-line description of what went wrong that can easily be folded into other error messages (the display format should be lowercase and without trailing punctuation so that it fits nicely into other, larger error reports)
+    - =Debug= implementation should provide a more descriptive error including auxiliary information that may be useful in tracking down the cause of the error (include stuff like port numbers, request identifiers, filepaths)
+  - =Send= and =Sync= traits, so that users are able to share the error across thread boundaries
+    - it’s almost impossible to use a crate in a multithreaded context, if error type is not thread-safe
+    - not all error types can reasonably be Send and Sync, such as if they’re tied to particular thread-local resources (it’s something to be aware of before you go placing Rc<String> and RefCell<bool> types in your errors)
+
+** error representation via opaque errors
+- only one error type to use everywhere
+- type-erased errors often compose nicely, and allow you to express an open-ended set of errors
+- useful when the application can’t meaningfully recover from error, even if it knows the exact cause
+- this error type should implement Send, Debug, Display, and Error (including the source method where appropriate)
+- you might internally represent more fine-grained error states, but there is no need to expose those to the users of the library
+- deciding how opaque to make your error types is mostly a matter of whether there is anything interesting about the error beyond its description
+- the community consensus is that errors should be rare and therefore should not add much cost to the “happy path.”
+  - for that reason, errors are often placed behind a pointer type, such as a Box or Arc, this way, they’re unlikely to add much to the size of the overall Result type they’re contained within.
+- benefit of using type-erased errors:
+  - it allows to easily combine errors from different sources without having to introduce additional error types
+  - if you write a function whose return type is Box<dyn Error + ...>, then you can use ? across different error types inside that function, on all sorts of different errors, and they will all be turned into that one common error type
+- the 'static bound on Box<dyn Error + Send + Sync + 'static> is worth spending a bit more time on in the context of erasure
+  - letting the caller propagate the error without worrying about the lifetime bounds of the method that failed
+  - access to downcasting - downcasting allows a user to turn a dyn Error into a concrete underlying error type when that dyn Error was originally of that type
+    - downcast_ref works only if the argument is 'static
+    - if the user gets a dyn Error, they can use Error::downcast_ref to try to downcast the error into a std::io::Error
+    - the downcast_ref method returns an Option, which tells the user whether or not the downcast succeeded
+    - downcast_ref calls self.type_id, which forwards through the vtable for dynamically sized types to the implementation for the underlying type and compares that to the type identifier of the provided downcast type
+      - if they match, then the type behind the dyn Error or dyn Any really is T, and it is safe to cast from a reference to one to a reference to the other
+- Box<dyn Error + ...> does not itself implement Error, therefore, consider adding BoxError type for type erasure in libraries that does implement Error
+** special error cases
+- some functions are fallible but cannot return any meaningful error if they fail
+  - =None= conveys only that the function has nothing to return; it is usually not considered an exceptional case or something that should be handled
+  - =Err(())= indicates that an operation failed and should be retried, reported, or otherwise handled exceptionally
+    - =()= does not implement the Error trait, this means that it cannot be type-erased into Box<dyn Error> and can be a bit of a pain to use with ?
+    - it is often better to define your own unit struct type, implement Error for it, and use that as the error instead of ()
+  - see this in the #[must_use] annotation
+
+- never type =!=
+  - represents a value that can never be generated
+  - its not possible to construct an instance of this type yourself
+  - the only way to make one is by entering an infinite loop or panicking, or through a handful of other special operations that the compiler knows never return
+  - with Result, when you have an Ok or Err that you know will never be used, you can set it to the ! type
+    - if you write a function that returns Result<T, !>, you will be unable to ever return Err, since the only way to do so is to enter code that will never retur
+    - because the compiler knows that any variant with a ! will never be produced, it can also optimize your code with that in mind, such as by not generating the panic code for an unwrap on Result<T, !>
+    - when you pattern match, the compiler knows that any variant that contains a ! does not even need to be listed
+  - usecases:
+    - functions which only ever return errors; unless an error occurs, they run forever (e.g. continuously running server loop)
+    - functions which never error but need to return a Result nonetheless (e.g. to match a trait signature)
+
+
+- =type Result<T> = Result<T, Box<dyn Any + Send + 'static>>;=
+  - definition of std::thread::Result
+    - error variant of std::thread::Result is produced only in response to a panic; specifically, if you try to join a thread that has panicked. In that case, it’s not clear that there’s much the joining thread can do other than either ignore the error or panic itself using unwrap
+
+  - the error type is type-erased, but it’s not erased into a dyn Error, instead, it is a dyn Any, which guarantees only that the error is some type, and nothing more
+  - in essence, the error type is “a panic” and the value is “whatever argument was passed to panic!,” which can truly be any type (even though it’s usually a formatted string)
+
+** propagating errors
+*** =?= operator
+- ? operator at the time of writing uses From, not Into
+- syntax sugar for a =Try= trait
+  - At its heart, Try defines a wrapper type whose state is either one where further computation is useful (the happy path), or one where it is not (monad)
+  - in the case of Result<T, E>
+    - if you have an Ok(t), you can continue on the happy path by unwrapping the t
+    - if you have an Err(e), you want to stop executing and produce the error value immediately, since further computation is not possible as you don’t have the t
+- acts as a shorthand for unwrap or return early, for working easily with errors
+- ? performs type conversion through the From trait
+  - in a function that returns Result<T, E>, you can use ? on any Result<T, X> where E: From<X>
+    - you can just use ? everywhere and not worry about the particular error type
+    - this is the feature that makes error erasure through Box<dyn Error> so appealing;
+
+**** COMMENT example
+#+begin_src rust
+fn do_the_thing() -> Result<(), Error> {
+  let thing = Thing::setup()?;
+  // .. code that uses thing and ? ..
+  thing.cleanup();
+  Ok(())
+}
+#+end_src
+This won’t quite work as expected. Any ? between setup and cleanup will cause an early return from the entire function, which would skip the cleanup code! This is the problem try blocks are intended to solve. A try block acts pretty much like a single-iteration loop, where ? uses break instead of return, and the final expression of the block has an implicit break
+#+begin_src rust
+fn do_the_thing() -> Result<(), Error> {
+  let thing = Thing::setup()?;
+  let r = try {
+    // .. code that uses thing and ? ..
+  };
+  thing.cleanup();
+  r
+}
+#+end_src
+
+* project structure
+- reasons:
+  - improve compilation time
+  - conditional dependencies
+  - better strategy for continuous integration
+|-----------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------|
+| crate                                                                                   | package                                                                                                   |
+|-----------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------|
+| module hierarchy starting at a root .rs file — usually something like lib.rs or main.rs | collection of crates and metadata, so essentially all that’s described by a Cargo.toml file.              |
+| (one where you can use crate-level attributes like =#![feature])                        | may include a library crate, multiple binary crates, integration test crates,  multiple workspace members |
+|-----------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------|
+| Crates play many roles in Rust—they are the vertices in the dependency graph,           |                                                                                                           |
+| the boundaries for trait coherence, and the scopes for compilation features             |                                                                                                           |
+|-----------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------|
+| each crate is managed as a single compilation  unit                                     |                                                                                                           |
+- the compiler treats a crate more or less as one big source file compiled as one chunk that is ultimately turned into a single binary output (either a binary or a library), if you change a unit test, a comment, or a type in one part of your application, the compiler must re-evaluate the entire crate to determine what, if anything, changed.
+
+** features
+- reasons to use: (note that all of these uses are additive)
+  - to enable optional dependencies
+  - to conditionally include additional components of a crate
+  - to augment the behavior of the code
+- primary tool for customizing projects
+- are defined in =Cargo.toml=
+- a feature is just a build flag that crates can pass to their dependencies in order to add optional functionality
+- features carry no semantic meaning in and of themselves
+- features can add to the functionality of the crate, but they shouldn’t generally do things like remove modules or replace types or function signatures
+  - enabling a feature shouldn’t make crate stop compiling
+- it’s generally hard to add mutually exclusive features to Rust crates; chances are that some two dependents will depend on the crate with different features, and if those features are mutually exclusive, the downstream crate will fail to build.
+- Cargo allows to define a set of default features for a crate
+  - it allows to opt out of the default features of a dependency
+- when using features, make sure the code uses a dependency only if it's available
+- if feature enables a particular component, make sure that if the feature isn’t enabled, the component is not included
+- larger components (usually modules) should be guarded by features if large crate expects users will need only a subset of the functionality
+*** COMMENT examples
+#+begin_src toml
+[package]
+name = "foo"
+
+[features]
+derive = ["syn"]
+
+[dependencies]
+syn = { version = "1", optional = true }
+#+end_src
+
+#+begin_src toml
+[package]
+name = "bar"
+...
+ [dependencies]
+foo = { version = "1", features = ["derive"] }
+#+end_src
+
+Here, if a crate depends on foo and does not explicitly opt out of the default features, it will also compile foo’s syn dependency. In turn, syn will be built with only the three listed features, and no others.
+#+begin_src toml
+[package]
+name = "foo"
+...
+[features]
+derive = ["syn"]
+default = ["derive"]
+
+[dependencies.syn]
+version = "1"
+default-features = false
+features = ["derive", "parsing", "printing"]
+optional = true
+#+end_src
+
+
+
+*** COMMENT optional dependencies as features
+- when you define a feature, the list that follows the equal sign is itself a list of features
+- Cargo makes every optional dependency a feature with the same name as the dependency
+- you’ll see this if you try to add a feature with the same name as an optional dependency; Cargo won’t allow it
+- support for a different namespace for features and dependencies is in the works in Cargo, but has not been stabilized at the time of writing
+- in the meantime, if you want to have a feature named after a dependency, you can rename the dependency using package = "" to avoid the name collision
+- the list of features that a feature enables can also include features of dependencies
+- for example, you can write derive = ["syn/derive"] to have your derive feature enable the derive feature of the syn dependency
+- you achieve this using conditional compilation, which lets you use annotations to give conditions under which a particular piece of code should or should not be compiled
+- conditional compilation is primarily expressed using the #[cfg] attribute
+- there is also the closely related cfg! macro, which lets you change runtime behavior based on similar conditions
+- you can do all sorts of neat things with conditional compilation, as we’ll see later in this chapter, but the most basic form is #[cfg(feature = "some-feature")], which makes it so that the next “thing” in the source code is compiled only if the some-feature feature is enabled
+- similarly, if cfg!(feature = "some-feature") is equivalent to if true only if the derive feature is enabled (and if false otherwise)
+- the #[cfg] attribute is used more often than the cfg! macro, because the macro modifies runtime behavior based on the feature, which can make it difficult to ensure that features are additive
+- you can place #[cfg] in front of certain Rust items—such as functions and type definitions, impl blocks, modules, and use statements—as well as on certain other constructs like struct fields, function arguments, and statements
+- the #[cfg] attribute can’t go just anywhere, though; where it can appear is carefully restricted by the Rust language team so that conditional compilation can’t cause situations that are too strange and hard to debug
+- remember that modifying certain public parts of your API may inadvertently make a feature nonadditive, which in turn may make it impossible for some users to compile your crate
+- you can often use the rules for backward compatible changes as a rule of thumb here—for example, if you make an enum variant or a public struct field conditional upon a feature, then that type must also be annotated with # [non_exhaustive]
+- otherwise, a dependent crate that does not have the feature enabled may no longer compile if the feature is added due to some second crate in the dependency tree
+
+
+
+
+** workspaces
+- allow to split the project into multiple crates that internally depend on one another
+- workspace is a collection of crates (often called subcrates) that are tied together by a top-level Cargo.toml file
+- large crates can be painful to work with
+*** members
+# /
+#+begin_src toml
+[workspace]
+members = [
+  "foo",
+  "bar/one",
+  "bar/two",
+]
+#+end_src
+#+begin_src toml
+ # bar/two/Cargo.toml
+[dependencies]
+one = { path = "../one" }
+#+end_src
+# bar/one/Cargo.toml
+#+begin_src toml
+[dependencies]
+foo = { path = "../../foo" }
+#+end_src
+- the members array is a list of directories that each contain a crate in the workspace
+- those crates all have their own Cargo.toml files in their own subdirectories, but they share a single Cargo.lock file and a single output directory
+- the crate names don’t need to match the entry in members
+- it is common, but not required, that crates in a workspace share a name prefix, usually chosen as the name of the “main” crate
+  - in the tokio crate, the members are called tokio, tokio-test, tokio-macros, ...
+- interact with all of the workspace’s members by invoking cargo in the root of the workspace (cargo run/check all)
+- not as convenient as having everything in one crate
+- compiler will recompile only members which code was updated (not whole workspace)
+- if you ever need to disambiguate
+  - use flag -p (for package) if two workspace crates both have a binary by the same name
+  - use flag --workspace to perform the command for the entire workspace instead, if you are in the subdirectory for a particular workspace crate
+*** intra-workspace dependencies
+to specify dependencies between subcrates in a workspace:
+  - use path dependencies (only when they depend on unpublished changes)
+  - use version specifiers (if individual subcrates are intended for public consumption)
+** project configuration
+*** crate metadata
+- https://doc.rust-lang.org/cargo/reference/manifest.html
+- description
+- homepage
+- path to a README for the crate (readme)
+- the default binary to run with cargo run (default-run)
+- keywords and categories to help crates.io categorize your crate
+- include and exclude fields - dictate which files should be included and published in your package (Cargo includes all files in a crate’s directory except any listed in your .gitignore file)
+- publish directive
+  - set to false if you have a crate that should never be published
+  - set to a list of allowed registries, will make the crate be published only to certain alternative registries (that is, not to crates.io)
+*** build configuration
+- Cargo.toml can also give you control over how Cargo builds your crate.
+- build parameter allows to write a completely custom build program for the crate
+**** [patch]
+- allows to specify a different source for a dependency that you can use temporarily, no matter where in your dependencies the patched dependency appears
+- invaluable when you need to compile your crate against a modified version of some transitive dependency to test a bug fix, a performance improvement, or a new minor release you’re about to publish
+- patches are not taken into account in the package that’s uploaded when you publish a crate
+***** COMMENT example
+#+begin_src toml
+[patch.crates-io]
+# use a local (presumably modified) source
+regex = { path = "/home/jon/regex" }
+# use a modification on a git branch
+serde = { git = "https://github.com/serde-rs/serde.git", branch = "faster" }
+# patch a git dependency
+[patch.'https://github.com/jonhoo/project.git']
+project = { path = "/home/jon/project" }
+#+end_src
+If you for some reason transitively depend on multiple major versions of the same crate, you can patch each one by giving them distinct identifiers
+#+begin_src toml
+[patch.crates-io]
+nom4 = { path = "/home/jon/nom4", package = "nom" }
+nom5 = { path = "/home/jon/nom5", package = "nom" }
+#+end_src
+You can use package this way in your regular dependencies as well to rename a dependency
+**** [profile]
+- change the way the crate is compiled
+- change code behavior in user-defined ways
+- they all have different defaults depending on whether you are compiling in debug mode or in release mode (other modes also exist)
+***** performance options
+- opt-level - runtime performance
+  - telling the compiler how aggressively to optimize your program
+  - 0 is “not at all,” 3 is “as much as you can”.
+  - the higher the setting, the more optimized your code will be, which may make it run faster
+  - extra optimization comes at the cost of higher compile times
+  - optimizations are generally enabled only for release builds
+  - can also set opt-level to "s" to optimize for binary size, which may be important on embedded platforms.
+***** codegen-units - compile-time performance options
+- tells the compiler how many independent compilation tasks (code generation units) it is allowed to split the compilation of a single crate into
+- the more pieces a large crate’s compilation is split into, the faster it will compile, since more threads can help compile the crate in parallel
+- to achieve this speedup, the threads need to work more or less independently, which means code optimization suffers - a trade-off between compile-time performance and runtime performance
+- by default, Rust uses an effectively unbounded number of codegen units in debug mode (basically, “compile as fast as you can”) and a smaller number (16 at the time of writing) in release mode.
+***** lto - link-time optimization options
+- enables the compiler (or the linker, if you want to get technical about it) to jointly optimize bits of your program, known as compilation units, that were originally compiled separately.
+  - the output from each compilation unit includes information about the code that went into that unit
+  - after all the units have been compiled, the linker makes another pass over all of the units and uses that additional information to optimize the combined compiled code
+  - this extra pass adds to the compile time but recovers most of the runtime performance that may have been lost due to splitting the compilation into smaller parts
+  - in particular, LTO can offer significant performance boosts to performance-sensitive programs that might benefit from cross-crate optimization
+- cross-crate LTO can add a lot to your compile time
+- rust performs LTO across all the codegen units within each crate by default in an attempt to make up for the lost optimizations caused by using many codegen units
+- since the LTO is performed only within each crate (rather than across crates), this extra pass isn’t too onerous, and the added compile time should be lower than the amount of time saved by using a lot of codegen units
+- Rust also offers a technique known as thin LTO, which allows the LTO pass to be mostly parallelized, at the cost of missing some optimizations a “full” LTO pass would have found
+- can be used to optimize across foreign function interface boundaries (see the linker-plugin-lto rustc flag for details)
+*****  debugging options
+- by default, these are all enabled in debug mode and disabled in release mode
+- =debug= flag tells the compiler to include debug symbols in the compiled binary
+  - increases the binary size
+  - allows to get function and variable names and such, rather than just instruction addresses, in backtraces and profiles
+- =debug-assertions= flag enables the debug_assert! macro and other related debug code that isn’t compiled otherwise (through cfg (debug_assertions))
+  - may make your program run slower
+  - makes it easier to catch questionable behavior at runtime
+- =overflow-checks= flag enables overflow checks on integer operations
+  - this slows down execution
+  - can help you catch tricky bugs early on
+***** panic handling options
+- [profile.*.panic]
+- this option dictates what happens when code in your program calls panic!, either directly or indirectly through something like unwrap
+- you can set panic to either unwind (the default on most platforms) or abort
+  - abort ensures the whole program simply exits immediately when a panic occurs - in this mode, no threads get to do any cleanup
+    - it ensures that the program is never running in a half-working state and that errors are made visible immediately
+    - all dependencies are also compiled with abort
+    - to print backtraces even with panic=abort, pass Cforce-unwind-tables to rustc, which makes rustc include the information necessary to walk back up the stack while still terminating the program on a panic
+  - unwinding is~ forcibly returning recursively from the current function all the way to the bottom of that thread’s stack
+    - the bookkeeping needed to support unwinding is not free, and it often requires special support by the compiler and the target platform
+    - many embedded platforms cannot unwind the stack efficiently at all
+    - if main called foo, foo called bar, and bar called baz, a panic in baz would forcibly return from baz, then bar, then foo, and finally from main, resulting in the program exiting
+    - a thread that unwinds will drop all values on the stack normally, which gives the values a chance to clean up resources, report errors, and so on
+    - this gives the running system a chance to exit gracefully even in the case of a panic
+    - when a thread panics and unwinds, other threads continue running unaffected
+      - only when (and if) the thread that ran main exits does the program terminate
+      - the panic is generally isolated to the thread in which the panic occurred
+        - this means unwinding is a double-edged sword; the program is limping along with some failed components, which may cause all sorts of strange behaviors
+          - a thread that panics halfway through updating the state in a Mutex
+          - any thread that subsequently acquires that Mutex must now be prepared to handle the fact that the state may be in a partially updated, (inconsistent state).
+          - for this reason, some synchronization primitives (like Mutex) will remember if a panic occurred when they were last accessed and communicate that to any thread that tries to access the primitive subsequently
+          - if a thread encounters such a state, it will normally also panic, which leads to a cascade that eventually terminates the entire program (better than continuing to run with corrupted state)
+***** Profile Overrides
+- options for just a particular dependency, or a particular profile
+- handy if some dependency would be prohibitively slow in debug mode (such as decompression or video encoding), and you need it optimized so that your test suite won’t take several days to complete
+- you can also specify global profile defaults using a [profile.dev] (or similar) section in the Cargo configuration file in ~/.cargo/config.
+- when you set optimization parameters for a specific dependency, keep in mind that the parameters apply only to the code compiled as part of that crate
+****** COMMENT example
+how to enable aggressive optimizations for the serde crate and moderate optimizations for all other crates in debug mode, using the [profile.<profile-name>.package.<crate-name>] syntax.
+#+begin_src toml
+[profile.dev.package.serde]
+opt-level = 3
+[profile.dev.package."*"]
+opt-level = 2
+#+end_src
+if serde in this example has a generic method or type that you use in your crate, the code of that method or type will be monomorphized and optimized in your crate, and your crate’s profile settings will apply, not those in the profile override for serde
+
+**** conditional compilation
+- particular segment of code is compiled only if certain conditions are true of the compilation environment
+- denote conditional compilation with the #[cfg (condition)] attribute, which says to compile the next item only if condition is true
+- there is also #[cfg_attr(condition, attribute)], which is compiled as # [attribute] if condition holds and is a no-op otherwise.
+- its also possible evaluate a cfg condition as a Boolean expression using the cfg!(condition) macro
+- Every cfg construct takes a single condition made up of options, like feature = "some-feature", and the combinators all, any, and not, which do what you would probably expect.
+- option are either simple names, or key/value pairs
+- while cfg conditions are usually used to customize code, some can also be used to customize dependencies
+- [dependencies] section is evaluated very early in the build process, when only certain cfg options are available
+  - feature and context options are not yet available at this point
+  - its incorret to use this syntax to pull in dependencies based on features and contexts
+  - its ok to use any =cfg= that depends only on the target specification or architecture
+  - its ok to use any options explicitly set by tools that call into rustc (like cfg(miri))
+***** COMMENT example of customizing dependencies
+#+begin_src toml
+[target.'cfg(windows)'.dependencies]
+winrt = "0.7"
+[target.'cfg(unix)'.dependencies]
+nix = "0.17"
+#+end_src
+***** feature options
+- Feature options take the form =feature = "name-of-feature"=
+- are considered true if the named feature is enabled
+- you can check for multiple features in a single condition using the combinators,
+  - =any(feature = "f1", feature = "f2")= is true if either feature f1 or feature f2 is enabled
+***** operating system options
+- these use key/value syntax with the key target_os and values like windows, macos, and linux
+- can also specify a family of operating systems using target_family, which takes the value windows or unix
+  - shorthands: =cfg(windows)= / =cfg(unix)=
+- =#[cfg(any(windows, target_os = "macos"))]=
+***** context options
+- tailor code to a particular compilation context
+- common usecase: test option, which is true only when the crate is being compiled under the test profile
+- keep in mind that test is set only for the crate that is being tested, not for any of its dependencies. This also means that test is not set in  your crate when running integration tests; it’s the integration tests that are  compiled under the test profile, whereas your actual crate is compiled normally  (that is, without test set). The same applies to the doc and doctest options,  which are set only when building documentation or compiling doctests,  respectively. There’s also the debug_assertions option, which is set in debug  mode by default.
+***** tool options
+- tools like clippy and Miri, set custom options that let user customize compilation when run under these tools
+  - these options are named after the tool in question
+  - for a particular compute-intensive test not to run under Miri, give it the attribute =#[cfg_attr(miri, ignore)]=
+***** architecture options
+- compile based on the CPU instruction set the compiler is targeting
+- specify a particular architecture with =target_arch=, which takes values like x86, mips, and aarch64, or you can
+- specify a particular platform feature with =target_feature=, which takes values like avx or sse2.
+- for low-level code, check =target_endian= and =target_pointer_width= options
+***** compiler options
+- adapt your code to the platform ABI it is compiled against and are available through target_env with values like gnu, msvc, and musl
+- this value is often empty, especially on GNU platforms
+- useful when interfacing directly with the environment ABI
+  - e.g. linking against an ABI-specific symbol name using #[link]
+***** custom options
+- make sure that --cfg=myoption is passed to rustc when rustc compiles your crate
+- the easiest way to do this is to add your --cfg to the RUSTFLAGS environment variable
+- options set this way are also available in Cargo.toml dependencies.
+- add --cfg=ci to RUSTFLAGS in your CI setup, and then use cfg(ci) and cfg(not(ci)) in your code
+- this can come in handy in [[id:32639ce4-25ea-41ef-9018-caa0bd47623e][CI]], where you may want to customize your test suite depending on whether it’s being run on CI or on a dev machine
+
+*** versioning
+
+All Rust crates are versioned and are expected to follow Cargo’s implementation of semantic versioning. Semantic versioning dictates the rules for what kinds of changes require what kinds of version increases and for which versions are considered compatible, and in what ways. The RFC 1105 standard itself is well worth reading (it’s not horribly technical), but to summarize, it differentiates between three kinds of changes: breaking changes, which require a major version change; additions, which require a minor version change; and bug fixes, which require only a patch version change. RFC 1105 does a decent job of outlining what constitutes a breaking change in Rust, and we’ve touched on some aspects of it elsewhere in this book.  I won’t go into detail here about the exact semantics of the different types of changes. Instead, I want to highlight some less straightforward ways version numbers come up in the Rust ecosystem, which you need to keep in mind when deciding how to version your own crates.
+
+**** minimum supported rust version
+- some enterprise Rust users are limited to using older versions of Rust, those users will not be able to compile the latest versions of our crates and will be left behind (cuz of crates utilizing freshly stabilized api)
+- options: (none are without drawbacks)
+  1. establish an MSRV policy promising that new versions of a crate will always compile with any stable release from the last X months, the exact number varies, but 6 or 12 months is common (four, eight stable releases)
+     - any new code introduced to the project must compile with the MSRV compiler (usually checked by CI) or be held until the MSRV policy allows it to be merged as is
+  2. make sure to increase the minor version number of your crate any time that the MSRV changes
+     - if you release version 2.7.0 of your crate and that increases your MSRV from Rust 1.44 to Rust 1.45, then a project that is stuck on 1.44 and that depends on your crate can use the dependency version specifier version = "2, <2.7" to keep the project working until it can move on to Rust 1.45
+     - it’s important that you increment the minor version, not just the patch version, so that you can still issue critical security fixes for the previous MSRV release by doing another patch release if necessary
+**** Minimal Dependency Versions
+- right strategy is to list the earliest version that has all the things your crate depends on and to make sure that this remains the case even as you add new code to your crate
+  - Cargo's Zminimal-versions =-Z= flag (unstable) makes the crate use the minimum acceptable version for all dependencies
+- two common (and probably wrong) default choice for picking version for dependency
+  - the latest version, an example:
+    1. add a dependency on hugs = "1.7.3" (the latest published version) to crate X
+    2. a developer somewhere depends on crate X, but they also depend on some other crate, foo, that itself depends on hugs
+    3. the author of foo is really careful about their MSRV policy, so they depend on hugs = "1, <1.6"
+    4. trouble
+  - the current major version, an example:
+    1. Is the solution to use hugs = "1" instead, then? No, that’s not quite right either
+    2. It could be that your code truly does depend on something that was added only in hugs 1.6, so while 1.6.2 would be fine, 1.5.6 would not be
+    3. You wouldn’t notice this if you were only ever compiling your crate in situations where a newer version ends up getting used, but if some crate in the dependency graph specifies hugs = "1, <1.5", your crate would not compile!
+
+- In practice, there are a number of reasons why a crate may explicitly not want a newer version of a dependency
+  - The most common ones are to enforce MSRV, to meet enterprise auditing requirements (the newer version will contain code that hasn’t been audited), and to ensure reproducible builds where only the exact listed version is used
+
+*** changelogs
+- simple and good format: https://keepachangelog.com/
+- keep a changelog for all but the most trivial crates
+*** COMMENT unreleased versions
+- Rust considers version numbers even when the source of a dependency is a directory or a Git repository
+- This means that semantic versioning is important even when you have not yet published a release to crates.io; it matters what version is listed in your Cargo.toml between releases
+- The semantic versioning standard does not dictate how to handle this case, but I’ll provide a workflow that works decently well without being too onerous
+- After you’ve published a release, immediately update the version number in your Cargo.toml to the next patch version with a suffix like -alpha.1
+- If you just released 2.0.3, make the new version 2.0.4-alpha.1
+- If you just released an alpha, increment the alpha number instead
+- As you make changes to the code between releases, keep an eye out for additive or breaking changes
+- If one happens, and the corresponding version number has not changed since the last release, increment it
+- For example, if the last released version is 2.0.3, the current version is 2.0.4-alpha.2, and you make an additive change, make the version with the change 2.1.0-alpha.1
+- If you made a breaking change, it becomes 3.0.0-alpha.1 instead
+- If the corresponding version increase has already been made, just increment the alpha number
+- When you make a release, remove the suffix (unless you want to do a prerelease), then publish, and start from the top
+- This process is effective because it makes two common workflows work much better
+- First, imagine that a developer depends on major version 2 of your crate, but they need a feature that’s currently available only in Git
+- Then you commit a breaking change
+- If you don’t increase the major version at the same time, their code will suddenly fail in unexpected ways,  either by failing to compile or as a result of weird runtime issues
+- If you follow the procedure laid out here, they’ll instead be notified by Cargo that a breaking change has occurred, and they’ll have to either resolve that or pin a specific commit
+- Next, imagine that a developer needs a feature they just contributed to your crate, but which isn’t part of any released version of your crate yet
+- They’ve used your crate behind a Git dependency for a while, so other developers on their project already have older checkouts of your crate’s repository
+- If you do not increment the major version number in Git, this developer has no way to communicate that their project now relies on the feature that was just merged
+- If they push their change, their fellow developers will find that the project no longer compiles, since Cargo will reuse the old checkout
+- If, on the other hand, the developer can increment the minor version number for the Git dependency, then Cargo will realize that the old checkout is outdated
+- This workflow is by no means perfect
+- It doesn’t provide a good way to communicate multiple minor or major changes between releases, and you still need to do a bit of work to keep track of the versions
+- However, it does address two of the most common issues Rust developers run into when they work against Git dependencies, and even if you make multiple such changes between releases, this workflow will still catch many of the issues
+- If you’re not too worried about small or consecutive version numbers in releases, you can improve this suggested workflow by simply always incrementing the appropriate part of the version number
+- Be aware, though, that depending on how frequently you make such changes, this may make your version numbers quite large!
+* patterns
+** newtype
+- another useful representation is repr(transparent), which can be used only on types with a single field and which guarantees that the layout of the outer type is exactly the same as that of the inner type. This comes in handy in combination with the “newtype” pattern, where you may want to operate on the in-memory representations of some struct A and struct NewA(A) as if they were the same. Without repr(transparent), the Rust compiler does not guarantee that they will have the same layout.
+** typestate
+:PROPERTIES:
+:ID:       72caa898-b8a5-4045-8eea-c1a9656514a1
+:END:
+* testing
+- unit tests: =#[test]=
+- integration tests: tests in =tests/= directory
+- https://github.com/dtolnay/trybuild
+** rust testing mechanisms
+1. cargo test --lib, passes the --test flag to rustc
+2. --test flag tells rustc to produce a test binary that runs all the unit tests (rather than just compiling the crate’s library or binary)
+3. --test has two primary effects
+   a. it enables cfg (test) so that you can conditionally include testing code
+   b. makes the compiler generate a test harness: a carefully generated main function that invokes each #[test] function in your program when it’s run
+
+** the test harness
+- test harness iterates over the tests in the crate, runs them, captures their results, and prints the results
+  - also includes:
+    - logic to parse command line arguments (for things like --test-threads=1)
+    - capture test output
+    - run the listed tests in parallel
+    - and collect test results
+- the harness transforms every function annotated by #[test] into a test descripton (the procedural macro)
+  - it then exposes the path of each of the descriptors to the generated main function
+  - descriptor includes information like the test’s name, any additional options it has set (like #[should_panic]), and so on
+- integration tests follow the same process as unit tests, with the one exception that they are each compiled as their own separate crate,
+  - they can access only the main crate’s public interface
+  - are run against the main crate compiled without #[cfg (test)]
+  - test harness is generated for each file in tests/
+  - test harnesses are not generated for files in subdirectories under tests/ to allow to have shared submodules for tests
+  - if you explicitly want a test harness for a file in a subdirectory, you can opt in to that by calling the file main.rs
+
+- using test harness is not required
+  - =#[test]= attribute doesn't work without the test harness
+    - instead, write =main= function to run the testing code, and compile as binary
+    - run by cargo test
+    - that binary is responsible for handling all the things that the default harness normally does, such as command line flags
+    - the harness property is set separately for each integration test
+      - allows to have one test file that uses the standard harness and one that does not
+  - integration tests without a harness are primarily useful
+    - for benchmarks
+    - also come in handy when you want to run tests that don’t fit the standard “one function, one test” model
+    - harnessless tests used with fuzzers, model checkers, and tests that require a custom global setup (like under WebAssembly or when working with custom targets)
+  - to opt out from default: implement main method that represents the test runner by setting harness = false for a given integration test in Cargo.toml
+    #+begin_src toml
+    [[test]]
+    name = "custom"
+    path = "tests/custom.rs"
+    harness = false
+    #+end_src
+
+*** arguments to the default test harness
+- command line arguments to configure how the tests are run
+  - these aren’t passed to cargo test directly but rather to the test binary that Cargo compiles and runs for you when you run cargo test
+  - implemented by the default test harness (implement your own for =harness = false=)
+- to access that set of flags, pass -- to cargo test, followed by the arguments to the test binary
+- run =cargo test -- --help= to see the help text for the test binary
+- run =cargo test -- --nocapture= to disable the output capturing that normally happens when Rust runs tests
+  - useful in order to observe a test’s output in real time rather than all at once after the test has failed
+- run =cargo test -- --test-threads= to limit how many tests run concurrently
+  - allows to run the tests sequentially which helpful when a test hangs or segfaults
+- run =cargo test -- --skip= option for skipping tests that match a certain pattern
+- run =cargo test -- --ignored= to run tests that would normally be ignored (such as those that require an external program to be running)
+- run =cargo test -- --list= to list all the available tests
+
+** #[cfg(test)]
+- compiler conditional compilation flag for test configuration q
+  - lets, which you can then use with conditional compilation to have code that is compiled out unless it is specifically being tested. On the surface, this may seem odd: don’t you want to test exactly the same code that’s going into production? You do, but having code exclusively available when testing allows you to write better, more thorough tests, in a few ways.
+
+*** COMMENT mocking
+
+- tight control over the code you’re testing as well as any other types that your code may interact with
+- a key feature of any extensive unit test suite
+- examples:
+  - testing a network client, you probably do not want to run your unit tests over a real network but instead want to directly control what bytes are emitted by the “network” and when.
+  - if you’re testing a data structure, you want your test to use types that allow you to control what each method returns on each invocation. You may also want to gather metrics such as how often a given method was called or whether a given byte sequence was emitted.
+- mocking library will have facilities for
+  - generating types (including functions) with particular properties or signatures
+  - well as mechanisms to control and introspect those generated items during a test execution
+
+- generally happens through generics—as long as your program, data structure, framework, or tool is generic over anything you might want to mock (or takes a trait object), you can use a mocking library to generate conforming types that will instantiate those generic parameters
+- you then write your unit tests by instantiating your generic constructs with the generated mock types, and you’re off to the races!  In situations where generics are inconvenient or inappropriate, such as if you want to avoid making a particular aspect of your type generic to users, you can instead encapsulate the state and behavior you want to mock in a dedicated struct. You would then generate a mocked version of that struct and its methods and use conditional compilation to use either the real or mocked implementation depending on cfg(test) or a test-only feature like cfg(feature = "test_mock_foo").  At the moment, there isn’t a single mocking library, or even a single mocking approach, that has emerged as the One True Answer in the Rust community. The most extensive and thorough mocking library I know of is the mockall crate, but that is still under active development, and there are many other contenders.
+
+*** test-only APIs
+- check not only that the public API behaves correctly but also that the internal state is correct
+- having test-only code allows to expose additional methods, fields, and types to unit tests so the tests can
+**** COMMENT example
+- this code will not compile as written, because while the test code can access the private table field of HashMap, it cannot access the also private buckets field of RawTable, as RawTable lives in a different module
+- we could fix this by making the buckets field visibility pub(crate), but we really don’t want HashMap to be able to touch buckets in general, as it could accidentally corrupt the internal state of the RawTable
+- even making buckets available as read-only could be problematic, as new code in HashMap may then start depending on the internal state of RawTable, making future modifications more difficult
+#+begin_src rust
+#[test]
+fn insert_just_one() {
+  let mut m = HashMap::new();
+  m.insert(42, ());
+  let full = m.table.buckets.iter().filter(Bucket::is_full).count();
+  assert_eq!(full, 1);
+}
+#+end_src
+
+- the solution is to use #[cfg(test)]
+- we can add a method to RawTable that allows access to buckets only while testing
+- and thereby avoid adding footguns for the rest of the code. The code from Listing 6-2 can then be updated to call buckets() instead of accessing the private buckets field.
+#+begin_src rust
+impl RawTable {
+  #[cfg(test)]
+  pub(crate) fn buckets(&self) -> &[Bucket] {
+    &self.buckets
+  }
+}
+#+end_src
+
+*** COMMENT bookkeeping for test assertions
+- another benefit of having code that exists only during testing is that you can augment the program to perform additional runtime bookkeeping that can then be inspected by tests
+- imagine you’re writing your own version of the BufWriter type from the standard library. When testing it, you want to make sure that BufWriter does not issue system calls  unnecessarily. The most obvious way to do so is to have the BufWriter keep track of how many times it has invoked write on the underlying Write. However, in production this information isn’t important, and keeping track of it introduces (marginal) performance and memory overhead. With #[cfg(test)], you can have the bookkeeping happen only when testing, as shown in Listing 6-4.
+- Keep in mind that test is set only for the crate that is being compiled as a test. For unit tests, this is the crate being tested, as you would expect. For integration tests, however, it is the integration test binary being compiled as a test—the crate you are testing is just compiled as a library and so will not have test set.
+**** COMMENT example
+#+begin_src rust
+struct BufWriter<T> {
+  #[cfg(test)]
+  write_through: usize,
+  // other fields...
+}
+
+impl<T: Write> Write for BufWriter<T> {
+  fn write(&mut self, buf: &[u8]) -> Result<usize> {
+    // ...
+    if self.full() {
+      #[cfg(test)]
+      self.write_through += 1;
+      let n = self.inner.write(&self.buffer[..])?;
+    // ...
+  }
+}
+#+end_src
+** doctests
+- Rust code snippets in documentation comments are automatically run as test cases
+- because doctests appear in the public documentation of your crate, and users are likely to mimic what they contain, they are run as integration tests
+  - this means that the doctests don’t have access to private fields and methods, and test is not set on the main crate’s code
+  - each doctest is compiled as its own dedicated crate and is run in isolation, just as if the user had copy-pasted the doctest into their own program
+- behind the scenes, the compiler performs some preprocessing on doctests to make them more concise
+  - it automatically adds an fn main around your code
+  - this allows doctests to focus only on the important bits that the user is likely to care about, like the parts that actually use types and methods from your library, without including unnecessary boilerplate
+  - you can opt out of this auto-wrapping by defining your own fn main in the doctest
+    - usecases:
+      - writing an  asynchronous main function using something like #[tokio::main] async fn main
+      - adding additional modules to the doctest
+- no additional effort is required to use the ? operator in doctest
+  - rustdoc includes some heuristics to set the return type to Result<(), impl Debug> if your code looks like it makes use of ? (for example, if it ends with Ok(()))
+  - if type inference gives you a hard time about the error type for the function, you can disambiguate it by changing the last line of the doctest to be explicitly typed, like this: Ok::<(), T>(())
+- prefix a line of a doctest with a # - that line is included when the doctest is compiled and run, but it is not included in the code snippet generated in the documentation
+  - useful:
+    - easily hide details that are not important to the current example, such as implementing traits for dummy types or generating values
+    - it is also useful if you wish to present a sequence of examples without showing the same leading code each time
+- doctests also support attributes that modify how the doctest is run
+  - these attributes go immediately after the triple-backtick used to denote a code block, and multiple attributes can be separated by commas
+  - =should_panic= - indicate that the code in a particular doctest should panic when run, or ignore to check the code segment only if cargo test is run with the --ignored flag
+  - =no_run= - indicate that a given doctest should compile but should not be run
+  - compile_fail - tells rustdoc that the code in the documentation example should not compile
+    - indicates to the user that a particular use is not possible and serves as a useful test to remind you to update the documentation should the relevant aspect of your library change
+    - use this attribute to check that certain static properties hold for your types
+    - check that a given type does not implement Send, which may be necessary to uphold safety guarantees in unsafe code
+    - gives no indication of *why* the code does not compile
+      - add the attribute only after being sure that the test indeed fails to compile with the expected error
+*** COMMENT example
+#+begin_src rust
+/// Completely frobnifies a number through I/O.
+///
+/// In this first example we hide the value generation.
+/// ```
+/// # let unfrobnified_number = 0;
+/// # let already_frobnified = 1;
+/// assert!(frobnify(unfrobnified_number).is_ok());
+/// assert!(frobnify(already_frobnified).is_err());
+/// ```
+///
+/// Here's an example that uses ? on multiple types
+/// and thus needs to declare the concrete error type,
+/// but we don't want to distract the user with that.
+/// We also hide the use that brings the function into scope.
+/// ```
+/// # use mylib::frobnify;
+/// frobnify("0".parse()?)?;
+/// # Ok::<(), anyhow::Error>(())
+/// ```
+///
+/// You could even replace an entire block of code completely,
+/// though use this _very_ sparingly:
+/// ```
+/// # /*
+/// let i = ...;
+/// # */
+/// # let i = 42;
+/// frobnify(i)?;
+/// ```
+fn frobnify(i: usize) -> std::io::Result<()> {
+#+end_src
+with custom attribute
+#+begin_src rust
+```compile_fail
+# struct MyNonSendType(std::rc::Rc<()>);
+fn is_send<T: Send>() {}
+is_send::<MyNonSendType>();
+```
+#+end_src
+
+** linting
+- lints catch code patterns that compile but are almost certainly bugs
+  - examples:
+    - =a = b; b = a= - fails to swap a and b
+    - =std::mem::forget(t)= - where t is a reference
+    - =for x in y.next()= - will iterate only over the first element in y
+- Rust linter =clippy= categorizes a number of its lints as correctness lints
+  - the type_complexity lint - on by default - issues a warning if you use a particularly involved type in your program, like Rc<Vec<Vec<Box< (u32, u32, u32, u32)>>>>. While that warning encourages you to write code that is easier to read, you may find it too pedantic to be broadly useful
+  - =#[allow(clippy::name_of_lint)]= to opt out of the lint just for a piece of code
+- the compiler also comes with its own set of lints in the form of warnings
+  - these are usually more directed toward writing idiomatic code than checking for correctness
+  - correctness lints in the compiler are simply treated as errors (take a look at rustc -W help for a list)
+  - not all compiler warnings are enabled by default
+    - #![warn(rust_2018_idioms)] (when enabled, the compiler will tell  if you’re failing to take advantage of changes brought by the Rust 2018 edition)
+    - =missing_docs= and =missing_debug_implementations= (when enabled warn if you’ve forgotten to document any public items in your crate or add Debug implementations for any public types)
+** test generation
+- automatically generate input to use to check your application’s correctness
+- https://github.com/altsysrq/proptest
+- https://github.com/BurntSushi/quickcheck
+- https://rust-fuzz.github.io/book/cargo-fuzz/tutorial.html
+- https://github.com/rust-fuzz/arbitrary/
+- https://altsysrq.github.io/proptest-book/intro.html
+*** fuzzing
+- cargo-fuzz
+- generate random inputs to your program and see if it crashes
+- great at finding strange corner cases that your code doesn’t handle correctly
+- example: for URL parsing library, fuzz-test your program by systematically generating random strings and throwing them at the parsing function until it panics
+- modern fuzzers use code coverage metrics to explore different paths in the code (lets them reach higher degrees of coverage faster than if the inputs were truly chosen at random)
+- they require little setup
+- keeps running until manually terminated it
+  - most fuzzing tools come with a built-in mechanism to stop after a certain number of test cases have been explored
+- use a crate like =arbitrary= to turn the byte string that the fuzzer generates into a more complex Rust type
+  - useful when if the input isn’t a trivially fuzzable type (something like a hash table)
+  - the crate defines an Arbitrary trait with a single method, arbitrary, that constructs the implementing type from a source of random bytes
+  - primitive types like u32 or bool read the necessary number of bytes from that input to construct a valid instance of themselves, whereas more complex types like HashMap or BTreeSet produce one number from the input to dictate their length and then call Arbitrary that number of times on their inner types
+  - an attribute =#[derive(Arbitrary)]= that implements Arbitrary by just calling arbitrary on each contained type
+**** COMMENT example
+#+begin_src rust
+libfuzzer_sys::fuzz_target!(|data: &[u8]| {
+  if let Ok(s) = std::str::from_utf8(data) {
+      let _ = url::Url::parse(s);
+  }
+});
+#+end_src
+- fuzzer will generate semi-random inputs to the closure, and any that form valid UTF-8 strings will be passed to the parser
+- notice that the code here doesn’t check whether the parsing succeeds or fails, instead, it’s looking for cases where the parser panics or otherwise crashes due to internal invariants that are violated
+*** property-based testing
+- =proptest= crate
+- describe a number of properties your code should uphold, and then the property testing framework generates inputs and checks that those properties indeed hold
+- checking not only if program doesn’t crash but also that it does what it’s expected to do
+- use property-based testing to check for properties not directly related to correctness, such as whether operations take strictly less time for one implementation than another
+- steps
+  1. first write a simple but naive version of the code you want to test that you are confident is correct
+  2. for a given input, you give that input to both the code you want to test and the simplified but naive version
+  3. if the result or output of the two implementations is the same
+- any difference in outcome between the real and test versions should be informative and actionable so that every failure allows to make improvements
+- downside of property-based testing is that it relies more heavily on the provided descriptions of the inputs
+- property testing tends to be guided by developer annotations like “a number between 0 and 64” or “a string that contains three commas.”
+  - this allows property testing to more quickly reach cases that fuzzers may take a long time to encounter randomly, but it does require manual work and may miss important but niche buggy inputs
+**** COMMENT testing sequences of operations
+Since fuzzers and property testers allow you to generate arbitrary Rust types, you aren’t limited to testing a single function call in your crate. For example, say you want to test that some type Foo behaves correctly if you perform a particular sequence of operations on it. You could define an enum Operation that lists operations, and make your test function take a Vec<Operation>. Then you could instantiate a Foo and perform each operation on that Foo, one after the other. Most testers have support for minimizing inputs, so they will even search for the smallest sequence of operations that still violates a property if a property-violating input is found
+
+** test augmentation
+- if tests inexplicably fails or crashes with a segmentation fault, it might be cuz of:
+  - race conditions (two operations occur on different threads)
+  - undefined behavior in unsafe code (e.g. some unsafe code reads a particular value out of uninitialized memory)
+- catching these kinds of bugs with normal tests can be difficult—often you don’t have sufficient low-level control over thread scheduling, memory layout and content, or other random-ish system factors to write a reliable test
+*** Miri
+- an interpreter for Rust’s mid-level intermediate representation (MIR)
+  - MIR is an internal, simplified representation of Rust that helps the compiler find optimizations and check properties without having to consider all of the syntax sugar of Rust itself
+- Miri interprets the code rather than compiling and running it like a normal binary
+- Miri can keep track of the entire program state as each line of your code executes
+  - allows Miri to detect and report if the program ever exhibits certain types of undefined behavior, such as:
+    - uninitialized memory reads
+    - uses of values after they’ve been dropped
+    - or out-of-bounds pointer accesses
+  - rather than having these operations yield strange program behaviors that may only sometimes result in observable test failures (like crashes), Miri detects them when they happen and tells you immediately
+- makes the tests run a decent amount slower
+- =cargo miri test=
+*** Loom
+- tries to ensure your tests are run with every relevant interleaving of concurrent operations
+- if a test fails, Loom can give an exact rundown of which threads executed in what order so you can determine how the crash happened
+- keeps track of all cross-thread synchronization points and runs your tests over and over, adjusting the order in which threads proceed from those synchronization points each time
+  - if thread A and thread B both take the same Mutex, Loom will ensure that the test runs once with A taking it first and once with B taking it first
+- Loom also keeps track of:
+  - atomic accesses
+  - memory orderings
+  - accesses to UnsafeCell and checks that threads do not access them inappropriately
+**** COMMENT example
+#+begin_src rust
+let mut x = 42;
+let x: *mut i32 = &mut x;
+let (x1, x2) = unsafe { (&mut *x, &mut *x) };
+println!("{} {}", x1, x2);
+#+end_src
+
+#+begin_example
+error: Undefined Behavior: trying to reborrow for Unique at alloc1383, but parent tag <2772> does not have an appropriate item in the borrow stack
+ --> src/main.rs:4:6
+  |
+4 | let (x1, x2) = unsafe { (&mut *x, &mut *x) };
+  |      ^^ trying to reborrow for Unique at alloc1383, but parent tag <2772> does not have an appropriate item in the borrow stack
+#+end_example
+
+** performance testing
+- it is often hard to accurately model a workload that reflects real-world usage of your crate
+- having performance tests is important
+  - if the code suddenly runs 100 times slower, that really should be considered a bug
+  - yet without a performance test you may not spot the regression
+  - both of these are good reasons to have automated performance tests as part of your CI
+  - if performance changes drastically in either direction, you should know about it
+- unlike with functional testing, performance tests do not have a common, well-defined output
+  - a functional test will either succeed or fail, whereas a performance test may output:
+    - a throughput number
+    - a latency profile
+    - a number of processed samples
+    - or any other metric that might be relevant to the application
+- performance test may:
+  - require running a function in a loop a few hundred thousand times
+  - take hours running across a distributed network of multicore boxes
+  - cuz of above, it is difficult to speak about how to write performance tests in a general sense
+
+instead, in this section, we’ll look at some of the issues you may encounter when writing performance tests in Rust and how to mitigate them. Three particularly common pitfalls that are often overlooked are performance variance, compiler optimizations, and I/O overhead. Let’s explore each of these in turn.
+*** performance variance
+- performance can vary for a huge variety of reasons
+  - many factors affect how fast a particular sequence of machine instructions run
+    - CPU and memory clock speed
+    - how loaded the machine is
+    - kernel version may change paging performance
+    - the length of your username might change the  layout of memory
+    - the temperature in the room might cause the CPU to clock down
+- it is highly unlikely to get same result after running a benchmark twice
+- you may observe significant variance, even if you are using the same hardware
+- there are no perfect ways to eliminate all variance in your performance results, unless you happen to be able to run benchmarks repeatedly on a highly diverse fleet of machines
+- it’s important to try to handle this measurement variance as best as possible, to extract a signal from the noisy measurements benchmarks give
+  - to combat variance it is best to run each benchmark many times and then look at the distribution of measurements rather than just a single one
+  - =hdrhistogram= crate enables to look at statistics like “What range of runtime covers 95% of the samples we observed?”
+    - which is significant improvement over “How long did this function take to run on average?”
+  - with =criterion= crate its easy use techniques like null hypothesis testing from statistics to build some confidence that a measured difference indeed corresponds to a true change and is not just noise
+    - give it a function that it can call to run one iteration of your benchmark, and it will run it the appropriate number of times to be fairly sure that the result is reliable
+    - it then produces a benchmark report, which includes:
+      - a summary of the results
+      - analysis of outliers
+      - graphical representations of trends over time
+      - categorization of the noises that is measurable across executions
+*** compiler optimizations
+- compilers these days are really clever
+  - they:
+    - eliminate dead code
+    - compute complex expressions at compile tim
+    - unroll loops
+  - normally this is great, but when we’re trying to measure how fast a particular piece of code is, the compiler’s smartness can give invalid results
+- the standard library provides =std::hint::black_box= to avoid these kinds of optimizations (when benchmarking)
+  - at its core, it’s simply an identity function (one that takes x and returns x) that tells the compiler to assume that the argument to the function is used in arbitrary (legal) ways
+  - it does not prevent the compiler from applying optimizations to the input argument, nor does it prevent the compiler from optimizing how the return value is used
+  - instead, it encourages the compiler to actually compute the argument to the function (under the assumption that it will be used) and to store that result somewhere accessible to the CPU such that black_box could be called with the computed value
+  - the compiler is free to, say, compute the input argument at compile time, but it should still inject the result into the program
+  - this function is all we need for many (not all) benchmarking needs
+**** COMMENT example
+#+begin_src rust
+let mut vs = Vec::with_capacity(4);
+let start = std::time::Instant::now();
+for i in 0..4 {
+  black_box(vs.as_ptr());
+  vs.push(i);
+  black_box(vs.as_ptr());
+}
+println!("took {:?}", start.elapsed());
+#+end_src
+- compiler will assume that =vs= is used in arbitrary ways on each iteration of the loop, both before and after the calls to push
+- this forces the compiler to perform each push in order, without merging or otherwise optimizing consecutive calls, since it has to assume that “arbitrary stuff that cannot be optimized out” (that’s the black_box part) may happen to =vs= between each call
+- note that we used =vs.as_ptr()= and not, say, &vs
+  - that’s because of the caveat that the compiler should assume black_box can perform any legal operation on its argument
+  - it is not legal to mutate the Vec through a shared reference, so if we used black_box(&vs), the compiler might notice that =vs= will not change between iterations of the loop and implement optimizations based on that observation
+*** i/o overhead measurement
+- when writing benchmarks, it’s easy to:
+  - accidentally measure the wrong thing
+  - end up overshadowing the time you actually wanted to measure
+  - examples:
+    - running a benchmark with println
+    - benchmark uses random numbers
+    - getting the current time
+    - reading a configuration file
+    - starting a new thread—these things all take a long time, relatively speaking
+- make sure that the body of benchmarking loop contains almost nothing but the particular code you want to measure
+- all other code should run either before the benchmark begins or outside of the measured part of the benchmark
+- ?if you’re using criterion, take a look at the different timing loops it provides
+  - they’re all there to cater to benchmarking cases that require different measurement strategies
+* COMMENT unknown
+** downcasting
+downcasting is the process of taking an item of one type and casting it to a more specific type (This is one of the few cases where Rust gives you access to type information at runtime; it’s a limited case of the more general type reflection that dynamic languages often provide
+** continous integration
+:PROPERTIES:
+:ID:       32639ce4-25ea-41ef-9018-caa0bd47623e
+:END:
+- https://github.com/taiki-e/cargo-hack/
+- configure your continuous integration infrastructure to test each subcrate both with the latest released versions of the other subcrates and with all of them configured to use path dependencies
+- cargo-deny and cargo-audit
+- If you are not running clippy as part of your CI pipeline already, you probably should be.
+** type std::any::TypeId
+- allows to get a unique identifier for any type. The Error trait has a hidden provided method called type_id, whose default implementation is to return TypeId::of::<Self>()
+- Any has a blanket implementation of impl Any for T, and in that implementation, its type_id returns the same. In the context of these impl blocks, the concrete type of Self is known, so this type_id is the type identifier of the real type
+** COMMENT =From= and =Into=
+The standard library has many conversion traits, but two of the core ones are From and Into. It might strike you as odd to have two: if we have From, why do we need Into, and vice versa? There are a couple of reasons, but let’s start with the historical one: it wouldn’t have been possible to have just one in the early days of Rust due to the coherence rules discussed in Chapter 2. Or, more specifically, what the coherence rules used to be.  Suppose you want to implement two-way conversion between some local type you have defined in your crate and some type in the standard library. You can write impl<T> From<Vec<T>> for MyType<T> and impl<T> Into<Vec<T>> for MyType<T> easily enough, but if you only had From or Into, you would have to write impl<T> From<MyType<T>> for Vec<T> or impl<T> Into<MyType<T>> for Vec<T>. However, the compiler used to reject those implementations! Only since Rust 1.41.0, when the exception for covered types was added to the coherence rules, are they legal. Before that change, it was necessary to have both traits. And since much Rust code was written before Rust 1.41.0, neither trait can be removed now.  Beyond that historical fact, however, there are also good ergonomic reasons to have both of these traits, even if we could start from scratch today. It is often significantly easier to use one or the other in different situations. For example, if you’re writing a method that takes a type that can be turned into a Foo, would you rather write fn (impl Into<Foo>) or fn<T>(T) where Foo: From<T>? And conversely, to turn a string into a syntax identifier, would you rather write Ident::from("foo") or <_ as Into<Ident>>::into("foo")? Both of these traits have their uses, and we’re better off having them both.  Given that we do have both, you may wonder which you should use in your code today. The answer, it turns out, is pretty simple: implement From, and use Into in bounds. The reason is that Into has a blanket implementation for any T that implements From, so regardless of whether a type explicitly implements From or Into, it implements Into!  Of course, as simple things frequently go, the story doesn’t quite end there. Since the compiler often has to “go through” the blanket implementation when Into is used as a bound, the reasoning for whether a type implements Into is more complicated than whether it implements From. And in some cases, the compiler is not quite smart enough to figure that puzzle out. For this reason, the ? operator at the time of writing uses From, not Into. Most of the time that doesn’t make a difference, because most types implement From, but it does mean that error types from old libraries that implement Into instead may not work with ?. As the compiler gets smarter, ? will likely be “upgraded” to use Into, at which point that problem will go away, but it's what we have for now.
+** godbolt.org or cargo-asm
+** https://github.com/DanielKeep/cargo-script
+* COMMENT competitive programming
+** kattis - thelastproblem
+#+begin_src rust
+fn solution(s: &str) -> String {
+    format!("Thank you, {}, and farewell!", s)
+}
+
+fn main() {
+    let v = "Cinderilla";
+    println!("{}", solution(v));
+}
+#+end_src
+
+#+RESULTS:
+: Thank you, Cinderilla, and farewell!
+
+** kattis - filip
+#+begin_src rust
+fn solution(s: &str) -> u32 {
+    s.split_whitespace()
+     .map(|s| s.chars()
+               .rev()
+               .collect::<String>()
+               .parse::<u32>()
+               .unwrap())
+     .max()
+     .unwrap()
+}
+
+fn main() {
+    let v = "115 123";
+    println!("{}", solution(v));
+}
+#+end_src
+
+#+RESULTS:
+: 511
