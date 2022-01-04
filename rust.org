@@ -1901,3 +1901,33 @@ fn main() {
 
 #+RESULTS:
 : 511
+** kattis - onechicken
+#+begin_src rust :crates '(itertools . 0.10.3)
+use itertools::Itertools;
+
+fn solution(s: &str) -> String {
+    let (x, y) = s.splitn(2, " ").collect_tuple().unwrap();
+    match x > y {
+        true => format!("Dr. Chaz will have {} pieces of chicken left over!", x - y),
+        false => format!("aDr. Chaz needs {} more pieces of chicken!", y - x)
+    }
+}
+// fn solution(s: &str) -> string {
+//     let v = s.split_whitespace()
+//              .map(|s| s.parse::<u32>().unwrap())
+//              .collect::<vec<u32>>();
+//     match v[0] > v[1] {
+//         true => format!("dr. chaz will have {} pieces of chicken left over!", v[0] - v[1]),
+//         false => format!("dr. chaz needs {} more pieces of chicken!", v[1] - v[0])
+//     }
+// }
+
+fn main() {
+    let v = "20 100";
+    println!("{}", solution(v));
+    let v = "2 3";
+    println!("{}", solution(v));
+    let v = "10 1";
+    println!("{}", solution(v));
+}
+#+end_src
