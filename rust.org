@@ -2151,6 +2151,8 @@ downcasting is the process of taking an item of one type and casting it to a mor
 ** COMMENT =From= and =Into=
 The standard library has many conversion traits, but two of the core ones are From and Into. It might strike you as odd to have two: if we have From, why do we need Into, and vice versa? There are a couple of reasons, but let’s start with the historical one: it wouldn’t have been possible to have just one in the early days of Rust due to the coherence rules discussed in Chapter 2. Or, more specifically, what the coherence rules used to be.  Suppose you want to implement two-way conversion between some local type you have defined in your crate and some type in the standard library. You can write impl<T> From<Vec<T>> for MyType<T> and impl<T> Into<Vec<T>> for MyType<T> easily enough, but if you only had From or Into, you would have to write impl<T> From<MyType<T>> for Vec<T> or impl<T> Into<MyType<T>> for Vec<T>. However, the compiler used to reject those implementations! Only since Rust 1.41.0, when the exception for covered types was added to the coherence rules, are they legal. Before that change, it was necessary to have both traits. And since much Rust code was written before Rust 1.41.0, neither trait can be removed now.  Beyond that historical fact, however, there are also good ergonomic reasons to have both of these traits, even if we could start from scratch today. It is often significantly easier to use one or the other in different situations. For example, if you’re writing a method that takes a type that can be turned into a Foo, would you rather write fn (impl Into<Foo>) or fn<T>(T) where Foo: From<T>? And conversely, to turn a string into a syntax identifier, would you rather write Ident::from("foo") or <_ as Into<Ident>>::into("foo")? Both of these traits have their uses, and we’re better off having them both.  Given that we do have both, you may wonder which you should use in your code today. The answer, it turns out, is pretty simple: implement From, and use Into in bounds. The reason is that Into has a blanket implementation for any T that implements From, so regardless of whether a type explicitly implements From or Into, it implements Into!  Of course, as simple things frequently go, the story doesn’t quite end there. Since the compiler often has to “go through” the blanket implementation when Into is used as a bound, the reasoning for whether a type implements Into is more complicated than whether it implements From. And in some cases, the compiler is not quite smart enough to figure that puzzle out. For this reason, the ? operator at the time of writing uses From, not Into. Most of the time that doesn’t make a difference, because most types implement From, but it does mean that error types from old libraries that implement Into instead may not work with ?. As the compiler gets smarter, ? will likely be “upgraded” to use Into, at which point that problem will go away, but it's what we have for now.
 ** godbolt.org or cargo-asm
+** Zero sized types
+- compile-time concepts that disappear during compilation and have a runtime representation of zero bytes
 ** https://github.com/DanielKeep/cargo-script
 * COMMENT competitive programming
 ** kattis - thelastproblem
@@ -2274,3 +2276,125 @@ fn main() {
 : "DESCENDING"
 : "NEITHER"
 : "ASCENDING"
+* interview questions and quizes
+** https://dtolnay.github.io/rust-quiz/8
+What is the output of this Rust program?
+- list of single-/multi-character punctuation tokens in rust grammar https://docs.rs/syn/0.15.22/syn/token/index.html#structs
+#+begin_src rust
+macro_rules! m {
+    (==>) => { print!("1"); };     // decomposes as == >
+    (= = >) => { print!("2"); };   // already decompesed into Rust tokens
+    (== >) => { print!("3"); };    // already decompesed into Rust tokens, same as #1 thus unreachable
+    (= =>) => { print!("4"); };    // already decompesed into Rust tokens
+}
+
+fn main() {
+    m!(==>);
+    m!(= = >);
+    m!(== >);
+    m!(= =>);
+}
+#+end_src
+
+#+RESULTS:
+: 1214
+** https://dtolnay.github.io/rust-quiz/13
+#+begin_src rust
+struct S;   // zero sized type
+
+fn main() {
+    let [x, y] = &mut [S, S];   //  println!("{}", std::mem::size_of::<[S; 2]>()); ----> 0
+    let eq = x as *mut S == y as *mut S;  // mutable references to zero sized types, dereferencing is a no-op so there is no way to violate any memory safety guarantees this way.
+    print!("{}", eq as u8);  // true as u8
+}
+#+end_src
+
+#+RESULTS:
+: 1
+** https://dtolnay.github.io/rust-quiz/2
+- https://github.com/rust-lang/rust/blob/1.30.1/src/libsyntax/parse/classify.rs#L17-L37
+#+begin_src rust
+struct S(i32);
+
+impl std::ops::BitAnd<S> for () {
+    type Output = ();
+
+    fn bitand(self, rhs: S) {
+        print!("{}", rhs.0);
+    }
+}
+
+fn main() {
+    let f = || ( () & S(1) );
+    let g = || { () & S(2) };
+    let h = || ( {} & S(3) );
+    let i = || { {} & S(4) };  // ---> let i = || { {} &S(4) } -> &'static
+    f();
+    g();
+    h();
+    i();
+}
+#+end_src
+
+#+RESULTS:
+: 123
+** https://dtolnay.github.io/rust-quiz/9
+- behavior of macro matchers as regards matching macro metavariables
+-
+#+begin_src rust
+macro_rules! m {
+    (1) => { print!("1") };
+    ($tt:tt) => { print!("2") };
+}
+
+macro_rules! e {
+    ($e:expr) => { m!($e) }; // e!(1) expands to m!($e) where $e is an opaque expression containing 1. That m!($e) does not match the first rule of m! because $e is opaque. Instead it matches the second rule of m! and prints 2
+}
+
+macro_rules! t {
+    ($tt:tt) => { e!($tt); m!($tt); };
+}
+
+fn main() {
+    t!(1);
+}
+#+end_src
+
+#+RESULTS:
+: 21
+Most fragment specifiers have this behavior of becoming opaque token boxes, but some do not. Specifiers that are opaque once matched:
+- $:block
+- $:expr
+- $:item
+- $:literal
+- $:meta
+- $:pat
+- $:path
+- $:stmt
+- $:ty
+
+The rest of the specifiers do not become opaque and can be inspected by subsequent rules:
+- $:ident
+- $:lifetime
+- $:tt
+
+#+begin_src rust
+macro_rules! m {
+    ('a) => {print!("{}", 3);};
+}
+
+macro_rules! l {
+    ($l:lifetime) => {
+        // $l is not opaque.
+        m!($l);
+    }
+}
+fn main() {
+    l!('a);
+}
+#+end_src
+
+#+RESULTS:
+: 3
+
+**
