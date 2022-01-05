@@ -1931,3 +1931,58 @@ fn main() {
     println!("{}", solution(v));
 }
 #+end_src
+
+** kattis - lineup
+#+BEGIN_SRC rust :toolchain 'nightly
+#![feature(is_sorted)]
+
+fn solution(s: Vec<&str>) -> String {
+    if s[1..].is_sorted() {
+        "ASCENDING".to_string()
+    } else if s[1..].is_sorted_by(|a, b| b.partial_cmp(a)) {
+        "DESCENDING".to_string()
+    } else {
+        "NEITHER".to_string()
+    }
+}
+
+fn main() {
+    let in1 = vec![
+        "5",
+        "JOE",
+        "BOB",
+        "ANDY",
+        "AL",
+        "ADAM",
+    ];
+    let in2 = vec![
+        "11",
+        "HOPE",
+        "ALI",
+        "BECKY",
+        "JULIE",
+        "MEGHAN",
+        "LAUREN",
+        "MORGAN",
+        "CARLI",
+        "MEGAN",
+        "ALEX",
+        "TOBIN",
+    ];
+    let in3 = vec![
+        "4",
+        "GEORGE",
+        "JOHN",
+        "PAUL",
+        "RINGO",
+    ];
+    println!("{:?}", solution(in1));
+    println!("{:?}", solution(in2));
+    println!("{:?}", solution(in3));
+}
+#+END_SRC
+
+#+RESULTS:
+: "DESCENDING"
+: "NEITHER"
+: "ASCENDING"
