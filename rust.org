@@ -1846,6 +1846,294 @@ println!("took {:?}", start.elapsed());
 - all other code should run either before the benchmark begins or outside of the measured part of the benchmark
 - ?if you’re using criterion, take a look at the different timing loops it provides
   - they’re all there to cater to benchmarking cases that require different measurement strategies
+* macros
+** declarative macros
+#+begin_src rust
+macro_rules! /* macro name */ {
+  (/* 1st matcher */) => { /* 1st transcriber */ };
+  (/* 2nd matcher */) => { /* 2nd transcriber */ };
+}
+#+end_src
+- "declarative" refers to the fact that you want the output to look like A when the input is B
+- defined using the =macro_rules!= syntax
+- define function-like macros without having to resort to writing a dedicated crate for the purpose (as you do with procedural macros)
+- The ! suffix merely indicates to the compiler that the macro invocation will be replaced with different source code at compile time
+  - can use them only in places where the parser allows
+  - not possible to invoke a function-like macro where an identifier or match arm is expected
+- invoke it using the name of the macro followed by an exclamation mark
+- not all function-like macros are declarative macros; macro_rules! itself is one example of this, and format_args! is another
+- primarily useful as DRY tool - best suited for fairly mechanical replacements
+  - if you’re aiming to do fancy code transformations or lots of code generation, procedural macros are likely a better fit
+  - The story for trait implementations is similar. If you define your own trait, you’ll often want to implement that trait for a number of types in the standard library, even if those implementations are trivial.
+- If you ever find yourself wondering if you should use generics or a declarative macro, you should use generics
+  - Generics are generally more ergonomic than macros and integrate much better with other constructs in the language
+  - if your code changes based on type, use generics; otherwise, use macros
+- the input to a macro does not necessarily have to be valid Rust, but it must consist of code that the Rust compiler can parse
+- A declarative macro must generate an expression (basically anything that you can assign to a variable), a statement such as let x = 1;, an item like a trait definition or impl block, a type, or a match pattern
+- Declarative macros always generate valid Rust as output
+- A given macro can have many matchers, and each matcher has an associated transcriber. When the compiler finds a macro invocation, it walks the macro’s matchers from first to last, and when it finds a matcher that matches the tokens in the invocation, it substitutes the invocation by walking the tokens of the corresponding transcriber
+- if it is difficult to express the pattern with a matcher, try a procedural macro
+- declarative macros share a namespace for types, modules, and functions with the call site. This means your macro can define new functions that can be called in the invoking scope, add new implementations to a type defined elsewhere (and not passed in), introduce a new module that can then be accessed where the macro was invoked,
+- declarative macro is hygienic...
+  - it doens't let the call site, to access variables defined in the macro
+  - it cannot access variables defined at the call site (even self) unless they are explicitly passed in
+  - does not apply beyond variable identifiers
+  - helpful in making macros easier to debug (don’t worry about accidentally shadowing or overwriting variables in the macro caller just because variable names overlap)
+  - think of macro identifiers as existing in their own namespace that is separate from that of the code they expand into
+- for the macro to truly be reusable:
+  - don't assume anything about what types will be in scope at the caller
+  - make sure to use fully specified types like =::core::option::Option= or =::alloc::boxed::Box=
+  - to specifically refer to something in the crate that defines the macro, use the special metavariable =$crate=
+  - avoid using =::std= paths (the macro will continue to work in no_std crates)
+- it matters in which order which declarative macros are declared
+  - they exist in the source code only after they are declared
+  - if a macro is declared in one module and used it in another, the module with macro declaration must appear earlier in the crate
+  - if foo and bar are modules at the root of a crate, and foo declares a macro that bar wants to use, then mod foo must appear before mod bar in lib.rs
+  - textual scoping - mark the macro with =#[macro_export]= to hoists the macro to the root of the crate and marks it as pub so that it can then be used anywhere in the crate or by crate’s dependents
+*** matchers
+- the variables defined by a macro matcher are called metavariables
+- https://doc.rust-lang.org/reference/macros-by-example.html#metavariables
+- think of a macro matcher as a token tree that the compiler tries to twist and bend in predefined ways to match the input token tree it was given at the invocation site
+- example
+  - consider a macro with the matcher =$a:ident + $b:expr=
+    - that matcher will match any identifier (=:ident=) followed by a plus sign followed by any Rust expression (=:expr=)
+    - if the macro is invoked with x + 3 * 5
+      - the compiler notices that the matcher matches if it sets $a = x and $b = 3 * 5
+      - even though =*= never appears in the matcher, the compiler realizes that =3 * 5= is a valid expression and that it can therefore be matched with =$b:expr=
+  - =$($key:expr => $value:expr),+=
+    - =($())= of one or more (=+=) comma-separated (),) key/value pairs given in key => value format:
+- matchers will make sure that the key and value expressions are partitioned appropriately
+*** transcribers
+- the compiler generates code using the matcher’s associated transcriber
+- the compiler substitutes any occurrence of each metavariable in the transcriber with the input that matches that part of the matcher
+- in case of repetition in the matcher, use the same syntax in the transcriber and it will be repeated once for each match in the input, with each expansion holding the appropriate substitution for each metavariable for that iteration
+- use a metavariable in each repetition in the transcriber so that the compiler knows which repetition in the matcher to use
+*** COMMENT example
+**** 1
+#+begin_src rust
+fn test_inner<T>(init: T, frobnify: bool) { ... }
+#[test]
+fn test_1u8_frobnified() {
+  test_inner(1u8, true);
+}
+// ...
+#[test]
+fn test_1i128_not_frobnified() {
+  test_inner(1i128, false);
+}
+#+end_src
+- while this works, it’s too verbose, too repetitive, and too prone to manual error
+- with macros we can do much better
+#+begin_src rust
+macro_rules! test_battery {
+  ($($t:ty as $name:ident),*)) => {
+    $(
+      mod $name {
+        #[test]
+        fn frobnified() { test_inner::<$t>(1, true) }
+        #[test]
+        fn unfrobnified() { test_inner::<$t>(1, false) }
+      }
+    )*
+  }
+}
+test_battery! {
+  u8 as u8_tests,
+  // ...
+  i128 as i128_tests
+);
+#+end_src
+
+This macro expands each comma-separated directive into its own module that then contains two tests, one that calls test_inner with true, and one with false. While the macro definition isn’t trivial, it makes adding more tests much easier. Each type is one line in the test_battery! invocation, and the macro will take care of generating tests for both true and false arguments. We could also have it generate tests for different values for init
+**** 2
+#+begin_src rust
+macro_rules! clone_from_copy {
+  ($($t:ty),*) => {
+    $(impl Clone for $t {
+      fn clone(&self) -> Self { *self }
+    })*
+  }
+}
+clone_from_copy![bool, f32, f64, u8, i8, /* ... */];
+#+end_src
+
+
+Here, we generate an implementation of Clone for each provided type whose body just uses * to copy out of &self. You may wonder why we don’t add a blanket implementation of Clone for T where T: Copy. We could do that, but a big reason not to is that it would force types in other crates to also use that same implementation of Clone for their own types that happen to be Copy. An experimental compiler feature called specialization could offer a workaround, but at the time of writing the stabilization of that feature is still some way off. So, for the time being, we’re better off enumerating the types specifically
+
+**** overshadowing fail
+#+begin_src rust
+macro_rules! let_foo {
+  ($x:expr) => {
+    let foo = $x;
+  }
+}
+let foo = 1;
+// expands to let foo = 2;
+let_foo!(2);
+assert_eq!(foo, 1);
+#+end_src
+
+**** hygiene
+#+begin_src rust
+macro_rules! please_set {
+  ($i:ident, $x:expr) => {
+    $i = $x;
+  }
+ }
+let mut x = 1;
+please_set!(x, x + 1);
+assert_eq!(x, 2);
+#+end_src
+The variable identifier appears in an : expr but nonetheless has access to the variable in the caller’s scope.
+We could have used = $i + 1 in the macro instead, but we could not have used = x + 1 as the name x is not available in the macro’s definition scope.
+
+**** COMMENT how they work
+- syntax tree representation is much richer than the token sequence, since it assigns syntactic meaning to the token combinations following the language’s grammar
+- Rust macros dictate the syntax tree that a given sequence of tokens gets turned into
+  - when the compiler encounters a macro invocation during parsing, it has to evaluate the macro to determine the replacement tokens, which will ultimately become the syntax tree for the macro invocation
+- At this point, however, the compiler is still parsing the tokens and might not be in a position to evaluate a macro yet, since all it has done is parse the tokens of the macro definition
+- Instead, then, the compiler defers the parsing of anything contained within the delimiters of a macro invocation and remembers the input token sequence
+- When the compiler is ready to evaluate the indicated macro, it evaluates the macro over the token sequence, parses the tokens it yields, and substitutes the resulting syntax tree into the tree where the macro invocation was
+- Technically, the compiler does do a little bit of parsing for the input to a macro
+- Specifically, it parses out basic things like string literals and delimited groups and so produces a sequence of token trees rather than just tokens
+- For example, you couldn’t write for <- x in Rust outside of a macro invocation, but inside of a macro invocation you can, as long as the macro produces valid syntax
+- On the other hand, you cannot pass for { to a macro because it doesn’t have a closing brace
+
+
+** procedural macros
+- "procedural" referse to the fact they define how to generate code given some input tokens (rather than just writing what code gets generated)
+- underlying mechanism: the compiler provides the macro with a sequence of tokens, and it expects from the macro to produce a sequence of tokens in return that are (probably) related to the input tree
+  - combination of a parser and code generation
+    - *parser:*
+      - TokenStream type, which can be iterated over to get the individual TokenTree items that make up that token stream
+      - as long as the individual tokens are valid Rust tokens, its possible to walk the down with a TokenStream
+      - TokenTree is either a single token (identifier, punctuation, literal, or another TokenStream enclosed in a delimiter like () or {})
+      - TokenStream implements Display (pretty-prints the tokens in the stream, useful for debugging)
+      - syn crate implements a complete Rust parser and can turn a TokenStream into an easy-to-traverse Rust AST
+    - *code generation:*
+      - manually construct a TokenStream and extend it one TokenTree at a time
+      - use TokenStream’s implementation of FromStr which parses a string that contains Rust code into a TokenStream with "".parse::<TokenStream>()
+      - mix and match these: prepend some code to your macro’s input by constructing a TokenStream for the prologue, and then use the Extend trait to append the original input
+  - the compiler gathers the sequence of input tokens to the macro and runs your program to figure out what tokens to replace them with
+  - as far as the compiler is aware, the procedural macro is more or less a source code preprocessor that may replace code arbitrarily
+- requirement: input has to be parsed as a stream of Rust tokens
+- doesn’t need to follow the strict syntax that macro_rules! requires
+- increases compile time
+  - they tend to bring with them some pretty heavy dependencies
+  - they make it easy to generate a lot of code without realizing it - while the macro saves you from having to actually type the generated code, it does not save the compiler from having to parse, compile, and optimize it
+  - the actual execution time of procedural macros is rarely a factor in overall compile time
+
+Tokens are very slightly more magical than I’ve described so far in that every token, and indeed every TokenTree, also has a span. Spans are how the compiler ties generated code back to the source code that generated it. Every token’s span marks where that token originated
+#+begin_src rust
+macro_rules! name_as_debug {
+  ($t:ty) => {
+    impl ::core::fmt::Debug for $t {
+      fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result
+      { ::core::write!(f, ::core::stringify!($t)) }
+} }; }
+#+end_src
+Now let’s imagine that someone invokes this macro with name_as_debug!(u31). Technically, the compiler error occurs inside the macro, specifically where we write for $t (the other use of $t can handle an invalid type). But we’d like the compiler to point the user at the u31 in their code—and indeed, that’s what spans let us do.  The span of the $t in the generated code is the code mapped to $t in the macro invocation. That information is then carried through the compiler and associated with the eventual compiler error. When that compiler error is eventually printed, the compiler will print the error from inside the macro saying that the type u31 does not exist but will highlight the u31 argument in the macro invocation, since that’s the error’s associated span!  Spans are quite flexible, and they enable you to write procedural macros that can produce sophisticated error messages if you use the compile_error! macro. As its name implies, compile_error! causes the compiler to emit an error wherever it is placed with the provided string as the message. This may not seem very useful, until you pair it with a span. By setting the span of the TokenTree you generate for the compile_error! invocation to be equal to the span of some subset of the input, you are effectively telling the compiler to emit this compiler error and point the user to this part of the source. Together, these two mechanisms let a macro produce errors that seem to stem from the relevant part of the code, even though the actual compiler error is somewhere in the generated code that the user never even sees!  If you’ve ever been curious how syn’s error handling works, its Error type implements an Error::to_compile_error method, which turns it into a TokenStream that holds only a compile_error! directive. What’s particularly neat with syn’s Error type is that it internally holds a collection of errors, each of which produces a distinct compile_error! directive with its own span so that you can easily produce multiple independent errors from your procedural macro.  The power of spans doesn’t end there; spans are also how Rust’s macro hygiene is implemented. When you construct an Ident token, you also give the span for that identifier, and that span dictates the scope of that identifier. If you set the identifier’s span to be Span::call_site(), the identifier is resolved where the macro was called from and will thus not be isolated from the surrounding scope. If, on the other hand, you set it to Span::mixed_site() then (variable) identifiers are resolved at the macro definition site, and so will be completely hygienic with respect to similarly named variables at the call site. Span::mixed_site is so called because it matches the rules around identifier hygiene for macro_rules!, which, as we discussed earlier, “mixes” identifier resolution between using the macro definition site for variables and using the call site for types, modules, and everything else.
+*** function-like macros
+#+begin_src rust
+use proc_macro::TokenStream;
+
+#[proc_macro]
+pub fn tlborm_fn_macro(input: TokenStream) -> TokenStream {
+    input
+}
+
+fn foo() {
+    tlborm_attribute!(be quick; time is mana);
+}
+#+end_src
+- the simplest form of procedural macro
+- similarly to a declarative macro, it simply replaces the macro code at the call site with the code that the procedural macro returns
+- unlike with declarative macros, all the guard rails are off: these macros (like all procedural macros) are not required to be hygienic and will not protect from interacting with identifiers in the surrounding code at the call site
+  - when overlap with surrounding code is desired, macros are expected to explicitly call out which identifiers with =Span::call_site=
+  - which should be treated as private to the macro (using =Span::mixed_site=)
+  - ???
+  - hygiene for function-like macros is a feature that avoids many debugging headaches
+- good reasons to reach for a function-like macro
+  - convert convoluted declarative macro (e.g. its definition is becoming hard to maintain)
+  - a pure function that you need to be able to execute at compile time but cannot express it with const fn (e.g. =phf= crate, =hex-literal= crate) - anything that does not merely transform the input at compile time but actually computes over it
+*** attribute macros
+#+begin_src rust
+use proc_macro::TokenStream;
+
+#[proc_macro_attribute]
+pub fn tlborm_attribute(input: TokenStream, annotated_item: TokenStream) -> TokenStream {
+    annotated_item
+}
+
+#[tlborm_attribute]
+fn foo() {}
+
+#[tlborm_attribute(attributes are pretty handsome)]
+fn bar() {}
+#+end_src
+- replaces the item that the attribute is assigned to wholesale
+- allow to easily write a procedural macro that:
+  - transforms an item (e.g. by adding a prelude or epilogue to a function definition)
+  - modifies the fields of a struct
+- takes two inputs:
+  1. the token tree that appears in the attribute (minus the attribute’s name)
+  2. the token tree of the entire item it is attached to, including any other attributes that item may have
+- the hardest to know when to use
+**** test generation
+- run the same test under multiple different configurations, or many similar tests with the same bootstrapping code
+- attribute (e.g. =#[foo_test]=) that introduces a setup prelude and postscript in each annotated test
+- repeatable attribute like =#[test_case(1)]= mark that a given test should be repeated multiple times, once with each input
+**** framework annotations
+- augment functions and types with additional information that the framework then uses without the user having to do a lot of manual configuration
+- the attributes make up a miniature domain-specific language (DSL) that hides a lot of boilerplate
+**** transparent middleware
+- libraries which want to inject themselves into the application in unobtrusive ways to provide added value that does not change the application’s functionality
+- tracing and logging libraries (like =tracing=) and metric collection libraries  (like =metered=)
+**** type transformers
+- change the type’s definition in some fundamental way
+- example: =pin_project= crate
+  - its primary purpose is not to implement a particular trait but rather to ensure that all pinned access to fields of a given type happens according to the strict rules that are set forth by Rust’s Pin type and the Unpin trait
+  - it does this by generating additional helper types, adding methods to the annotated type, and introducing static safety checks to ensure that users don’t accidentally shoot themselves in the foot
+  - implementing it as a procedural derive macro would likely not have been obvious, which violates one of our rules for when to use procedural macros
+*** derive macros
+#+begin_src rust
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(TlbormDerive, attributes(tlborm_helper))]
+pub fn tlborm_derive(item: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[derive(TlbormDerive)]
+struct Foo;
+use proc_macro::TokenStream;
+
+#[derive(TlbormDerive)]
+struct Foo {
+    #[tlborm_helper]
+    field: u32
+}
+
+#[derive(TlbormDerive)]
+enum Bar {
+    #[tlborm_helper]
+    Variant { #[tlborm_helper] field: u32 }
+}
+
+#+end_src
+- used for one thing, and one thing only: to automate the implementation of a trait where automation is possible
+  - consider adding a derive macro for a trait only if
+    1. the trait is implemented often (if trait is going to be implemented only once or twice, it’s probably not worth writing and maintaining a convoluted derive macro for it)
+    2. its implementation for any given type is fairly obvious (derivation of a trait to match the developer’s intuition for what it probably does, if there is no obvious derivation for a trait, or worse yet, if your derivation does not match the obvious implementation, then it's probably better to not give it a derive macro)
+- allow to define helper attributes
+  - attributes, that can be placed inside the annotated type to give clues to the derive macro (like #[serde (skip)])
+  - but these function mostly like markers and are not independent macros
+- it adds to (rather than replaces) the target of the macro
+- arguably the simplest of the procedural macros, since they have such a rigid form:
+  - can append items only after the annotated item
+  - can’t replace the annotated item
+  - cannot have the derivation take arguments.
+
 * COMMENT unknown
 ** downcasting
 downcasting is the process of taking an item of one type and casting it to a more specific type (This is one of the few cases where Rust gives you access to type information at runtime; it’s a limited case of the more general type reflection that dynamic languages often provide
