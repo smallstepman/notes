@@ -1854,30 +1854,38 @@ macro_rules! /* macro name */ {
   (/* 2nd matcher */) => { /* 2nd transcriber */ };
 }
 #+end_src
-- "declarative" refers to the fact that you want the output to look like A when the input is B
+- "declarative" refers to the fact that the output will look like A when the input is B
 - defined using the =macro_rules!= syntax
-- define function-like macros without having to resort to writing a dedicated crate for the purpose (as you do with procedural macros)
-- The ! suffix merely indicates to the compiler that the macro invocation will be replaced with different source code at compile time
-  - can use them only in places where the parser allows
-  - not possible to invoke a function-like macro where an identifier or match arm is expected
+- define function-like macros without having to resort to writing a dedicated crate for the purpose (as with procedural macros)
+- when the compiler finds a macro invocation, it walks the macro’s matchers from first to last, and when it finds a matcher that matches the tokens in the invocation, it substitutes the invocation by walking the tokens of the corresponding transcriber
 - invoke it using the name of the macro followed by an exclamation mark
+  - The ! suffix merely indicates to the compiler that the macro invocation will be replaced with different source code at compile time
+    - can use them only in places where the parser allows
+    - not possible to invoke a function-like macro where an identifier or match arm is expected
 - not all function-like macros are declarative macros; macro_rules! itself is one example of this, and format_args! is another
 - primarily useful as DRY tool - best suited for fairly mechanical replacements
-  - if you’re aiming to do fancy code transformations or lots of code generation, procedural macros are likely a better fit
-  - The story for trait implementations is similar. If you define your own trait, you’ll often want to implement that trait for a number of types in the standard library, even if those implementations are trivial.
-- If you ever find yourself wondering if you should use generics or a declarative macro, you should use generics
-  - Generics are generally more ergonomic than macros and integrate much better with other constructs in the language
-  - if your code changes based on type, use generics; otherwise, use macros
-- the input to a macro does not necessarily have to be valid Rust, but it must consist of code that the Rust compiler can parse
-- A declarative macro must generate an expression (basically anything that you can assign to a variable), a statement such as let x = 1;, an item like a trait definition or impl block, a type, or a match pattern
-- Declarative macros always generate valid Rust as output
-- A given macro can have many matchers, and each matcher has an associated transcriber. When the compiler finds a macro invocation, it walks the macro’s matchers from first to last, and when it finds a matcher that matches the tokens in the invocation, it substitutes the invocation by walking the tokens of the corresponding transcriber
+  - to make fancy code transformations or lots of code generation, procedural macros are likely a better fit
+  - example: implementing own trait for a number of types in the standard library
+- using generics vs declarative macro
+  - generics are generally more ergonomic than macros and integrate much better with other constructs in the language
+  - if the code changes based on type, use generics; otherwise, use macros
+- input:
+  - the input to a macro does not necessarily have to be valid Rust, but it must consist of code that the Rust compiler can parse
+- output:
+  - must generate valid Rust as output
+  - declarative macro must generate (either)
+    - an expression (anything assignable to a variable)
+    - a statement such as let x = 1;
+    - an item like a trait definition or impl block
+    - a type
+    - a match pattern
 - if it is difficult to express the pattern with a matcher, try a procedural macro
-- declarative macros share a namespace for types, modules, and functions with the call site. This means your macro can define new functions that can be called in the invoking scope, add new implementations to a type defined elsewhere (and not passed in), introduce a new module that can then be accessed where the macro was invoked,
+- declarative macros share a namespace for types, modules, and functions with the call site
+  - macro can define new functions that can be called in the invoking scope, add new implementations to a type defined elsewhere (and not passed in), introduce a new module that can then be accessed where the macro was invoked
 - declarative macro is hygienic...
   - it doens't let the call site, to access variables defined in the macro
   - it cannot access variables defined at the call site (even self) unless they are explicitly passed in
-  - does not apply beyond variable identifiers
+  - ...this does not apply beyond variable identifiers
   - helpful in making macros easier to debug (don’t worry about accidentally shadowing or overwriting variables in the macro caller just because variable names overlap)
   - think of macro identifiers as existing in their own namespace that is separate from that of the code they expand into
 - for the macro to truly be reusable:
@@ -1890,7 +1898,9 @@ macro_rules! /* macro name */ {
   - if a macro is declared in one module and used it in another, the module with macro declaration must appear earlier in the crate
   - if foo and bar are modules at the root of a crate, and foo declares a macro that bar wants to use, then mod foo must appear before mod bar in lib.rs
   - textual scoping - mark the macro with =#[macro_export]= to hoists the macro to the root of the crate and marks it as pub so that it can then be used anywhere in the crate or by crate’s dependents
+- macro-generated code typically should not use method call syntax to invoke trait methods on types defined by the user. Those calls could get unintentially hijacked by inherent methods having the same name as the trait method.
 *** matchers
+- given macro can have many matchers, and each matcher has an associated transcriber
 - the variables defined by a macro matcher are called metavariables
 - https://doc.rust-lang.org/reference/macros-by-example.html#metavariables
 - think of a macro matcher as a token tree that the compiler tries to twist and bend in predefined ways to match the input token tree it was given at the invocation site
@@ -1946,6 +1956,7 @@ test_battery! {
 
 This macro expands each comma-separated directive into its own module that then contains two tests, one that calls test_inner with true, and one with false. While the macro definition isn’t trivial, it makes adding more tests much easier. Each type is one line in the test_battery! invocation, and the macro will take care of generating tests for both true and false arguments. We could also have it generate tests for different values for init
 **** 2
+generating an implementation of Clone for each provided type whose body just uses * to copy out of &self
 #+begin_src rust
 macro_rules! clone_from_copy {
   ($($t:ty),*) => {
@@ -1956,9 +1967,9 @@ macro_rules! clone_from_copy {
 }
 clone_from_copy![bool, f32, f64, u8, i8, /* ... */];
 #+end_src
-
-
-Here, we generate an implementation of Clone for each provided type whose body just uses * to copy out of &self. You may wonder why we don’t add a blanket implementation of Clone for T where T: Copy. We could do that, but a big reason not to is that it would force types in other crates to also use that same implementation of Clone for their own types that happen to be Copy. An experimental compiler feature called specialization could offer a workaround, but at the time of writing the stabilization of that feature is still some way off. So, for the time being, we’re better off enumerating the types specifically
+- why don’t add a blanket implementation of Clone for T where T: Copy?
+  - big reason not to is that it would force types in other crates to also use that same implementation of Clone for their own types that happen to be Copy
+  - an experimental compiler feature called specialization could offer a workaround, but at the time of writing the stabilization of that feature is still some way off
 
 **** overshadowing fail
 #+begin_src rust
@@ -2022,17 +2033,16 @@ We could have used = $i + 1 in the macro instead, but we could not have used = x
   - they tend to bring with them some pretty heavy dependencies
   - they make it easy to generate a lot of code without realizing it - while the macro saves you from having to actually type the generated code, it does not save the compiler from having to parse, compile, and optimize it
   - the actual execution time of procedural macros is rarely a factor in overall compile time
-
-Tokens are very slightly more magical than I’ve described so far in that every token, and indeed every TokenTree, also has a span. Spans are how the compiler ties generated code back to the source code that generated it. Every token’s span marks where that token originated
-#+begin_src rust
-macro_rules! name_as_debug {
-  ($t:ty) => {
-    impl ::core::fmt::Debug for $t {
-      fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result
-      { ::core::write!(f, ::core::stringify!($t)) }
-} }; }
-#+end_src
-Now let’s imagine that someone invokes this macro with name_as_debug!(u31). Technically, the compiler error occurs inside the macro, specifically where we write for $t (the other use of $t can handle an invalid type). But we’d like the compiler to point the user at the u31 in their code—and indeed, that’s what spans let us do.  The span of the $t in the generated code is the code mapped to $t in the macro invocation. That information is then carried through the compiler and associated with the eventual compiler error. When that compiler error is eventually printed, the compiler will print the error from inside the macro saying that the type u31 does not exist but will highlight the u31 argument in the macro invocation, since that’s the error’s associated span!  Spans are quite flexible, and they enable you to write procedural macros that can produce sophisticated error messages if you use the compile_error! macro. As its name implies, compile_error! causes the compiler to emit an error wherever it is placed with the provided string as the message. This may not seem very useful, until you pair it with a span. By setting the span of the TokenTree you generate for the compile_error! invocation to be equal to the span of some subset of the input, you are effectively telling the compiler to emit this compiler error and point the user to this part of the source. Together, these two mechanisms let a macro produce errors that seem to stem from the relevant part of the code, even though the actual compiler error is somewhere in the generated code that the user never even sees!  If you’ve ever been curious how syn’s error handling works, its Error type implements an Error::to_compile_error method, which turns it into a TokenStream that holds only a compile_error! directive. What’s particularly neat with syn’s Error type is that it internally holds a collection of errors, each of which produces a distinct compile_error! directive with its own span so that you can easily produce multiple independent errors from your procedural macro.  The power of spans doesn’t end there; spans are also how Rust’s macro hygiene is implemented. When you construct an Ident token, you also give the span for that identifier, and that span dictates the scope of that identifier. If you set the identifier’s span to be Span::call_site(), the identifier is resolved where the macro was called from and will thus not be isolated from the surrounding scope. If, on the other hand, you set it to Span::mixed_site() then (variable) identifiers are resolved at the macro definition site, and so will be completely hygienic with respect to similarly named variables at the call site. Span::mixed_site is so called because it matches the rules around identifier hygiene for macro_rules!, which, as we discussed earlier, “mixes” identifier resolution between using the macro definition site for variables and using the call site for types, modules, and everything else.
+- every TokenTree has a span
+  - Spans are how the compiler ties generated code back to the source code that generated it
+  - Every token’s span marks where that token originated
+  - Spans are quite flexible, and they enable you to write procedural macros that can produce sophisticated error messages if you use the compile_error! macro.
+  - By setting the span of the TokenTree you generate for the compile_error! invocation to be equal to the span of some subset of the input, you are effectively telling the compiler to emit this compiler error and point the user to this part of the source
+  - spans are also how Rust’s macro hygiene is implemented - when Ident token is constructed, it is also given the span, and that span dictates the scope of that identifier
+  - span types
+    - Span::call_site() - the identifier is resolved where the macro was called from and will thus not be isolated from the surrounding scope
+    - Span::mixed_site() - variable identifiers are resolved at the macro definition site, and so will be completely hygienic with respect to similarly named variables at the call site
+    - Span::mixed_site - "mixes” identifier resolution between using the macro definition site for variables and using the call site for types, modules, and everything else
 *** function-like macros
 #+begin_src rust
 use proc_macro::TokenStream;
