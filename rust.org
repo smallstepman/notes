@@ -2151,9 +2151,142 @@ downcasting is the process of taking an item of one type and casting it to a mor
 ** COMMENT =From= and =Into=
 The standard library has many conversion traits, but two of the core ones are From and Into. It might strike you as odd to have two: if we have From, why do we need Into, and vice versa? There are a couple of reasons, but let’s start with the historical one: it wouldn’t have been possible to have just one in the early days of Rust due to the coherence rules discussed in Chapter 2. Or, more specifically, what the coherence rules used to be.  Suppose you want to implement two-way conversion between some local type you have defined in your crate and some type in the standard library. You can write impl<T> From<Vec<T>> for MyType<T> and impl<T> Into<Vec<T>> for MyType<T> easily enough, but if you only had From or Into, you would have to write impl<T> From<MyType<T>> for Vec<T> or impl<T> Into<MyType<T>> for Vec<T>. However, the compiler used to reject those implementations! Only since Rust 1.41.0, when the exception for covered types was added to the coherence rules, are they legal. Before that change, it was necessary to have both traits. And since much Rust code was written before Rust 1.41.0, neither trait can be removed now.  Beyond that historical fact, however, there are also good ergonomic reasons to have both of these traits, even if we could start from scratch today. It is often significantly easier to use one or the other in different situations. For example, if you’re writing a method that takes a type that can be turned into a Foo, would you rather write fn (impl Into<Foo>) or fn<T>(T) where Foo: From<T>? And conversely, to turn a string into a syntax identifier, would you rather write Ident::from("foo") or <_ as Into<Ident>>::into("foo")? Both of these traits have their uses, and we’re better off having them both.  Given that we do have both, you may wonder which you should use in your code today. The answer, it turns out, is pretty simple: implement From, and use Into in bounds. The reason is that Into has a blanket implementation for any T that implements From, so regardless of whether a type explicitly implements From or Into, it implements Into!  Of course, as simple things frequently go, the story doesn’t quite end there. Since the compiler often has to “go through” the blanket implementation when Into is used as a bound, the reasoning for whether a type implements Into is more complicated than whether it implements From. And in some cases, the compiler is not quite smart enough to figure that puzzle out. For this reason, the ? operator at the time of writing uses From, not Into. Most of the time that doesn’t make a difference, because most types implement From, but it does mean that error types from old libraries that implement Into instead may not work with ?. As the compiler gets smarter, ? will likely be “upgraded” to use Into, at which point that problem will go away, but it's what we have for now.
 ** godbolt.org or cargo-asm
-** Zero sized types
+** zero sized types
 - compile-time concepts that disappear during compilation and have a runtime representation of zero bytes
 ** https://github.com/DanielKeep/cargo-script
+** function pointer comparison
+- generally a bad idea
+- It is easily possible to get nonsensical behavior in optimized builds, [[https://github.com/rust-lang/rust/issues/54685][example]]
+** TODO [#A] auto-dereferencing rules
+https://stackoverflow.com/a/28552082/6086311
+#+begin_src rust
+struct X { val: i32 }
+struct Y { val: i32 }
+struct Z { val: Y }
+#[derive(Clone, Copy)]
+struct A;
+
+impl std::ops::Deref for X {
+    type Target = i32;
+    fn deref(&self) -> &i32 { &self.val }
+}
+
+impl std::ops::Deref for Y {
+    type Target = i32;
+    fn deref(&self) -> &i32 { &self.val }
+}
+
+impl std::ops::Deref for Z {
+    type Target = Y;
+    fn deref(&self) -> &Y { &self.val }
+}
+
+trait M { fn m(self); }
+trait RefM { fn refm(&self); }
+
+impl M for i32   { fn m(self) { println!("i32::m()");  } }
+impl M for X     { fn m(self) { println!("X::m()");    } }
+impl M for &X    { fn m(self) { println!("&X::m()");   } }
+impl M for &&X   { fn m(self) { println!("&&X::m()");  } }
+impl M for &&&X  { fn m(self) { println!("&&&X::m()"); } }
+
+impl RefM for i32  { fn refm(&self) { println!("i32::refm()");  } }
+impl RefM for X    { fn refm(&self) { println!("X::refm()");    } }
+impl RefM for &X   { fn refm(&self) { println!("&X::refm()");   } }
+impl RefM for &&X  { fn refm(&self) { println!("&&X::refm()");  } }
+impl RefM for &&&X { fn refm(&self) { println!("&&&X::refm()"); } }
+
+impl M for    A { fn m(self) { println!("A::m()");    } }
+impl M for &&&A { fn m(self) { println!("&&&A::m()"); } }
+
+impl RefM for    A { fn refm(&self) { println!("A::refm()");    } }
+impl RefM for &&&A { fn refm(&self) { println!("&&&A::refm()"); } }
+
+
+fn main() {
+    // I'll use @ to denote left side of the dot operator
+    (*X{val:42}).m();        // i32::m()    , Self == @
+    X{val:42}.m();           // X::m()      , Self == @
+    (&X{val:42}).m();        // &X::m()     , Self == @
+    (&&X{val:42}).m();       // &&X::m()    , Self == @
+    (&&&X{val:42}).m();      // &&&X:m()    , Self == @
+    (&&&&X{val:42}).m();     // &&&X::m()   , Self == *@
+    (&&&&&X{val:42}).m();    // &&&X::m()   , Self == **@
+    println!("-------------------------");
+
+    (*X{val:42}).refm();     // i32::refm() , Self == @
+    X{val:42}.refm();        // X::refm()   , Self == @
+    (&X{val:42}).refm();     // X::refm()   , Self == *@
+    (&&X{val:42}).refm();    // &X::refm()  , Self == *@
+    (&&&X{val:42}).refm();   // &&X::refm() , Self == *@
+    (&&&&X{val:42}).refm();  // &&&X::refm(), Self == *@
+    (&&&&&X{val:42}).refm(); // &&&X::refm(), Self == **@
+    println!("-------------------------");
+
+    Y{val:42}.refm();        // i32::refm() , Self == *@
+    Z{val:Y{val:42}}.refm(); // i32::refm() , Self == **@
+    println!("-------------------------");
+
+    A.m();                   // A::m()      , Self == @
+    // without the Copy trait, (&A).m() would be a compilation error:
+    // cannot move out of borrowed content
+    (&A).m();                // A::m()      , Self == *@
+    (&&A).m();               // &&&A::m()   , Self == &@
+    (&&&A).m();              // &&&A::m()   , Self == @
+    A.refm();                // A::refm()   , Self == @
+    (&A).refm();             // A::refm()   , Self == *@
+    (&&A).refm();            // A::refm()   , Self == **@
+    (&&&A).refm();           // &&&A::refm(), Self == @
+}
+
+#+end_src
+
+#+RESULTS:
+#+begin_example
+i32::m()
+X::m()
+&X::m()
+&&X::m()
+&&&X::m()
+&&&X::m()
+&&&X::m()
+-------------------------
+i32::refm()
+X::refm()
+X::refm()
+&X::refm()
+&&X::refm()
+&&&X::refm()
+&&&X::refm()
+-------------------------
+i32::refm()
+i32::refm()
+-------------------------
+A::m()
+A::m()
+&&&A::m()
+&&&A::m()
+A::refm()
+A::refm()
+A::refm()
+&&&A::refm()
+#+end_example
+** destructuring tuple structs/variants with an infallible single-armed match
+- https://github.com/rust-lang/rust-clippy/pull/2684
+#+begin_src rust
+enum Wrapper {
+    Data(i32),
+}
+fn main() {
+    let wrapper = Wrapper::Data(42);
+    let Wrapper::Data(data) = wrapper;
+    println!("{:?}", data)
+}
+#+end_src
+
+#+RESULTS:
+: 42
+
 * COMMENT competitive programming
 ** kattis - thelastproblem
 #+begin_src rust
@@ -2276,42 +2409,28 @@ fn main() {
 : "DESCENDING"
 : "NEITHER"
 : "ASCENDING"
-* interview questions and quizes
-** https://dtolnay.github.io/rust-quiz/8
-What is the output of this Rust program?
-- list of single-/multi-character punctuation tokens in rust grammar https://docs.rs/syn/0.15.22/syn/token/index.html#structs
+* COMMENT interview questions and quizes
+** [?] https://dtolnay.github.io/rust-quiz/1 - statement boundaries
 #+begin_src rust
 macro_rules! m {
-    (==>) => { print!("1"); };     // decomposes as == >
-    (= = >) => { print!("2"); };   // already decompesed into Rust tokens
-    (== >) => { print!("3"); };    // already decompesed into Rust tokens, same as #1 thus unreachable
-    (= =>) => { print!("4"); };    // already decompesed into Rust tokens
+    ($($s:stmt)*) => {
+        $(
+            { stringify!($s); 1 }
+        )<<*
+    };
 }
 
 fn main() {
-    m!(==>);
-    m!(= = >);
-    m!(== >);
-    m!(= =>);
+    print!(
+        "{}{}{}",
+        m! { return || true },
+        m! { (return) || true },
+        m! { {return} || true },
+    );
 }
 #+end_src
 
-#+RESULTS:
-: 1214
-** https://dtolnay.github.io/rust-quiz/13
-#+begin_src rust
-struct S;   // zero sized type
-
-fn main() {
-    let [x, y] = &mut [S, S];   //  println!("{}", std::mem::size_of::<[S; 2]>()); ----> 0
-    let eq = x as *mut S == y as *mut S;  // mutable references to zero sized types, dereferencing is a no-op so there is no way to violate any memory safety guarantees this way.
-    print!("{}", eq as u8);  // true as u8
-}
-#+end_src
-
-#+RESULTS:
-: 1
-** https://dtolnay.github.io/rust-quiz/2
+** https://dtolnay.github.io/rust-quiz/2 - code parsing
 - https://github.com/rust-lang/rust/blob/1.30.1/src/libsyntax/parse/classify.rs#L17-L37
 #+begin_src rust
 struct S(i32);
@@ -2338,9 +2457,282 @@ fn main() {
 
 #+RESULTS:
 : 123
-** https://dtolnay.github.io/rust-quiz/9
+** https://dtolnay.github.io/rust-quiz/3 - type & value namespaces
+- Any name that refers to a type lives in the type namespace, and any name that refers to a value lives in the value namespace. These are two separate sets of names, and the language is structured such that we can always tell which namespace to look up a name in. That is how we can have seemingly two different things with the same name in scope at the same time.
+  - the name of the struct S is part of the type namespace
+  - the name of the const S is part of the value namespace
+#+begin_src rust
+struct S {
+    x: i32,
+}
+
+const S: S = S { x: 2 };
+
+fn main() {
+    let v = &mut S; // equivalent to: let mut _tmp0 = S { x: 2 }; let v = &mut _tmp0;
+    v.x += 1; // v.x = 3
+    S.x += 1; // no effect (equivalent to: S { x: 2 }.x += 1;)
+    print!("{}{}", v.x, S.x);
+}
+#+end_src
+
+#+RESULTS:
+#+begin_example
+warning: taking a mutable reference to a `const` item
+ --> src/main.rs:9:13
+  |
+9 |     let v = &mut S;
+  |             ^^^^^^
+  |
+  = note: `#[warn(const_item_mutation)]` on by default
+  = note: each usage of a `const` item creates a new temporary
+  = note: the mutable reference will refer to this temporary, not the original `const` item
+note: `const` item defined here
+ --> src/main.rs:6:1
+  |
+6 | const S: S = S { x: 2 };
+  | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: attempting to modify a `const` item
+  --> src/main.rs:11:5
+   |
+11 |     S.x += 1;
+   |     ^^^^^^^^
+   |
+   = note: each usage of a `const` item creates a new temporary; the original `const` item will not be modified
+note: `const` item defined here
+  --> src/main.rs:6:1
+   |
+6  | const S: S = S { x: 2 };
+   | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+32
+#+end_example
+
+** https://dtolnay.github.io/rust-quiz/4 - meanings of =..=
+#+begin_src rust
+fn main() {
+    let (.., x, y) = (0, 1, ..); // x = 1, y = (..)
+    print!("{}", b"066"[y][x]);  // decimal representation of the byte value of the ASCII digit 6, which is the number 54
+}
+#+end_src
+
+** [?] https://dtolnay.github.io/rust-quiz/5
+#+begin_src rust
+trait Trait {
+    fn p(self);
+}
+
+impl<T> Trait for fn(T) {
+    fn p(self) {
+        print!("1");
+    }
+}
+
+impl<T> Trait for fn(&T) {
+    fn p(self) {
+        print!("2");
+    }
+}
+
+fn f(_: u8) {}
+fn g(_: &u8) {}
+
+fn main() {
+    let a: fn(_) = f;
+    let b: fn(_) = g;
+    let c: fn(&_) = g;
+    a.p();
+    b.p();
+    c.p();
+}
+#+end_src
+
+#+RESULTS:
+#+begin_example
+warning: conflicting implementations of trait `Trait` for type `fn(&_)`
+  --> src/main.rs:12:1
+   |
+6  | impl<T> Trait for fn(T) {
+   | ----------------------- first implementation here
+...
+12 | impl<T> Trait for fn(&T) {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `fn(&_)`
+   |
+   = note: `#[warn(coherence_leak_check)]` on by default
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #56105 <https://github.com/rust-lang/rust/issues/56105>
+   = note: this behavior recently changed as a result of a bug fix; see rust-lang/rust#56105 for details
+
+112
+#+end_example
+** https://dtolnay.github.io/rust-quiz/6 - assigment expression as zero-sized type
+#+begin_src rust
+use std::mem;
+
+fn main() {
+    let a;
+    let a = a = true; // let a = ();
+    print!("{}", mem::size_of_val(&a)); // () is zero-sized type
+}
+#+end_src
+** https://dtolnay.github.io/rust-quiz/7 - enum wildcards (missing FQP)
+#+begin_src rust
+#[repr(u8)]
+enum Enum {
+    First,  // == 0u8
+    Second, // == 1u8
+}
+
+impl Enum {
+    fn p(self) {
+        match self {
+            First => print!("1"),  // == wildcard (missing `Enum::`)
+            Second => print!("2"), // == wildcard (missing `Enum::`)
+        }
+    }
+}
+
+fn main() {
+    Enum::p(unsafe {
+        std::mem::transmute(1u8) // == 1
+    });
+}
+#+end_src
+
+#+RESULTS:
+#+begin_example
+warning[E0170]: pattern binding `First` is named the same as one of the variants of the type `Enum`
+  --> src/main.rs:11:13
+   |
+11 |             First => print!("1"),  // == wildcard (missing `Enum::`)
+   |             ^^^^^ help: to match on the variant, qualify the path: `Enum::First`
+   |
+   = note: `#[warn(bindings_with_variant_name)]` on by default
+
+warning[E0170]: pattern binding `Second` is named the same as one of the variants of the type `Enum`
+  --> src/main.rs:12:13
+   |
+12 |             Second => print!("2"), // == wildcard (missing `Enum::`)
+   |             ^^^^^^ help: to match on the variant, qualify the path: `Enum::Second`
+
+warning: unreachable pattern
+  --> src/main.rs:12:13
+   |
+11 |             First => print!("1"),  // == wildcard (missing `Enum::`)
+   |             ----- matches any value
+12 |             Second => print!("2"), // == wildcard (missing `Enum::`)
+   |             ^^^^^^ unreachable pattern
+   |
+   = note: `#[warn(unreachable_patterns)]` on by default
+
+warning: unused variable: `First`
+  --> src/main.rs:11:13
+   |
+11 |             First => print!("1"),  // == wildcard (missing `Enum::`)
+   |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_First`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `Second`
+  --> src/main.rs:12:13
+   |
+12 |             Second => print!("2"), // == wildcard (missing `Enum::`)
+   |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_Second`
+
+warning: variant is never constructed: `First`
+ --> src/main.rs:4:5
+  |
+4 |     First,  // == 0u8
+  |     ^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+warning: variant is never constructed: `Second`
+ --> src/main.rs:5:5
+  |
+5 |     Second, // == 1u8
+  |     ^^^^^^
+
+For more information about this error, try `rustc --explain E0170`.
+warning[E0170]: pattern binding `First` is named the same as one of the variants of the type `Enum`
+  --> src/main.rs:11:13
+   |
+11 |             First => print!("1"),  // == wildcard (missing `Enum::`)
+   |             ^^^^^ help: to match on the variant, qualify the path: `Enum::First`
+   |
+   = note: `#[warn(bindings_with_variant_name)]` on by default
+
+warning[E0170]: pattern binding `Second` is named the same as one of the variants of the type `Enum`
+  --> src/main.rs:12:13
+   |
+12 |             Second => print!("2"), // == wildcard (missing `Enum::`)
+   |             ^^^^^^ help: to match on the variant, qualify the path: `Enum::Second`
+
+warning: unreachable pattern
+  --> src/main.rs:12:13
+   |
+11 |             First => print!("1"),  // == wildcard (missing `Enum::`)
+   |             ----- matches any value
+12 |             Second => print!("2"), // == wildcard (missing `Enum::`)
+   |             ^^^^^^ unreachable pattern
+   |
+   = note: `#[warn(unreachable_patterns)]` on by default
+
+warning: unused variable: `First`
+  --> src/main.rs:11:13
+   |
+11 |             First => print!("1"),  // == wildcard (missing `Enum::`)
+   |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_First`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `Second`
+  --> src/main.rs:12:13
+   |
+12 |             Second => print!("2"), // == wildcard (missing `Enum::`)
+   |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_Second`
+
+warning: variant is never constructed: `First`
+ --> src/main.rs:4:5
+  |
+4 |     First,  // == 0u8
+  |     ^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+warning: variant is never constructed: `Second`
+ --> src/main.rs:5:5
+  |
+5 |     Second, // == 1u8
+  |     ^^^^^^
+
+For more information about this error, try `rustc --explain E0170`.
+1
+#+end_example
+** https://dtolnay.github.io/rust-quiz/8 - single- vs multi-character punctuation tokens
+What is the output of this Rust program?
+- list of single-/multi-character punctuation tokens in rust grammar https://docs.rs/syn/0.15.22/syn/token/index.html#structs
+#+begin_src rust
+macro_rules! m {
+    (==>) => { print!("1"); };     // decomposes as == >
+    (= = >) => { print!("2"); };   // already decompesed into Rust tokens
+    (== >) => { print!("3"); };    // already decompesed into Rust tokens, same as #1 thus unreachable
+    (= =>) => { print!("4"); };    // already decompesed into Rust tokens
+}
+
+fn main() {
+    m!(==>);
+    m!(= = >);
+    m!(== >);
+    m!(= =>);
+}
+#+end_src
+
+#+RESULTS:
+: 1214
+** https://dtolnay.github.io/rust-quiz/9 - metavariables matching in declarative macro
 - behavior of macro matchers as regards matching macro metavariables
--
 #+begin_src rust
 macro_rules! m {
     (1) => { print!("1") };
@@ -2396,5 +2788,1028 @@ fn main() {
 
 #+RESULTS:
 : 3
+** https://dtolnay.github.io/rust-quiz/10
+#+begin_src rust
+trait Trait {
+    fn f(&self);
+}
 
-**
+impl<'a> dyn Trait + 'a { // There is currently no syntax in Rust for calling the inherent f on dyn Trait
+    fn f(&self) {  // unless we change the name of the function to sth thats not being shadowed, eg fn p
+        print!("1");
+    }
+}
+
+impl Trait for bool {
+    fn f(&self) {
+        print!("2");
+    }
+}
+
+fn main() {
+    Trait::f(&true);
+    Trait::f(&true as &dyn Trait);
+    <_ as Trait>::f(&true);
+    <_ as Trait>::f(&true as &dyn Trait);
+    <bool as Trait>::f(&true);
+    // <dyn Trait>::p(&true);
+    // <dyn Trait>::f(&true);// error multiple f found
+    // <dyn Trait>::f(&true as &dyn Trait);// error multiple f found
+}
+#+end_src
+
+#+RESULTS:
+#+begin_example
+22222
+#+end_example
+
+** [?] https://dtolnay.github.io/rust-quiz/11 - higher ranked trait bounds, and lifetime late bounds
+#+begin_src rust
+fn f<'a>() {}
+fn g<'a: 'a>() {}
+
+fn main() {
+    let pf = f::<'static> as fn();
+    let pg = g::<'static> as fn();
+    print!("{}", pf == pg);
+}
+#+end_src
+
+#+RESULTS:
+: error: cannot specify lifetime arguments explicitly if late bound lifetime parameters are present
+
+** https://dtolnay.github.io/rust-quiz/12 - drop placement
+#+begin_src rust
+struct D(u8);
+
+impl Drop for D {
+    fn drop(&mut self) {
+        print!("{}", self.0);
+    }
+}
+
+struct S {
+    d: D,
+    x: u8,
+}
+
+fn main() {
+    let S { x, .. } = S { // D gets dropped immediately because it has no owner
+        d: D(1),
+        x: 2,
+    };
+    print!("{}", x); // print 2
+
+    let S { ref x, .. } = S { // even tho D is not assigned any owner, it remains in scope as part of S
+                              // which remains in scope during the time that its field x is borrowed
+        d: D(3),
+        x: 4,
+    };
+    print!("{}", x);
+}
+#+end_src
+
+#+RESULTS:
+#+begin_example
+1243
+#+end_example
+
+** https://dtolnay.github.io/rust-quiz/13 - zero-sized types (with dereferencing)
+#+begin_src rust
+struct S;   // zero sized type
+
+fn main() {
+    let [x, y] = &mut [S, S];   //  println!("{}", std::mem::size_of::<[S; 2]>()); ----> 0
+    let eq = x as *mut S == y as *mut S;  // mutable references to zero sized types, dereferencing is a no-op so there is no way to violate any memory safety guarantees this way.
+    print!("{}", eq as u8);  // true as u8
+}
+#+end_src
+
+#+RESULTS:
+: 1
+** https://dtolnay.github.io/rust-quiz/14 - visibility of impl blocks
+- Trait impls anywhere in a program are always in scope, so there is no significance to the impl Trait for char being written inside of a block of code. In particular, that impl is visible throughout the whole program, not just within the block containing the impl.
+- The call to 0.is_reference() observes that there is no implementation of Trait for an integer type that we could call directly. Method resolution inserts an auto-ref, effectively evaluating (&0).is_reference()
+#+begin_src rust
+trait Trait: Sized {
+    fn is_reference(self) -> bool;
+}
+
+impl<'a, T> Trait for &'a T {
+    fn is_reference(self) -> bool {
+        true
+    }
+}
+
+fn main() {
+    match 0.is_reference() {
+        true => print!("1"),
+        false => print!("0"),
+    }
+
+    match '?'.is_reference() {
+        true => print!("1"),
+        false => {
+            impl Trait for char {
+                fn is_reference(self) -> bool {
+                    false
+                }
+            }
+            print!("0")
+        }
+    }
+}
+#+end_src
+
+#+RESULTS:
+: 10
+
+** [?] https://dtolnay.github.io/rust-quiz/15
+- https://stackoverflow.com/questions/28519997/what-are-rusts-exact-auto-dereferencing-rules/28552082#28552082
+#+begin_src rust
+trait Trait {
+    fn f(&self);
+}
+
+impl Trait for u32 {
+    fn f(&self) {
+        print!("1");
+    }
+}
+
+impl<'a> Trait for &'a i32 {
+    fn f(&self) {
+        print!("2");
+    }
+}
+
+fn main() {
+    let x = &0;
+    x.f();
+}
+#+end_src
+
+#+RESULTS:
+: 1
+
+** https://dtolnay.github.io/rust-quiz/16 - no such thing as unary operators
+#+begin_src rust
+fn main() {
+    let mut x = 4;
+    --x;
+    print!("{}{}", --x, --x);
+}
+#+end_src
+
+#+RESULTS:
+#+begin_example
+warning: variable does not need to be mutable
+ --> src/main.rs:3:9
+  |
+3 |     let mut x = 4;
+  |         ----^
+  |         |
+  |         help: remove this `mut`
+  |
+  = note: `#[warn(unused_mut)]` on by default
+
+warning: unused unary operation that must be used
+ --> src/main.rs:4:5
+  |
+4 |     --x;
+  |     ^^^ the unary operation produces a value
+  |
+  = note: `#[warn(unused_must_use)]` on by default
+help: use `let _ = ...` to ignore the resulting value
+  |
+4 |     let _ = --x;
+  |     +++++++
+
+warning: variable does not need to be mutable
+ --> src/main.rs:3:9
+  |
+3 |     let mut x = 4;
+  |         ----^
+  |         |
+  |         help: remove this `mut`
+  |
+  = note: `#[warn(unused_mut)]` on by default
+
+warning: unused unary operation that must be used
+ --> src/main.rs:4:5
+  |
+4 |     --x;
+  |     ^^^ the unary operation produces a value
+  |
+  = note: `#[warn(unused_must_use)]` on by default
+help: use `let _ = ...` to ignore the resulting value
+  |
+4 |     let _ = --x;
+  |     +++++++
+
+44
+#+end_example
+** https://dtolnay.github.io/rust-quiz/17 - no such thing as unary operators
+#+begin_src rust
+#[allow(unused_mut)]
+fn main() {
+    let mut a = 5;
+    let mut b = 3;
+    print!("{}", a-- - --b);
+}
+#+end_src
+
+#+RESULTS:
+: 2
+
+** https://dtolnay.github.io/rust-quiz/18 - method vs function pointer resolution
+#+begin_src rust
+struct S {
+    f: fn(),
+}
+
+impl S {
+    fn f(&self) {
+        print!("1");
+    }
+}
+
+fn main() {
+    let print2 = || print!("2"); // to call this: (S { f: print2 }.f)();
+    S { f: print2 }.f(); // .f() always resolves to a method
+}
+#+end_src
+
+#+RESULTS:
+#+begin_example
+warning: field is never read: `f`
+ --> src/main.rs:3:5
+  |
+3 |     f: fn(),
+  |     ^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+1
+#+end_example
+
+** https://dtolnay.github.io/rust-quiz/19 - move mechanics when assigning a variable holding struct to _
+#+begin_src rust
+struct S;
+
+impl Drop for S {
+    fn drop(&mut self) {
+        print!("1");
+    }
+}
+
+fn main() {
+    let s = S;
+    let _ = s; // s is not get moved
+    print!("2");
+}
+#+end_src
+
+#+RESULTS:
+: 21
+
+** https://dtolnay.github.io/rust-quiz/20 - return vs break grammar
+#+begin_src rust
+fn return1() {
+    if (return { print!("1") }) {
+    }
+}
+
+fn return2() {
+    if return { print!("2") } {
+    }
+}
+
+fn break1() {
+    loop {
+        if (break { print!("1") }) {
+        }
+    }
+}
+
+fn break2() {
+    loop {
+        if break { print!("2") } {
+        }
+    }
+}
+
+fn main() {
+    return1();
+    return2();
+    break1();
+    break2();
+}
+#+end_src
+
+#+RESULTS:
+#+begin_example
+warning: unnecessary braces around `return` value
+ --> src/main.rs:3:16
+  |
+3 |     if (return { print!("1") }) {
+  |                ^^           ^^
+  |
+  = note: `#[warn(unused_braces)]` on by default
+help: remove these braces
+  |
+3 -     if (return { print!("1") }) {
+3 +     if (return print!("1")) {
+  |
+
+warning: unnecessary braces around `return` value
+ --> src/main.rs:8:15
+  |
+8 |     if return { print!("2") } {
+  |               ^^           ^^
+  |
+help: remove these braces
+  |
+8 -     if return { print!("2") } {
+8 +     if return print!("2") {
+  |
+
+warning: unreachable block in `if` or `while` expression
+ --> src/main.rs:3:33
+  |
+3 |       if (return { print!("1") }) {
+  |  ________------------------------_^
+  | |        |
+  | |        any code following this expression is unreachable
+4 | |     }
+  | |_____^ unreachable block in `if` or `while` expression
+  |
+  = note: `#[warn(unreachable_code)]` on by default
+
+warning: unreachable block in `if` or `while` expression
+ --> src/main.rs:8:31
+  |
+8 |       if return { print!("2") } {
+  |  ________----------------------_^
+  | |        |
+  | |        any code following this expression is unreachable
+9 | |     }
+  | |_____^ unreachable block in `if` or `while` expression
+
+warning: unreachable block in `if` or `while` expression
+  --> src/main.rs:14:36
+   |
+14 |           if (break { print!("1") }) {
+   |  ____________-----------------------_^
+   | |            |
+   | |            any code following this expression is unreachable
+15 | |         }
+   | |_________^ unreachable block in `if` or `while` expression
+
+warning: unreachable block in `if` or `while` expression
+  --> src/main.rs:21:18
+   |
+21 |         if break { print!("2") } {
+   |            ----- ^^^^^^^^^^^^^^^ unreachable block in `if` or `while` expression
+   |            |
+   |            any code following this expression is unreachable
+
+warning: unnecessary braces around `return` value
+ --> src/main.rs:3:16
+  |
+3 |     if (return { print!("1") }) {
+  |                ^^           ^^
+  |
+  = note: `#[warn(unused_braces)]` on by default
+help: remove these braces
+  |
+3 -     if (return { print!("1") }) {
+3 +     if (return print!("1")) {
+  |
+
+warning: unnecessary braces around `return` value
+ --> src/main.rs:8:15
+  |
+8 |     if return { print!("2") } {
+  |               ^^           ^^
+  |
+help: remove these braces
+  |
+8 -     if return { print!("2") } {
+8 +     if return print!("2") {
+  |
+
+warning: unreachable block in `if` or `while` expression
+ --> src/main.rs:3:33
+  |
+3 |       if (return { print!("1") }) {
+  |  ________------------------------_^
+  | |        |
+  | |        any code following this expression is unreachable
+4 | |     }
+  | |_____^ unreachable block in `if` or `while` expression
+  |
+  = note: `#[warn(unreachable_code)]` on by default
+
+warning: unreachable block in `if` or `while` expression
+ --> src/main.rs:8:31
+  |
+8 |       if return { print!("2") } {
+  |  ________----------------------_^
+  | |        |
+  | |        any code following this expression is unreachable
+9 | |     }
+  | |_____^ unreachable block in `if` or `while` expression
+
+warning: unreachable block in `if` or `while` expression
+  --> src/main.rs:14:36
+   |
+14 |           if (break { print!("1") }) {
+   |  ____________-----------------------_^
+   | |            |
+   | |            any code following this expression is unreachable
+15 | |         }
+   | |_________^ unreachable block in `if` or `while` expression
+
+warning: unreachable block in `if` or `while` expression
+  --> src/main.rs:21:18
+   |
+21 |         if break { print!("2") } {
+   |            ----- ^^^^^^^^^^^^^^^ unreachable block in `if` or `while` expression
+   |            |
+   |            any code following this expression is unreachable
+
+121
+#+end_example
+
+** [?] https://dtolnay.github.io/rust-quiz/21
+#+begin_src rust
+trait Trait {
+    fn f(&self);
+}
+
+impl<F: FnOnce() -> bool> Trait for F {
+    fn f(&self) {
+        print!("1");
+    }
+}
+
+impl Trait for () {
+    fn f(&self) {
+        print!("2");
+    }
+}
+
+fn main() {
+    let x = || { (return) || true; };
+    x().f();
+
+    let x = loop { (break) || true; };
+    x.f();
+
+    let x = || { return (|| true); };
+    x().f();
+
+    let x = loop { break (|| true); };
+    x.f();
+
+    let x = || { return || true; };
+    x().f();
+
+    let x = loop { break || true; };
+    x.f();
+}
+#+end_src
+
+#+RESULTS:
+#+begin_example
+warning: unnecessary parentheses around `return` value
+  --> src/main.rs:25:25
+   |
+25 |     let x = || { return (|| true); };
+   |                         ^       ^
+   |
+   = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+   |
+25 -     let x = || { return (|| true); };
+25 +     let x = || { return || true; };
+   | 
+
+warning: unreachable expression
+  --> src/main.rs:19:30
+   |
+19 |     let x = || { (return) || true; };
+   |                  --------    ^^^^ unreachable expression
+   |                  |
+   |                  any code following this expression is unreachable
+   |
+   = note: `#[warn(unreachable_code)]` on by default
+
+warning: unreachable expression
+  --> src/main.rs:19:18
+   |
+19 |     let x = || { (return) || true; };
+   |                  --------^^^^^^^^
+   |                  |
+   |                  unreachable expression
+   |                  any code following this expression is unreachable
+
+warning: unreachable expression
+  --> src/main.rs:22:31
+   |
+22 |     let x = loop { (break) || true; };
+   |                    -------    ^^^^ unreachable expression
+   |                    |
+   |                    any code following this expression is unreachable
+
+warning: unreachable expression
+  --> src/main.rs:22:20
+   |
+22 |     let x = loop { (break) || true; };
+   |                    -------^^^^^^^^
+   |                    |
+   |                    unreachable expression
+   |                    any code following this expression is unreachable
+
+warning: unused logical operation that must be used
+  --> src/main.rs:19:18
+   |
+19 |     let x = || { (return) || true; };
+   |                  ^^^^^^^^^^^^^^^^ the logical operation produces a value
+   |
+   = note: `#[warn(unused_must_use)]` on by default
+help: use `let _ = ...` to ignore the resulting value
+   |
+19 |     let x = || { let _ = (return) || true; };
+   |                  +++++++
+
+warning: unused logical operation that must be used
+  --> src/main.rs:22:20
+   |
+22 |     let x = loop { (break) || true; };
+   |                    ^^^^^^^^^^^^^^^ the logical operation produces a value
+   |
+help: use `let _ = ...` to ignore the resulting value
+   |
+22 |     let x = loop { let _ = (break) || true; };
+   |                    +++++++
+
+warning: unnecessary parentheses around `return` value
+  --> src/main.rs:25:25
+   |
+25 |     let x = || { return (|| true); };
+   |                         ^       ^
+   |
+   = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+   |
+25 -     let x = || { return (|| true); };
+25 +     let x = || { return || true; };
+   | 
+
+warning: unreachable expression
+  --> src/main.rs:19:30
+   |
+19 |     let x = || { (return) || true; };
+   |                  --------    ^^^^ unreachable expression
+   |                  |
+   |                  any code following this expression is unreachable
+   |
+   = note: `#[warn(unreachable_code)]` on by default
+
+warning: unreachable expression
+  --> src/main.rs:19:18
+   |
+19 |     let x = || { (return) || true; };
+   |                  --------^^^^^^^^
+   |                  |
+   |                  unreachable expression
+   |                  any code following this expression is unreachable
+
+warning: unreachable expression
+  --> src/main.rs:22:31
+   |
+22 |     let x = loop { (break) || true; };
+   |                    -------    ^^^^ unreachable expression
+   |                    |
+   |                    any code following this expression is unreachable
+
+warning: unreachable expression
+  --> src/main.rs:22:20
+   |
+22 |     let x = loop { (break) || true; };
+   |                    -------^^^^^^^^
+   |                    |
+   |                    unreachable expression
+   |                    any code following this expression is unreachable
+
+warning: unused logical operation that must be used
+  --> src/main.rs:19:18
+   |
+19 |     let x = || { (return) || true; };
+   |                  ^^^^^^^^^^^^^^^^ the logical operation produces a value
+   |
+   = note: `#[warn(unused_must_use)]` on by default
+help: use `let _ = ...` to ignore the resulting value
+   |
+19 |     let x = || { let _ = (return) || true; };
+   |                  +++++++
+
+warning: unused logical operation that must be used
+  --> src/main.rs:22:20
+   |
+22 |     let x = loop { (break) || true; };
+   |                    ^^^^^^^^^^^^^^^ the logical operation produces a value
+   |
+help: use `let _ = ...` to ignore the resulting value
+   |
+22 |     let x = loop { let _ = (break) || true; };
+   |                    +++++++
+
+221111
+#+end_example
+** https://dtolnay.github.io/rust-quiz/22 - token parsing
+- The floating point literals 1., 1.0, 1.0e1, 1.0e-1 are each a single atomic token.
+- For example the following code prints -81 because the expression is parsed as -(3i32.pow(4)) rather than (-3i32).pow(4)
+#+begin_src rust
+macro_rules! m {
+    ($a:tt) => { print!("1") };
+    ($a:tt $b:tt) => { print!("2") };
+    ($a:tt $b:tt $c:tt) => { print!("3") };
+    ($a:tt $b:tt $c:tt $d:tt) => { print!("4") };
+    ($a:tt $b:tt $c:tt $d:tt $e:tt) => { print!("5") };
+    ($a:tt $b:tt $c:tt $d:tt $e:tt $f:tt) => { print!("6") };
+    ($a:tt $b:tt $c:tt $d:tt $e:tt $f:tt $g:tt) => { print!("7") };
+}
+
+fn main() {
+    m!(-1);
+    m!(-1.);
+    m!(-1.0);
+    m!(-1.0e1);
+    m!(-1.0e-1);
+}
+#+end_src
+
+#+RESULTS:
+: 22222
+
+** https://dtolnay.github.io/rust-quiz/23 - call order of inherent vs trait method
+#+begin_src rust
+trait Trait {
+    fn f(&self);
+    fn g(&self);
+}
+
+struct S;
+
+impl S {
+    fn f(&self) {
+        print!("1");
+    }
+
+    fn g(&mut self) {
+        print!("1");
+    }
+}
+
+impl Trait for S {
+    fn f(&self) {
+        print!("2");
+    }
+
+    fn g(&self) {
+        print!("2");
+    }
+}
+
+fn main() {
+    S.f(); //  an inherent method and a trait method have the same name and receiver type, plain method call syntax will always prefer the inherent method
+    // to call Trait.f() instead, use:
+    // Trait::f(&S)
+    // <S as Trait>::f(&S)
+    S.g(); // Auto-ref during method resolution always prefers making something into & over making it into &mut where either one would work
+}
+#+end_src
+
+#+RESULTS:
+#+begin_example
+warning: associated function is never used: `g`
+  --> src/main.rs:14:8
+   |
+14 |     fn g(&mut self) {
+   |        ^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+12
+#+end_example
+
+** https://dtolnay.github.io/rust-quiz/24 - hygiene with declarative macros
+#+begin_src rust
+fn main() {
+    let x: u8 = 1;
+    const K: u8 = 2;
+
+    macro_rules! m {
+        () => {
+            print!("{}{}", x, K); // local variable x in scope, the use of the identifier x within the macro body picks it up
+
+        };
+    }
+
+    {
+        let x: u8 = 3;
+        const K: u8 = 4; // shadowing the first K
+
+        m!();
+    }
+}
+#+end_src
+
+#+RESULTS:
+#+begin_example
+14
+#+end_example
+
+** https://dtolnay.github.io/rust-quiz/25 - assigning to variable with same name as struct
+- https://doc.rust-lang.org/core/convert/enum.Infallible.html
+- https://doc.rust-lang.org/book/ch18-03-pattern-syntax.html#destructuring-to-break-apart-values
+#+begin_src rust
+use std::fmt::{self, Display};
+
+struct S;
+
+impl Display for S {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("1")
+    }
+}
+
+impl Drop for S {
+    fn drop(&mut self) {
+        print!("2");
+    }
+}
+
+fn f() -> S {
+    S
+}
+
+fn main() {
+    let S = f();      // prints 2, because we cannot bind to variable name S, therefore S returned from fn f gets immediately dropped`
+                      // The S in let S = f() is a unit struct pattern (not a variable name)
+                      // that matches a value of type S via destructuring but does not bind the value to any variable.
+    print!("{}", S);  // prints 1
+                      // prints 2
+}
+#+end_src
+
+#+RESULTS:
+: 212
+
+** https://dtolnay.github.io/rust-quiz/26 - map is lazy, for loop acting as iterator consumer
+#+begin_src rust
+fn main() {
+    let input = vec![1, 2, 3];
+
+    let parity = input
+        .iter()
+        .map(|x| {  // map operation is performed lazily
+            print!("{}", x);
+            x % 2
+        }); // The closure provided as an argument to map is only invoked as values are consumed from the resulting iterator
+
+    for p in parity {  // drives the iteration - for each element consumed from the parity iterator, our closure needs to be evaluated one time
+        print!("{}", p);
+    }
+}
+#+end_src
+
+#+RESULTS:
+: 112031
+
+** https://dtolnay.github.io/rust-quiz/27 - dynamic vs static distatch
+#+begin_src rust
+trait Base {
+    fn method(&self) {
+        print!("1");
+    }
+}
+
+trait Derived: Base {
+    fn method(&self) {
+        print!("2");
+    }
+}
+
+struct BothTraits;
+impl Base for BothTraits {}
+impl Derived for BothTraits {}
+
+fn dynamic_dispatch(x: &dyn Base) {
+    x.method();
+}
+
+fn static_dispatch<T: Base>(x: T) {
+    x.method();
+}
+
+fn main() {
+    dynamic_dispatch(&BothTraits);
+    static_dispatch(BothTraits);
+    // explanation
+    <BothTraits as Base>::method(&BothTraits);
+    <dyn Base as Base>::method(&BothTraits);
+    <BothTraits as Derived>::method(&BothTraits);
+    <dyn Derived as Base>::method(&BothTraits);
+    <dyn Derived as Derived>::method(&BothTraits);
+}
+#+end_src
+
+#+RESULTS:
+: 1111212
+
+** https://dtolnay.github.io/rust-quiz/28 - underscore pattern vs variables with a leading underscore, relationship between underscore pattern and drop mechanics
+#+begin_src rust
+struct Guard;
+
+impl Drop for Guard {
+    fn drop(&mut self) {
+        print!("1");
+    }
+}
+
+fn main() {
+    let _guard = Guard;
+    print!("3");
+    let _ = Guard; //not a variable but a wildcard pattern that binds nothing; since no variables are bound on this line, there is no variable to be the owner of the second value of type Guard and that value is dropped on the same line
+    print!("2");
+}
+#+end_src
+
+#+RESULTS:
+: 3121
+
+** https://dtolnay.github.io/rust-quiz/29 - integer literal's defualt type, tuple synax, trait impl resolution
+- An integral literal 0 can be inferred to be any integer type, but defaults to i32 if insufficient type information is available
+  - Rust needs to somehow choose between the two possible implementations of Trait, namely (u32, u32) and (i32, i32). Since i32 is the default integral type, (i32, i32) is chosen in both cases
+#+begin_src rust
+trait Trait {
+    fn p(&self);
+}
+
+impl Trait for (u32) {    // unnecessary parenthesis
+    fn p(&self) { print!("1"); }
+}
+
+impl Trait for (i32,) {
+    fn p(&self) { print!("2"); }
+}
+
+impl Trait for (u32, u32) {
+    fn p(&self) { print!("3"); }
+}
+
+impl Trait for (i32, i32,) {   // unnecessary trailing comma
+    fn p(&self) { print!("4"); }
+}
+
+fn main() {
+    (0).p();
+    (0,).p();
+    (0, 0).p();
+    (0, 0,).p();
+}
+#+end_src
+
+#+RESULTS:
+: 1244
+** [?] https://dtolnay.github.io/rust-quiz/30
+#+begin_src rust
+use std::rc::Rc;
+
+struct A; // zero-sized type
+
+fn p<X>(_x: X) {
+    match std::mem::size_of::<X>() {
+        0 => print!("0"),  // matches zero-sized types, e.g. () or A
+        _ => print!("1"),  // matches non-zero-sized types, e.g. 0 or &() or &A
+    }
+}
+
+fn main() {
+    let a = &A;
+    p(a);
+    p(a.clone()); // the compiler finds applicable Clone impl which is the implementation of Clone for references &T
+
+    let b = &();
+    p(b);
+    p(b.clone()); // The type () does implement Clone so b.clone() invokes that impl and produces ()
+                  // The compiler prefers calling the trait impl for () which converts &() to () over the trait impl for &() which converts &&() to &() because the former is the one that requires fewer implicit references or dereferences inserted by the trait solver. In the call to b.clone(), b is of type &() which exactly matches the argument of the impl Clone for (), while in order to obtain a &&() to pass as argument to the impl Clone for &() the trait solver would need to insert an additional layer of referencing implicitly -- effectively computing (&b).clone().
+
+
+
+    let c = Rc::new(());
+    p(Rc::clone(&c)); // same as c.clone(), but more idiomatic
+    p(c.clone());
+    // To call the clone method of a value inside a Rc, you would need to dereference it first: (*c).clone()
+}
+#+end_src
+
+#+RESULTS:
+: 111011
+
+** https://dtolnay.github.io/rust-quiz/31 - dereferencing mechanics
+- https://doc.rust-lang.org/reference/expressions/method-call-expr.html
+#+begin_src rust
+trait Or {
+    fn f(self);
+}
+
+struct T;
+
+impl Or for &T {
+    fn f(self) {
+        print!("1");
+    }
+}
+
+impl Or for &&&&T {
+    fn f(self) {
+        print!("2");
+    }
+}
+
+fn main() {
+    let t = T;
+    let wt = &T;
+    let wwt = &&T;
+    let wwwt = &&&T;
+    let wwwwt = &&&&T;
+    let wwwwwt = &&&&&T;
+    let wwwwwwt = &&&&&&T;
+    t.f();
+    wt.f();
+    wwt.f();
+    wwwt.f(); // searches for &&&T, then &&&&T and finds it
+    wwwwt.f();
+    wwwwwt.f(); // &&&&&T -> &&&&&&T -> &mut &&&&&T -> &&&&T
+    wwwwwwt.f();  // // &&&&&&T -> &&&&&&&T -> &mut &&&&&&T -> &&&&&T -> &&&&&&T -> &mut &&&&&T -> &&&&T
+}
+#+end_src
+
+#+RESULTS:
+: 1112222
+
+** https://dtolnay.github.io/rust-quiz/32 - if guards in match statements vs multiple alternatives (|) in single match arm
+#+begin_src rust
+fn check(x: i32) -> bool {
+    print!("{}", x);
+    false
+}
+
+fn main() {
+    match (1, 2) {
+        (x, _) | (_, x) if check(x) => { // the `if` guard is being run multiple times, once per |-separated alternative in the match-arm
+            print!("3")
+        }
+        _ => print!("4"),
+    }
+}
+#+end_src
+
+#+RESULTS:
+: 124
+
+** https://dtolnay.github.io/rust-quiz/33 - =..= interpretation precedens
+#+begin_src rust
+use std::ops::RangeFull;
+
+trait Trait {
+    fn method(&self) -> fn();
+}
+
+impl Trait for RangeFull {
+    fn method(&self) -> fn() {
+        print!("1");
+        || print!("3")
+    }
+}
+
+impl<F: FnOnce() -> T, T> Trait for F {
+    fn method(&self) -> fn() {
+        print!("2");
+        || print!("4")
+    }
+}
+
+fn main() {
+    (|| .. .method())();
+    // (|| ((..).method())())(); // prints 13
+}
+#+end_src
+
+#+RESULTS:
+: 24
