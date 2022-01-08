@@ -2461,6 +2461,52 @@ fn main() {
 
 #+RESULTS:
 : 4
+** kattis - sevenwonders
+#+begin_src rust
+use std::collections::HashMap;
+use std::hash::Hash;
+
+fn counter<K: Eq + Hash, I: Iterator<Item=K>>(iterable: I) -> HashMap<K, u32> {
+    let mut map = HashMap::new();
+    for e in iterable {
+        ,*map.entry(e).or_insert(0) += 1;
+    }
+    map
+}
+
+fn solution(s: String) -> u32 {
+    let mut score = 0;
+    let cards = s.chars();
+    let count = counter(cards);
+    for (_k,v) in &count {
+        score += v.pow(2);
+    }
+    if &count.len() == &3 {
+        let mul = count.iter()
+                       .min_by_key(|a| a.1)
+                       .map(|(_,v)| v)
+                       .unwrap();
+        score += 7 * mul;
+    }
+    score
+}
+
+fn main() {
+    println!("{:?}", solution("TCGTTC".to_string()));
+    let in1 = "TCGTTC".to_string();
+    let in2 = "CCC".to_string();
+    let in3 = "TTCCGG".to_string();
+    let out1 = 21;
+    let out2 = 9;
+    let out3 = 26;
+    assert_eq!(solution(in1), out1);
+    assert_eq!(solution(in2), out2);
+    assert_eq!(solution(in3), out3);
+}
+#+end_src
+
+#+RESULTS:
+: 21
 * COMMENT interview questions and quizes
 ** [?] https://dtolnay.github.io/rust-quiz/1 - statement boundaries
 #+begin_src rust
