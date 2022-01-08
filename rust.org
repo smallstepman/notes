@@ -2419,6 +2419,48 @@ fn main() {
 : "DESCENDING"
 : "NEITHER"
 : "ASCENDING"
+** kattis - pokerhand
+#+begin_src rust
+use std::collections::HashMap;
+use std::hash::Hash;
+
+fn solution(s: String) -> u8 {
+    let ranks = s.split_whitespace()
+                 .map(|x| x.chars().nth(0).unwrap())
+                 .collect::<Vec<char>>();
+    let count_rank = counter(ranks.iter());
+    let max_rank = count_rank.iter()
+                             .max_by_key(|a| a.1)
+                             .map(|(_,v)| v)
+                             .unwrap();
+    *max_rank
+}
+
+
+fn counter<K: Eq + Hash, I: Iterator<Item=K>>(iterable: I) -> HashMap<K, u8> {
+    let mut map = HashMap::new();
+    for element in iterable {
+        *map.entry(element).or_insert(0) += 1;
+    }
+    map
+}
+
+fn main() {
+    let in1 = "AC AD AH AS KD".to_string();
+    let in2 = "2C 4D 4H 2D 2H".to_string();
+    let in3 = "AH 2H 3H 4H 5H".to_string();
+    let out1 = 4;
+    let out2 = 3;
+    let out3 = 1;
+    assert_eq!(solution(in1), out1);
+    assert_eq!(solution(in2), out2);
+    assert_eq!(solution(in3), out3);
+    println!("{:?}", solution("AC AD AH AS KD".to_string()));
+}
+#+end_src
+
+#+RESULTS:
+: 4
 * COMMENT interview questions and quizes
 ** [?] https://dtolnay.github.io/rust-quiz/1 - statement boundaries
 #+begin_src rust
