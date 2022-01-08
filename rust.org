@@ -2507,6 +2507,72 @@ fn main() {
 
 #+RESULTS:
 : 21
+** kattis - vote
+#+begin_src rust
+fn solution(s: Vec<usize>) -> Vec<String> {
+    let rounds = s[0];
+    let mut out: Vec<String> = Vec::new();
+    let mut needle: usize = 1;
+    for _  in 0..rounds {
+        let cand_count = s[needle];
+        let start = needle + 1;
+        let end = needle + 1 + cand_count;
+        // println!("{:?}", &s[start..end]);
+        let check = &mut s[start..end].into_iter().collect::<Vec<&usize>>();
+        let mut check_no_winner = check.clone();
+        let check = check.clone();
+        check_no_winner.sort();
+        check_no_winner.dedup();
+        let win = &s[start..end].iter().enumerate().max_by_key(|x| x.1);
+        let win_idx = win.map(|(x,_)| x).unwrap() + 1;
+        let win_score = win.map(|(_,y)| y).unwrap();
+        // println!("w{:?} c{:?}", win, check);
+        if check_no_winner.len() == 1 {
+            out.push(format!("no winner"));
+        } else if *win_score > &check.into_iter().sum::<usize>() - win_score  {
+            out.push(format!("majority winner {}", win_idx));
+        } else {
+            out.push(format!("minority winner {}", win_idx));
+        }
+        // println!("{}", win);
+        needle += cand_count + 1;
+    }
+    out
+}
+
+fn main() {
+    let i = vec![
+        4,
+        3,
+        10,
+        21,
+        10,
+        3,
+        20,
+        10,
+        10,
+        3,
+        10,
+        10,
+        10,
+        4,
+        15,
+        15,
+        15,
+        45,
+    ];
+    let o = vec![
+        "majority winner 2",
+        "minority winner 1",
+        "no winner",
+        "minority winner 4",
+    ];
+    assert_eq!(solution(i), o);
+}
+#+end_src
+
+#+RESULTS:
+
 * COMMENT interview questions and quizes
 ** [?] https://dtolnay.github.io/rust-quiz/1 - statement boundaries
 #+begin_src rust
