@@ -2509,35 +2509,18 @@ fn main() {
 : 21
 ** kattis - vote
 #+begin_src rust
-fn solution(s: Vec<usize>) -> Vec<String> {
-    let rounds = s[0];
-    let mut out: Vec<String> = Vec::new();
-    let mut needle: usize = 1;
-    for _  in 0..rounds {
-        let cand_count = s[needle];
-        let start = needle + 1;
-        let end = needle + 1 + cand_count;
-        // println!("{:?}", &s[start..end]);
-        let check = &mut s[start..end].into_iter().collect::<Vec<&usize>>();
-        let mut check_no_winner = check.clone();
-        let check = check.clone();
-        check_no_winner.sort();
-        check_no_winner.dedup();
-        let win = &s[start..end].iter().enumerate().max_by_key(|x| x.1);
-        let win_idx = win.map(|(x,_)| x).unwrap() + 1;
-        let win_score = win.map(|(_,y)| y).unwrap();
-        // println!("w{:?} c{:?}", win, check);
-        if check_no_winner.len() == 1 {
-            out.push(format!("no winner"));
-        } else if *win_score > &check.into_iter().sum::<usize>() - win_score  {
-            out.push(format!("majority winner {}", win_idx));
+fn solution(mut s: Vec<usize>) -> Vec<String> {
+    (0..s[0]).map(|i| {
+        let voting_session = s.drain(i+2..i+2+s[1+i]).collect::<Vec<usize>>();
+        let (winner_idx, winner_score) = &voting_session.iter().enumerate().max_by_key(|x| x.1).unwrap();
+        if voting_session.iter().min() == voting_session.iter().max() {
+            format!("no winner")
+        } else if *winner_score > &(voting_session.iter().sum::<usize>() - *winner_score)  {
+            format!("majority winner {}", winner_idx + 1)
         } else {
-            out.push(format!("minority winner {}", win_idx));
+            format!("minority winner {}", winner_idx + 1)
         }
-        // println!("{}", win);
-        needle += cand_count + 1;
-    }
-    out
+    }).collect::<Vec<String>>()
 }
 
 fn main() {
