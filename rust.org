@@ -2607,6 +2607,258 @@ fn main() {
 
 #+RESULTS:
 
+** kattis - basicprogramming1
+*** 1
+#+begin_src rust :tangle ~/Desktop/trash/basicprogramming1.rs
+#![allow(unused_variables, dead_code)]
+
+trait Solver {
+    fn solve(&self, input: &Input) -> String;
+}
+
+#[derive(Clone)]
+struct Input {
+    n: u32,
+    t: u32,
+    a: Vec<u32>
+}
+
+impl Input {
+    fn parse(s: String) -> Self {
+        let dawaj = s.split_whitespace()
+                           .map(|s| s.chars()
+                                .collect::<String>()
+                                .parse::<u32>()
+                                .unwrap()).collect::<Vec<u32>>();
+
+
+        match dawaj.as_slice() {
+            [n, t, array @ ..] => Input {
+                n: *n,
+                t: *t,
+                a: array.to_vec()
+            },
+            _ => panic!()
+        }
+    }
+    fn select_solver(&self) -> impl Solver {
+        match self.t {
+            1 => {return <Option1 as Solver>::solve;},
+            2 => {return <Option2 as Solver>::solve;},
+            _ => panic!()
+            // 3 => Option3,
+            // 4 => Option4,
+            // 5 => Option5,
+            // 6 => Option6,
+            // 7 => Option7,
+        }
+    }
+}
+
+struct Option1;
+struct Option2;
+struct Option3;
+struct Option4;
+struct Option5;
+struct Option6;
+struct Option7;
+impl Solver for Option1 {
+    fn solve(&self, input: &Input) -> String {
+        "s".to_string()
+    }
+}
+impl Solver for Option2 {
+    fn solve(&self, input: &Input) -> String {
+        "s".to_string()
+    }
+}
+impl Solver for Option3 {
+    fn solve(&self, input: &Input) -> String {
+        "s".to_string()
+    }
+}
+impl Solver for Option4 {
+    fn solve(&self, input: &Input) -> String {
+        "s".to_string()
+    }
+}
+impl Solver for Option5 {
+    fn solve(&self, input: &Input) -> String {
+        "s".to_string()
+    }
+}
+impl Solver for Option6 {
+    fn solve(&self, input: &Input) -> String {
+        "s".to_string()
+    }
+}
+impl Solver for Option7 {
+    fn solve(&self, input: &Input) -> String {
+        "s".to_string()
+    }
+}
+
+fn solution(s: &str) -> String {
+    let parsed: Input = Input::parse(s.to_string());
+    let s = &parsed.select_solver();
+    s.solve(&parsed.clone());
+    "s".to_string()
+}
+
+fn main() {
+    let input = "7 1 1 2 3 4 5 6 7";
+    // let output = "7";
+    println!("{}", solution(input));
+    // let input = "7 2 1 2 3 4 5 6 7";
+    // let output = "Smaller";
+    // let input = "7 3 1 2 3 4 5 6 7";
+    // let output = "2";
+    // let input = "7 4 1 2 3 4 5 6 7";
+    // let output = "28";
+    // let input = "7 5 1 2 3 4 5 6 7";
+    // let output = "12";
+    // let input = "10 6 7 4 11 37 14 22 40 17 11 3";
+    // let output = "helloworld";
+    // let input = "3 7 1 0 2";
+    // let output = "Cyclic";
+}
+#+end_src
+
+#+RESULTS:
+: error: Could not compile `cargo9An818`.
+
+*** 2
+#+begin_src rust :tangle ~/Desktop/trash/basicprogramming1.rs
+#![allow(unused_variables, dead_code)]
+
+trait Parser {
+    fn parse(s: String) -> Self;
+}
+
+#[derive(Clone)]
+struct Input {
+    n: u32,
+    t: u32,
+    a: Vec<u32>
+}
+
+impl Parser for Input {
+    fn parse(s: String) -> Self {
+        match s.split_whitespace()
+                           .map(|s| s.chars()
+                                .collect::<String>()
+                                .parse::<u32>()
+                                .unwrap()).collect::<Vec<u32>>().as_slice() {
+            [n, t, array @ ..] => Self {
+                n: *n,
+                t: *t,
+                a: array.to_vec()
+            },
+            _ => panic!()
+        }
+    }
+}
+
+struct Solver;
+impl Solver {
+    fn solve(i: Input) -> String {
+        match i.t {
+            1 => Self::case1(i.a),
+            2 => Self::case2(i.a),
+            3 => Self::case3(i.a),
+            4 => Self::case4(i.a),
+            5 => Self::case5(i.a),
+            6 => Self::case6(i.a),
+            7 => Self::case7(i.a),
+            _ => panic!()
+        }
+    }
+    fn case1(a: Vec<u32>) -> String { "7".to_string() }
+    fn case2(a: Vec<u32>) -> String {
+        if let [x,y,..] = a.as_slice() {
+            if x > y {
+                "Bigger"
+            } else if x == y {
+                "Equal"
+            } else {
+                "Smaller"
+            }
+        } else {
+            ""
+        }.to_string()
+    }
+    fn case3(a: Vec<u32>) -> String {
+        if let [x,y,z,..] = a.as_slice() {
+            let mut v = [x,y,z].to_vec();
+            v.sort();
+            return v[1].to_string()
+        } else {
+            return "err".to_string()
+        }
+    }
+    fn case4(a: Vec<u32>) -> String { format!("{}", a.iter().sum::<u32>()) }
+    fn case5(a: Vec<u32>) -> String { format!("{}", a.iter().filter(|&x| x % 2 == 0).sum::<u32>()) }
+    fn case6(a: Vec<u32>) -> String {
+        format!("{}", a.iter()
+                       .map(|&x| ('a'..='z').nth((x % 26) as usize).unwrap())
+                       .collect::<String>()) }
+    fn case7(a: Vec<u32>) -> String {
+        let mut i = 0;
+        let r = loop {
+            if let Some(v) = a.get(i) {
+                if *v == a.len() as u32 - 1 {
+                    return "Done".to_string();
+                } else if a[*v as usize] == i.try_into().unwrap() {
+                    return "Cyclic".to_string();
+                } else {
+                    i = *v as usize;
+                }
+            } else {
+                return "Out".to_string();
+            }
+        };
+    }
+}
+
+fn solution(s: &str) -> String {
+    let parsed = Input::parse(s.to_string());
+    Solver::solve(parsed)
+}
+
+fn main() {
+    let input = "7 1 1 2 3 4 5 6 7";
+    let output = "7";
+    println!("{} == {}", solution(input), output);
+    let input = "7 2 1 2 3 4 5 6 7";
+    let output = "Smaller";
+    println!("{} == {}", solution(input), output);
+    let input = "7 3 1 2 3 4 5 6 7";
+    let output = "2";
+    println!("{} == {}", solution(input), output);
+    let input = "7 4 1 2 3 4 5 6 7";
+    let output = "28";
+    println!("{} == {}", solution(input), output);
+    let input = "7 5 1 2 3 4 5 6 7";
+    let output = "12";
+    println!("{} == {}", solution(input), output);
+    let input = "10 6 7 4 11 37 14 22 40 17 11 3";
+    let output = "helloworld";
+    println!("{} == {}", solution(input), output);
+    let input = "3 7 1 0 2";
+    let output = "Cyclic";
+    println!("{} == {}", solution(input), output);
+}
+#+end_src
+
+#+RESULTS:
+: 7 == 7
+: Smaller == Smaller
+: 2 == 2
+: 28 == 28
+: 12 == 12
+: helloworld == helloworld
+: Cyclic == Cyclic
+
 
 * COMMENT interview questions and quizes
 ** dtolnay quiz
