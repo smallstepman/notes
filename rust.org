@@ -1447,6 +1447,10 @@ All Rust crates are versioned and are expected to follow Cargo’s implementatio
 :PROPERTIES:
 :ID:       72caa898-b8a5-4045-8eea-c1a9656514a1
 :END:
+** co-inductive reasoning
+- http://rust-lang.github.io/chalk/book/recursive/coinduction.html
+- https://www.youtube.com/watch?v=nOqO5OlC920
+- https://github.com/rust-lang/rust/issues/26925
 * testing
 - unit tests: =#[test]=
 - integration tests: tests in =tests/= directory
