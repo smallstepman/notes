@@ -1,7 +1,10 @@
 :PROPERTIES:
 :ID:       f608b65b-0ab7-4978-9385-0da0c8fa2d19
 :END:
+#+STARTUP: overview
+#+VISIBILITY: folded
 #+TITLE: rust
+#+filetags: :project:
 
 * memory
 ** value
