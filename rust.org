@@ -2859,6 +2859,95 @@ fn main() {
 : helloworld == helloworld
 : Cyclic == Cyclic
 
+** kattis - treasurehunt
+#+begin_src rust
+#![allow(unused_variables,dead_code)]
+
+#[derive(Debug)]
+struct Mover {
+    x: usize,
+    y: usize,
+    count: u32,
+    xb: usize,
+    yb: usize
+}
+
+impl Mover {
+    fn new(bounds: (usize, usize)) -> Self {
+        Mover {
+            x: 0,
+            y: 0,
+            count: 0,
+            xb: bounds.0,
+            yb: bounds.1
+        }
+    }
+    fn travel(&self, direction: char) -> Option<Self> {
+        let move_by: (isize, isize) = match direction {
+            'E' if self.x + 1 != self.xb => (1, 0),
+            'W' if self.x != 0           => (-1,0),
+            'N' if self.y != 0           => (0, -1),
+            'S' if self.y + 1 != self.yb => (0, 1),
+            'E' | 'W' | 'N' | 'S'        => return None,
+            _ => panic!()
+        };
+        Some(Mover {
+            x: (move_by.0 + (self.x as isize)) as usize,
+            y: (move_by.1 + (self.y as isize)) as usize,
+            count: 1 + self.count,
+            ..*self
+        })
+    }
+}
+
+fn solution (s: &str) -> String {
+    let mut visited: Vec<(usize,usize)> = vec![];
+    if let [r, c, rows @ ..] = s.split_whitespace()
+                                .into_iter()
+                                .collect::<Vec<&str>>()
+                                .as_slice() {
+        let r: usize = r.parse().unwrap();
+        let c: usize = c.parse().unwrap();
+        let mut m = Mover::new((r,c));
+
+        loop {
+            if let Some(r) = rows.get(m.y) {
+                if let Some(c) = r.chars().nth(m.x) {
+                    if c == 'T' {
+                        return format!("{}", m.count);
+                    } else {
+                        visited.push((m.x,m.y));
+                        if let Some(x) = m.travel(c) {
+                            m = x;
+                        } else if visited.contains(&(m.x,m.y)) {
+                            return "Lost".to_string();
+                        } else {
+                            return "Out".to_string();
+                        }
+                    }
+                } else {
+                    return "Out".to_string() ;
+                }
+            } else {
+                return "Out".to_string();
+            }
+        }
+    }
+    return "Out".to_string();
+}
+
+fn main() {
+    let i = "
+    2 2
+    ES
+    TW";
+    let o = 3;
+    println!("{} == {}", solution(i), o);
+}
+#+end_src
+
+#+RESULTS:
+: 3 == 3
 
 * COMMENT interview questions and quizes
 ** dtolnay quiz
