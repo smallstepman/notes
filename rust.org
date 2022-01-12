@@ -2955,6 +2955,199 @@ fn main() {
 
 #+RESULTS:
 : 3 == 3
+** kattis - trainpassengers
+#+begin_src rust
+#![allow(unused_must_use, unused_variables, unused_comparisons)]
+
+#[derive(Copy, Clone, Debug)]
+struct Train {
+    capacity: u32,
+    passengers: u32,
+}
+
+struct Parser;
+
+impl Parser {
+    fn parse_input(s: &str) -> (u32, u32, Vec<Vec<u32>>, u32) {
+        let v = s.lines()
+                 .nth(0)
+                 .unwrap()
+                 .split_whitespace()
+                 .into_iter()
+                 .map(|c| c.parse::<u32>().unwrap())
+                 .collect::<Vec<u32>>();
+        let rows = Parser::parse_rows(s);
+        let last = rows.last().unwrap().last().unwrap().clone();
+        let r = (v[0], v[1], rows, last);
+        // dbg!(&r);
+        r
+    }
+    fn parse_rows(s: &str) -> Vec<Vec<u32>> {
+        let x = s.lines().collect::<Vec<&str>>();
+        let x = &x.as_slice()[1..];
+        let x: Vec<_> = x.iter()
+                         .map(|s| s.split_whitespace()
+                                   .into_iter()
+                                   .map(|w| w.parse::<u32>().unwrap()).collect::<Vec<_>>())
+                         .collect();
+        x
+    }
+}
+
+impl Train {
+    fn new(capacity: u32, passengers: u32) -> Self {
+        Train { capacity, passengers }
+    }
+
+    fn stop_at_the_station(&mut self, left: u32, entered: u32, stayed: u32) -> Option<bool> {
+        // dbg!(&self, left, entered, stayed);
+        self.calculate_passengers_onboard(left, entered)
+            .and_then(|p| self.check_capacity_coretness(p, stayed))
+            .and_then(|p| self.update_passengers_count(p))
+    }
+
+    fn calculate_passengers_onboard(&self, left: u32, entered: u32) -> Option<u32> {
+        Some(self)
+            .and_then(|t| t.passengers.checked_sub(left))
+            .and_then(|c| c.checked_add(entered))
+    }
+
+    fn update_passengers_count(&mut self, p: u32) -> Option<bool> {
+        self.passengers = p;
+        Some(true)
+    }
+
+    fn check_capacity_coretness(&self, p: u32, stayed: u32) -> Option<u32> {
+        if p <= self.capacity && stayed >= 0 && self.capacity >= self.passengers {
+            return Some(p);
+        }
+        None
+    }
+    fn is_empty(&self) -> bool {
+        self.passengers == 0
+    }
+}
+
+fn solution(s: &str) -> &str {
+    let (c, n, rows, last_stayed) = Parser::parse_input(s);
+    if last_stayed > 0 { return "impossible"; }
+    let mut t = Train::new(c, 0);
+    for row in rows {
+        if let [left, entered, stayed] = row.as_slice() {
+            if t.stop_at_the_station(*left, *entered, *stayed).is_none() {
+                // dbg!(&t);
+                return "impossible";
+            }
+        }
+    }
+    if t.is_empty() {
+        "possible"
+    } else {
+        "impossible"
+    }
+}
+
+fn main() {
+
+    let i = "1 2
+    0 1 1
+    1 0 0";
+    let o = "possible";
+    println!("{} == {}", solution(i), o);
+    let i = "1 2
+    1 0 0
+    0 1 0";
+    let o = "impossible";
+    println!("{} == {}", solution(i), o);
+    let i = "1 2
+    0 1 0
+    1 0 1";
+    let o = "impossible";
+    println!("{} == {}", solution(i), o);
+    let i = "1 2
+    0 1 1
+    0 0 0";
+    let o = "impossible";
+    println!("{} == {}", solution(i), o);
+}
+#+end_src
+
+#+RESULTS:
+#+begin_example
+[src/main.rs:24] &r = (
+    1,
+    2,
+    [
+        [
+            0,
+            1,
+            1,
+        ],
+        [
+            1,
+            0,
+            0,
+        ],
+    ],
+    0,
+)
+possible == possible
+[src/main.rs:24] &r = (
+    1,
+    2,
+    [
+        [
+            1,
+            0,
+            0,
+        ],
+        [
+            0,
+            1,
+            0,
+        ],
+    ],
+    0,
+)
+impossible == impossible
+[src/main.rs:24] &r = (
+    1,
+    2,
+    [
+        [
+            0,
+            1,
+            0,
+        ],
+        [
+            1,
+            0,
+            1,
+        ],
+    ],
+    1,
+)
+impossible == impossible
+[src/main.rs:24] &r = (
+    1,
+    2,
+    [
+        [
+            0,
+            1,
+            1,
+        ],
+        [
+            0,
+            0,
+            0,
+        ],
+    ],
+    0,
+)
+impossible == impossible
+#+end_example
+
 
 * COMMENT interview questions and quizes
 ** dtolnay quiz
