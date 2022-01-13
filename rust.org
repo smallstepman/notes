@@ -3148,6 +3148,47 @@ impossible == impossible
 impossible == impossible
 #+end_example
 
+** kattis - friday
+- every year starts on a Sunday
+#+begin_src rust
+fn solution(i: &str) -> String {
+    i.lines()
+        .skip(2)
+        .step_by(2)
+        .map(|year| {
+            year.split_whitespace()
+                .map(|v| v.parse().unwrap())
+                .collect()
+        })
+        .map(|months: Vec<u32>| {
+            let mut month_starts_at = 0;
+            let mut happy_days_count = 0;
+            for days_in_month in months {
+                if month_starts_at == 0 && days_in_month >= 13 {
+                    happy_days_count += 1;
+                }
+                month_starts_at = days_in_month % 7;
+            }
+            happy_days_count.to_string()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn main() {
+    let i = "3
+20 1
+20
+40 2
+21 19
+365 12
+31 28 31 30 31 30 31 31 30 31 30 31";
+    let o = "1
+2
+2";
+    assert_eq!(solution(i), o);
+}
+#+end_src
 
 * COMMENT interview questions and quizes
 ** dtolnay quiz
