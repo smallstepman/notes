@@ -4090,6 +4090,56 @@ x.x
     println!("{} == {}", solution(i), o);
 }
 #+end_src
+** kattis - chopin
+#+begin_src rust
+use std::collections::HashMap;
+
+fn find_value(v: &str, d: &HashMap<&str, &str>) -> Option<String> {
+    if let Some((a, b)) = std::iter::zip(d.values(), d.keys()).find(|(x, y)| *x == &v || *y == &v) {
+        if &v == a {
+            Some(b.to_string())
+        } else {
+            Some(a.to_string())
+        }
+    } else {
+        None
+    }
+}
+
+fn solution(i: &str) -> String {
+    let mut d = HashMap::new();
+    d.insert("A#", "Bb");
+    d.insert("C#", "Db");
+    d.insert("D#", "Eb");
+    d.insert("F#", "Gb");
+    d.insert("G#", "Ab");
+    i.lines()
+        .enumerate()
+        .map(|(mut idx, line)| {
+            idx += 1;
+            let input = line.split_whitespace().collect::<Vec<&str>>();
+            let (note, tonality) = (input[0], input[1]);
+            if let Some(note) = find_value(note, &d) {
+                format!("Case {}: {} {}", idx, note, tonality)
+            } else {
+                format!("Case {}: UNIQUE", idx)
+            }
+        })
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
+fn main() {
+    let i = "Ab minor
+D# major
+G minor";
+    let o = "Case 1: G# minor
+Case 2: Eb major
+Case 3: UNIQUE";
+    println!("{} == {}", solution(i), o);
+}
+#+end_src
+
 * COMMENT interview questions and quizes
 ** dtolnay quiz
 *** [?] [[https://dtolnay.github.io/rust-quiz/1][statement boundaries]]
