@@ -4204,6 +4204,100 @@ fn main() {
 : 3 == 3
 : 1 == 1
 
+** kattis - chess
+#+begin_src rust
+use std::collections::HashSet;
+
+#[derive(PartialEq, Eq, Hash, Debug)]
+struct Field {
+    x: u8,
+    y: u8,
+}
+impl Field {
+    fn parse(x: &str, y: &str) -> Self {
+        Field {
+            x: ('A'..='H')
+                .position(|l| l.to_string() == x.to_string())
+                .unwrap() as u8
+                + 1,
+            y: y.parse::<u8>().unwrap(),
+        }
+    }
+    fn color(&self) -> String {
+        if (self.x + self.y) % 2 == 0 {
+            "black".to_string()
+        } else {
+            "white".to_string()
+        }
+    }
+    fn to_string(&self) -> String {
+        format!(
+            "{} {}",
+            ('A'..='H').nth(self.x as usize - 1).unwrap(),
+            self.y
+        )
+    }
+    fn get_diagonal_fields(&self) -> HashSet<Field> {
+        let mut h: HashSet<Field> = HashSet::new();
+        let d: Vec<(i8, i8)> = vec![(1, 1), (-1, 1), (1, -1), (-1, -1)];
+        for (dx, dy) in d {
+            let (mut x, mut y) = (self.x, self.y);
+            while (1..=8).contains(&x) && (1..=8).contains(&y) {
+                h.insert(Field { x, y });
+                x = (x as i8 + 1 * dx) as u8;
+                y = (y as i8 + 1 * dy) as u8;
+            }
+        }
+        h
+    }
+}
+
+fn solution(i: &str) -> String {
+    i.lines()
+        .skip(1)
+        .map(|s| {
+            let v = s.split_whitespace().collect::<Vec<&str>>();
+            let (start, end) = (Field::parse(v[0], v[1]), Field::parse(v[2], v[3]));
+            if start.color() != end.color() {
+                return "Impossible".to_string();
+            } else if start.to_string() == end.to_string() {
+                return format!("0 {}", start.to_string());
+            }
+            let s = &start.get_diagonal_fields();
+            if s.contains(&end) {
+                return format!("1 {} {}", start.to_string(), end.to_string());
+            }
+            let e = &end.get_diagonal_fields();
+            let tada = s.intersection(&e).collect::<Vec<&Field>>();
+            return format!(
+                "2 {} {} {}",
+                start.to_string(),
+                tada.first().unwrap().to_string(),
+                end.to_string()
+            );
+        })
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
+fn main() {
+    let i = "3
+E 2 E 3
+F 1 E 8
+A 3 A 3";
+    let o = "Impossible
+2 F 1 B 5 E 8
+0 A 3";
+    println!("{} == {}", solution(i), o);
+}
+#+end_src
+
+#+RESULTS:
+: Impossible
+: 2 F 1 B 5 E 8
+: 0 A 3 == Impossible
+: 2 F 1 B 5 E 8
+: 0 A 3
 
 * COMMENT interview questions and quizes
 ** dtolnay quiz
