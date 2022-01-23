@@ -4141,8 +4141,31 @@ Case 3: UNIQUE";
 #+end_src
 ** kattis - memory match
 #+begin_src rust
-fn solution(i: &str) -> &str {
+use std::collections::{HashMap, HashSet};
 
+fn solution(i: &str) -> String {
+    let mut map: HashMap<&str, HashSet<u8>> = HashMap::new();
+    let cards = i.lines().nth(0).unwrap().parse::<u8>().unwrap();
+    i.lines()
+        .skip(2)
+        .map(|l| {
+            let v = l.split_whitespace().collect::<Vec<&str>>();
+            let (c1, p1): (u8, &str) = (v[0].parse().unwrap(), v[2]);
+            let (c2, p2): (u8, &str) = (v[1].parse().unwrap(), v[3]);
+            map.entry(p1).or_default().insert(c1);
+            map.entry(p2).or_default().insert(c2);
+            if p1 == p2 {
+                map.entry(p2).or_default().insert(0);
+            }
+        })
+        .for_each(drop);
+    // dbg!(&map);
+    let x = map.values().filter(|v| v.len() == 3).count();
+    if map.keys().len() == (cards / 2) as usize {
+        return (cards as u8 / 2 - x as u8).to_string();
+    } else {
+        return map.values().filter(|v| v.len() == 2).count().to_string();
+    }
 }
 
 fn main() {
@@ -4177,7 +4200,9 @@ fn main() {
 #+end_src
 
 #+RESULTS:
-: error: Could not compile `cargok8xrF4`.
+: 3 == 3
+: 3 == 3
+: 1 == 1
 
 
 * COMMENT interview questions and quizes
