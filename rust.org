@@ -4298,6 +4298,173 @@ A 3 A 3";
 : 0 A 3 == Impossible
 : 2 F 1 B 5 E 8
 : 0 A 3
+** kattis - helpme
+#+begin_src rust
+
+#+end_src
+** kattis - empleh
+#+begin_src rust
+#[derive(Copy, Clone, Debug)]
+struct Piece {
+    p: char,
+    x: u8,
+    y: u8,
+}
+
+impl Piece {
+    fn new(s: &str) -> Self {
+        // dbg!(s);
+        Piece {
+            p: if s.len() > 2 {
+                s.chars().nth(0).unwrap()
+            } else {
+                'P'
+            },
+            x: ('a'..='h')
+                .position(|x| x == s.chars().nth_back(1).unwrap())
+                .unwrap() as u8,
+            y: s.chars()
+                .nth_back(0)
+                .unwrap()
+                .to_string()
+                .parse::<u8>()
+                .unwrap()
+                - 1,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+enum PlayerPiece {
+    Black(Piece),
+    White(Piece),
+}
+
+#[derive(Copy, Clone, Debug)]
+struct Field(Option<PlayerPiece>);
+
+impl Field {
+    fn get_char(self, default: char) -> char {
+        match self.0 {
+            Some(PlayerPiece::Black(p)) => p.p.to_lowercase().to_string().chars().nth(0).unwrap(),
+            Some(PlayerPiece::White(p)) => p.p,
+            _ => default,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Board {
+    fields: [[Field; 8]; 8],
+}
+
+impl Board {
+    fn new() -> Self {
+        Board {
+            fields: [[Field(None); 8]; 8],
+        }
+    }
+    fn insert(&mut self, piece: PlayerPiece) {
+        if let PlayerPiece::Black(p) = piece {
+            self.fields[p.y as usize][p.x as usize] = Field(Some(piece));
+        }
+        if let PlayerPiece::White(p) = piece {
+            self.fields[p.y as usize][p.x as usize] = Field(Some(piece));
+        }
+    }
+}
+
+impl std::fmt::Display for Board {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "+---+---+---+---+---+---+---+---+\n{}+---+---+---+---+---+---+---+---+",
+            self.fields
+                .into_iter()
+                .enumerate()
+                .map(|(idx, x)| format!(
+                    "|{}|\n",
+                    x.into_iter()
+                        .enumerate()
+                        .map(|(idy, y)| {
+                            let c = if (idx + idy) % 2 == 0 { ':' } else { '.' };
+                            format!("{}{}{}", c, y.get_char(c), c)
+                        })
+                        .collect::<Vec<String>>()
+                        .join("|")
+                ))
+                .rev()
+                .collect::<Vec<String>>()
+                .join("+---+---+---+---+---+---+---+---+\n")
+        )
+    }
+}
+
+fn solution(input: &str) -> String {
+    let mut board = Board::new();
+
+    input.lines().for_each(|l| {
+        if let [color, pieces] = l.split(":").collect::<Vec<&str>>()[..] {
+            pieces.split(",").for_each(|p| {
+                let piece = Piece::new(p);
+                let player_piece = if color == "White" {
+                    PlayerPiece::White(piece)
+                } else {
+                    PlayerPiece::Black(piece)
+                };
+
+                board.insert(player_piece);
+            });
+        }
+    });
+    // dbg!(&board);
+    format!("{}", board)
+}
+
+fn main() {
+    let input = "White:Ke1,Qd1,Ra1,Rh1,Bc1,Bf1,Nb1,a2,c2,d2,f2,g2,h2,a3,e4
+Black:Ke8,Qd8,Ra8,Rh8,Bc8,Ng8,Nc6,a7,b7,c7,d7,e7,f7,h7,h6";
+    let output = "+---+---+---+---+---+---+---+---+
+|.r.|:::|.b.|:q:|.k.|:::|.n.|:r:|
++---+---+---+---+---+---+---+---+
+|:p:|.p.|:p:|.p.|:p:|.p.|:::|.p.|
++---+---+---+---+---+---+---+---+
+|...|:::|.n.|:::|...|:::|...|:p:|
++---+---+---+---+---+---+---+---+
+|:::|...|:::|...|:::|...|:::|...|
++---+---+---+---+---+---+---+---+
+|...|:::|...|:::|.P.|:::|...|:::|
++---+---+---+---+---+---+---+---+
+|:P:|...|:::|...|:::|...|:::|...|
++---+---+---+---+---+---+---+---+
+|.P.|:::|.P.|:P:|...|:P:|.P.|:P:|
++---+---+---+---+---+---+---+---+
+|:R:|.N.|:B:|.Q.|:K:|.B.|:::|.R.|
++---+---+---+---+---+---+---+---+";
+    println!("{}", solution(input));
+
+    //     let input = "White:
+    // Black:Kh5,Ke1";
+    //     let output = "+---+---+---+---+---+---+---+---+
+    // |...|:::|...|:::|...|:::|...|:::|
+    // +---+---+---+---+---+---+---+---+
+    // |:::|...|:::|...|:::|...|:::|...|
+    // +---+---+---+---+---+---+---+---+
+    // |...|:::|...|:::|...|:::|...|:::|
+    // +---+---+---+---+---+---+---+---+
+    // |:::|...|:::|...|:::|...|:::|.k.|
+    // +---+---+---+---+---+---+---+---+
+    // |...|:::|...|:::|...|:::|...|:::|
+    // +---+---+---+---+---+---+---+---+
+    // |:::|...|:::|...|:::|...|:::|...|
+    // +---+---+---+---+---+---+---+---+
+    // |...|:::|...|:::|...|:::|...|:::|
+    // +---+---+---+---+---+---+---+---+
+    // |:::|...|:::|...|:k:|...|:::|...|
+    // +---+---+---+---+---+---+---+---+";
+    //     println!("{}", dbg!(solution(input)) == output);
+}
+#+end_src
 
 * COMMENT interview questions and quizes
 ** dtolnay quiz
