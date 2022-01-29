@@ -4300,8 +4300,137 @@ A 3 A 3";
 : 0 A 3
 ** kattis - helpme
 #+begin_src rust
+use std::cmp::Ordering;
+
+fn solution(input: &str) -> String {
+    let mut whites = vec![];
+    let mut blacks = vec![];
+
+    input
+        .lines()
+        .rev()
+        .skip(1)
+        .step_by(2)
+        .enumerate()
+        .for_each(|(idx, l)| {
+            l.trim_matches('|')
+                .split('|')
+                .enumerate()
+                .for_each(|(idy, y)| {
+                    let f = y.chars().nth(1).unwrap();
+                    if f.is_alphabetic() {
+                        if f.is_uppercase() {
+                            whites.push(format!(
+                                "{}{}{}",
+                                f,
+                                ('a'..='h').nth(idy).unwrap(),
+                                idx + 1
+                            ));
+                        } else {
+                            blacks.push(format!(
+                                "{}{}{}",
+                                f.to_uppercase(),
+                                ('a'..='h').nth(idy).unwrap(),
+                                idx + 1
+                            ));
+                        }
+                    }
+                })
+        });
+
+    fn sorting_func(color: char) -> impl FnMut(&String, &String) -> Ordering {
+        let ord = if color == 'w' {
+            (Ordering::Less, Ordering::Greater)
+        } else {
+            (Ordering::Greater, Ordering::Less)
+        };
+        return move |a: &String, b: &String| -> Ordering {
+            let xa = a.chars().nth(0).unwrap();
+            let xb = b.chars().nth(0).unwrap();
+            let ya = a.chars().nth(1).unwrap();
+            let yb = b.chars().nth(1).unwrap();
+            let za: u8 = a.chars().nth(2).unwrap().to_string().parse().unwrap();
+            let zb: u8 = b.chars().nth(2).unwrap().to_string().parse().unwrap();
+
+            match (xa, xb) {
+                (q, w) if q == w => match (za, zb) {
+                    (o, p) if p == o => match (ya, yb) {
+                        (s, t) if s > t => Ordering::Greater,
+                        _ => Ordering::Less,
+                    },
+                    (o, p) if p > o => ord.0,
+                    _ => ord.1,
+                },
+                ('K', _) => Ordering::Less,
+                ('Q', 'R' | 'B' | 'N' | 'P') => Ordering::Less,
+                ('R', 'B' | 'N' | 'P') => Ordering::Less,
+                ('B', 'N' | 'P') => Ordering::Less,
+                ('N', 'P') => Ordering::Less,
+                (_, _) => Ordering::Greater,
+            }
+        };
+    }
+
+    blacks.sort_by(sorting_func('b'));
+    whites.sort_by(sorting_func('w'));
+
+    // dbg!(&whites, &blacks);
+
+    return format!("White:{}\nBlack:{}", &whites.join(","), &blacks.join(",")).replace("P", "");
+}
+
+fn main() {
+    let input = "+---+---+---+---+---+---+---+---+
+|.r.|:::|.b.|:q:|.k.|:::|.n.|:r:|
++---+---+---+---+---+---+---+---+
+|:p:|.p.|:p:|.p.|:p:|.p.|:::|.p.|
++---+---+---+---+---+---+---+---+
+|...|:::|.n.|:::|...|:::|...|:p:|
++---+---+---+---+---+---+---+---+
+|:::|...|:::|...|:::|...|:::|...|
++---+---+---+---+---+---+---+---+
+|...|:::|...|:::|.P.|:::|...|:::|
++---+---+---+---+---+---+---+---+
+|:P:|...|:::|...|:::|...|:::|...|
++---+---+---+---+---+---+---+---+
+|.P.|:::|.P.|:P:|...|:P:|.P.|:P:|
++---+---+---+---+---+---+---+---+
+|:R:|.N.|:B:|.Q.|:K:|.B.|:::|.R.|
++---+---+---+---+---+---+---+---+";
+    let output = "White:Ke1,Qd1,Ra1,Rh1,Bc1,Bf1,Nb1,a2,c2,d2,f2,g2,h2,a3,e4
+Black:Ke8,Qd8,Ra8,Rh8,Bc8,Ng8,Nc6,a7,b7,c7,d7,e7,f7,h7,h6";
+    println!("{}", dbg!(solution(input)) == output);
+
+    let input = "+---+---+---+---+---+---+---+---+
+|...|:::|...|:::|...|:::|...|:::|
++---+---+---+---+---+---+---+---+
+|:::|...|:::|...|:::|...|:::|...|
++---+---+---+---+---+---+---+---+
+|...|:::|...|:::|...|:::|...|:::|
++---+---+---+---+---+---+---+---+
+|:::|...|:::|...|:::|...|:::|.k.|
++---+---+---+---+---+---+---+---+
+|...|:::|...|:::|...|:::|...|:::|
++---+---+---+---+---+---+---+---+
+|:::|...|:::|...|:::|...|:::|...|
++---+---+---+---+---+---+---+---+
+|...|:::|...|:::|...|:::|...|:::|
++---+---+---+---+---+---+---+---+
+|:::|...|:::|...|:k:|...|:::|...|
++---+---+---+---+---+---+---+---+";
+    let output = "White:
+Black:Kh5,Ke1";
+    println!("{}", dbg!(solution(input)) == output);
+}
 
 #+end_src
+
+#+RESULTS:
+: [src/main.rs:101] solution(input) = "White:Ke1,Qd1,Ra1,Rh1,Bc1,Bf1,Nb1,a2,c2,d2,f2,g2,h2,a3,e4\nBlack:Ke8,Qd8,Ra8,Rh8,Bc8,Ng8,Nc6,a7,b7,c7,d7,e7,f7,h7,h6"
+: true
+: [src/main.rs:122] solution(input) = "White:\nBlack:Kh5,Ke1"
+: true
+
 ** kattis - empleh
 #+begin_src rust
 #[derive(Copy, Clone, Debug)]
@@ -4465,6 +4594,43 @@ Black:Ke8,Qd8,Ra8,Rh8,Bc8,Ng8,Nc6,a7,b7,c7,d7,e7,f7,h7,h6";
     //     println!("{}", dbg!(solution(input)) == output);
 }
 #+end_src
+
+#+RESULTS:
+#+begin_example
+warning: unused variable: `output`
+   --> src/main.rs:122:9
+    |
+122 |     let output = "+---+---+---+---+---+---+---+---+
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_output`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `output`
+   --> src/main.rs:122:9
+    |
+122 |     let output = "+---+---+---+---+---+---+---+---+
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_output`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
++---+---+---+---+---+---+---+---+
+|.r.|:::|.b.|:q:|.k.|:::|.n.|:r:|
++---+---+---+---+---+---+---+---+
+|:p:|.p.|:p:|.p.|:p:|.p.|:::|.p.|
++---+---+---+---+---+---+---+---+
+|...|:::|.n.|:::|...|:::|...|:p:|
++---+---+---+---+---+---+---+---+
+|:::|...|:::|...|:::|...|:::|...|
++---+---+---+---+---+---+---+---+
+|...|:::|...|:::|.P.|:::|...|:::|
++---+---+---+---+---+---+---+---+
+|:P:|...|:::|...|:::|...|:::|...|
++---+---+---+---+---+---+---+---+
+|.P.|:::|.P.|:P:|...|:P:|.P.|:P:|
++---+---+---+---+---+---+---+---+
+|:R:|.N.|:B:|.Q.|:K:|.B.|:::|.R.|
++---+---+---+---+---+---+---+---+
+#+end_example
 
 * COMMENT interview questions and quizes
 ** dtolnay quiz
