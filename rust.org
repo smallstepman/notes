@@ -4631,6 +4631,26 @@ warning: unused variable: `output`
 |:R:|.N.|:B:|.Q.|:K:|.B.|:::|.R.|
 +---+---+---+---+---+---+---+---+
 #+end_example
+** kattis - bijele
+#+begin_src rust
+fn solution(s: &str) -> String {
+    let target = vec![1, 1, 2, 2, 2, 8];
+    s.split_whitespace()
+        .enumerate()
+        .map(|(idx, v)| (target[idx] - v.parse::<i32>().unwrap()).to_string())
+        .collect::<Vec<String>>()
+        .join(" ")
+}
+
+fn main() {
+    let i = "0 1 2 2 2 7";
+    let o = "1 0 0 0 0 1";
+    println!("{} == {}", solution(i), o);
+    let i = "2 1 2 1 2 1";
+    let o = "-1 0 0 1 0 7";
+    println!("{} == {}", solution(i), o);
+}
+#+end_src
 
 * COMMENT interview questions and quizes
 ** dtolnay quiz
