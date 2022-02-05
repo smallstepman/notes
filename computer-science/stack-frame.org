@@ -1,0 +1,12 @@
+:PROPERTIES:
+:ID:       31aa20e5-eb5a-41db-bbb9-8aae5aa6fa89
+:ROAM_REFS: https://stackoverflow.com/questions/19373405/do-cpp-object-methods-have-their-own-stack-frame
+:END:
+#+TITLE: stack frame
+
+* [[https://stackoverflow.com/questions/19373405/do-cpp-object-methods-have-their-own-stack-frame][c++ - Do cpp object methods have their own stack frame? - Stack Overflow]] [2021-12-25 sob 18:14]
+#+begin_quote
+- each thread makes use of its own stack and each stack makes local variables distinct between threads
+- this is not specific to C though, it's just the way processors function. (That is in modern processors, some older processors had only one stack, like the 6502 that had only 256 bytes of stack and no real capability to run threads...)
+- objects may be on the stack and shared between threads and thus you can end up modifying the same object on another thread stack, but that's only if you share that specific pointer
+#+end_quote

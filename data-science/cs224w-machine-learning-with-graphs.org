@@ -1,0 +1,936 @@
+:PROPERTIES:
+:ID:       ac7d066a-3e55-46cb-bac5-88c1de842f04
+:END:
+#+TITLE: CS224W Machine Learning with Graphs
+#+created_at:<2021-05-25 Tue 05:55>
+
+
+* Lectures
+** 1.1
+*** Questions
+**** 1.1 What is graph?
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_FAILURE_REASON: cannot create note because it is a duplicate
+:END:
+***** Front
+What is graph?
+***** Back :ATTACH:
+ - Graphs are a general language for describing and analyzing entities with replations/interactions
+  [[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210621_174106screenshot.png]]
+
+**** 1.1 Graphs usage
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624169271984
+:END:
+***** Front
+Where graphs are being used?
+***** Back
+- Social networks
+- Economic networks
+- Communication Networks
+- Citation Networks
+- Internet
+- Networks of Neurons
+- Knowledge graphs
+- Regulatory networks (cells)
+- scene graphs
+- code graphs
+- molecules - atoms and bonds between them
+- 3d shapes
+**** 1.1 types of networks and graphs
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624222456234
+:END:
+***** Front
+what are the types of networks and graphs
+***** Back
+although the distinction is blurred, we have
+- naural graphs or networks - where underlying domain can be represented in graphs
+  - social networks - society is a collection of 8 billion individuals
+  - communication and transaction - electronic devices, phone calls, financial transactions
+  - biomedicine - interactions between genes/proteins regulate life
+  - brain connections - our thoughts are hidden in the connections between billions of neurons
+- Graphs as a representation
+  - information and knowledge - organized and linked
+  - software can be represented as a graph
+  - similarity networks - connect similar data points
+  - relational structures - molecules, scene graph, 3d shapes, particle-based physics simulations
+**** 1.1 When graph machine learning is good candidate to solve the problem
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624222456334
+:END:
+***** Front
+When it's good idea to use graph machine learning
+***** Back
+Complex domains have a rich relational structure, which can be represented as relational graph. By explicitly modeling relationships we achieve better performance
+**** 1.1 Why machine learning with graphs is hard?
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624222456434
+:END:
+***** Front
+Why graph machine learning is hard?
+***** Back
+1. Graphs have arbitrary size and complex topology
+2. No special locailty (like in grids or text)
+3. no refence point, no fixed node ordering
+4. networks are dynamic and have multimodel features
+**** 1.1 Repsenetation learning, e2e learning
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624222456534
+:END:
+***** Front
+What is representation learning?
+***** Back
+Representation learning is about automatically extracting/learning features in the graph. In traditional machine learnin approaches, a lot of effort goes into designing proper ways to capture stracture of the data data, proper featuers, so that machine learning models can take advantage of them. Representation learning is where feature engineering is taken away, and as soon as we have grapng ih data, we can automatically learn good representation of that graph so it can be used in downstream machine learning algorithm.
+The way to think about it is to map nodes to a =d= dimensional embedding, such that similar nodes in the network are embedded close together in embedding space.
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/screenshot-2021-06-20_22:54:35.png]]
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/screenshot-2021-06-20_23:00:59.png]]
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/screenshot-2021-06-20_23:34:54.png]]
+** 1.2
+*** Questions
+**** 1.2 Different Types of Tasks
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624388793710
+:END:
+***** Front
+What are different types of tasks a machine algorithm can do?
+***** Back :ATTACH:
+- graph-level prediction
+- graph generation
+- node level
+- community (subgraph) lever
+- edge-level
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210620_235624screenshot.png]]
+- Classic Graph ML Tasks
+  + Node classification: Predict a property of a node
+    Example: Categorize online users / items
+  + Link prediction: Predict whether there are missing links between two nodes
+    Example: Knowledge graph completion
+  + Graph classification: Categorize different graphs
+    Example: Molecule property prediction
+  + Clustering: Detect if nodes form a community
+    Example: social circle detection
+  + Graph generations: Drug discovery
+  + Graph evolution: Physical simulation
+**** 1.2 Examples of Node-level ML tasks
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624388795761
+:END:
+***** Front
+What are the examples of Node-level ML tasks?
+
+***** Back :ATTACH:
+
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210621_041630screenshot.png]]
+
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210621_041725screenshot.png]]
+
+**** 1.2 Examples of Edge-level ML tasks
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624388796843
+:END:
+***** Front
+What are the examples of Edge-level ML tasks?
+***** Back :ATTACH:
+- Recommender systems, where users interact with items, and items together with users create nodes, whereas edges are user-item interactions. Recommend items users might like.
+ [[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210621_170818screenshot.png]]
+- biomedical gaph link prediction. Many patients take many drugs simutaniously. Edge level ml can help find probable sideeffects that are a result of combining the drugs.
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210621_170754screenshot.png]]
+**** 1.2 Examples of subgraph-level ML Tasks
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624388797459
+:END:
+***** Front
+What are the examples of Subgraph-level ML tasks?
+***** Back :ATTACH:
+- traffic prediction
+ [[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210621_173156screenshot.png]]
+**** 1.2 Examples of graph-level ML tasks
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624388798928
+:END:
+***** Front
+What are the examples of Graph-level ML tasks?
+***** Back :ATTACH:
+- Drugs discovery
+  Graph neural network was already used at MIT for antibiotic discovery. They used it to classify different molecules. and predict promising molecules from pool of candidates.
+   [[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210621_173458screenshot.png]]
+- graph generation for generating novel molecules, e.g.
+  - generate molecules that are non-toxic
+  - generate molecules that have high solelubility
+  - generate molecules that have high half life
+
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210621_173632screenshot.png]]
+- physics simulation
+  Physical simulation as a graph, where nodes are particles, and edges are interaction between particles.
+
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210621_173735screenshot.png]]
+
+** 1.3
+*** Questions
+**** 1.3 Components of a network
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624380075927
+:END:
+***** Front
+What are the components of a network
+***** Back
+- Objects: nodes, vertices     =N=
+- Interactions: links, eges    =E=
+- System: network, graph       =G(N,E)=
+**** 1.3 How to choose proper graph representation? How to define a graph?
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624388799714
+:END:
+***** Front
+How to choose proper graph representation and how to define a graph?
+***** Back
+It must be well defined what are the nodes and what are the edges.
+Choice of the proper network representation of a given domain/problem determines our ability to use networks successfully
+- in some cases there is a unique, unambigous representation
+- in other cases, the representation is by no means unique
+- the way you assign links will determine the nature of the question you can study
+
+****** Graph can be either directed or undirected.
+******* undirected
+Links: undirected (symmetrical, reciprocal)
+Examples: collaboratioins, friendship on facebook
+******* directed
+Links: directed (arcs)
+Examples: phone calls, following on twitter
+****** Node degree :ATTACH:
+
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210622_171839screenshot.png]]
+
+******* undirected
+Node degree, ki: the number of edges adjacent to node i
+
+******* directed
+in directed networks we define an in-degree and out-degree. The total degree of a node is the sum in- and out-degrees
+**** 1.3 What is bipartite graph and what is Folded network
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624388800212
+:END:
+***** Front
+What is bipartite graph, and what is folded network?
+***** Back :ATTACH:
+Bipartite graph is a graph whose nodes can be divided into two disjoint sets U and V such that every link connects a node in U to one in V; that is, U an V are independent sets
+Examples: authors-to-papers (they authored), recips-to-ingredients (they contain)
+
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210622_172450screenshot.png]]
+
+Folded network, is a projection of bitartite graph
+Examples: author collaboration network, common recipe coingredients network
+
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210622_172607screenshot.png]]
+**** 1.3 Graph representation: Adjencacy matrix, Adjencency List, Edge list
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624388802560
+:END:
+***** Front :ATTACH:
+What are the ways to represent below graph, and what are the benefits of each approach?
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210622_172907screenshot.png]]
+***** Back
+****** Adjenecy matrix :ATTACH:
+They are extremely friends. adjencecy matrix is filled with zeros.
+Aij = 1, if ther is a link from node i to node j
+aij = 0, otherwise
+Note that the matrix is not symmetric for a directed graph
+#+begin_src latex :exports results :file assets/adjecency-matix-undirected.png :results file
+\left(\begin{array}{llll}
+0 & 1 & 0 & 1 \\
+1 & 0 & 0 & 1 \\
+0 & 0 & 0 & 1 \\
+1 & 1 & 1 & 0
+\end{array}\right)
+#+end_src
+
+#+RESULTS:
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/adjecency-matix-undirected.png]]
+or directed:
+#+begin_src latex :exports results :file assets/adjecency-matrix-directed.png :results file
+\left(\begin{array}{llll}
+0 & 1 & 0 & 1 \\
+1 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 \\
+0 & 1 & 1 & 0
+\end{array}\right)
+#+end_src
+
+#+RESULTS:
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/adjecency-matrix-directed.png]]
+
+sum of rows and/or is the number of edges
+
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210622_175855screenshot.png]]
+
+****** Edge list
+list of edges. This representation is currently popular in deep learning frameworks, because it is easily represented as 2d matrix.
+With this representation it is very hard to do any graph manipulation or graph analysis because computing node degree of a graph is not realistic for huge graphs.
+#+begin_src
+(2,3)
+(3,2)
+(3,4)
+(4,5)
+(5,1)
+(5,2)
+#+end_src
+****** Adjacency list:
+Each node is a key in dictionary, and the value of that dict is list of nodes it is connected to.
+They are easier to work with for spare or large networks.
+Allows us to quickly retrieve all neighbors of a given node
+#+begin_src
+1:
+2: 2,3
+3: 2,4
+4: 5
+5: 1,2
+#+end_src
+**** 1.3 Node and Edge attributes
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624380076259
+:END:
+***** Front
+What are possible options for attributes for nodes and edges?
+***** Back
+- weight (e.g. frequency of communication)
+- ranking (best friend, second best friend)
+- type (friend, relative, co-worker)
+- sign: friend vs foe, trust vs distrust
+- properties depending on the structure of the rest of the graph: number of common friends
+**** 1.3 Self-edges and Multigraphs
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624388803135
+:END:
+***** Front
+What are self-edges and what are multigraphs?
+***** Back :ATTACH:
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210622_182207screenshot.png]]
+**** 1.3 Connectivity for undirected graphs
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624388803901
+:END:
+***** Front
+Describe the notion of connectitity for undirected graph, what are it's special properties?
+***** Back :ATTACH:
+Connected (undirected) graph: ahy two vertices can be joined by a path
+
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210622_182413screenshot.png]]
+
+A disconnected graph is made up by two or more connected components.
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210622_182551screenshot.png]]
+Largest component: D A C B
+Isolated node: H
+
+
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210622_183030screenshot.png]]
+
+**** 1.3 Connectivity for directed graphs
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:ANKI_NOTE_ID: 1624388804511
+:END:
+***** Front
+Describe the notion of connectitity for directed graph, what are it's special properties?
+***** Back :ATTACH:
+
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210622_183745screenshot.png]]
+
+Strongly connecte directed graph has a path from each node to every other node and vice versa (e.g. A-B and B-A path)
+Weakly connected directed graph is connected if we disregard the edge directions.
+
+****** Strongly connected components (SCCs) :ATTACH:
+[[file:assets/ac7d066a-3e55-46cb-bac5-88c1de842f04/_20210622_184048screenshot.png]]
+SCCs are sets of nodes such that every node in that set can  visit each other via directed path.
+SCCs can be identified, but not every node is part of a nontrivial strongly connected component
+In-component: nodes that can reach the SCC
+Out-component: nodes that can be reached from the SCC
+
+** 2. Traditional graph machine learning
+different levels of tasks we have in graphs
+- link level prediction tasks
+- graph level prediction tasks
+- node level prediction tasks
+
+traditional ml pipeline is all about designing features
+we gonna assume that nodes already have some kinds of adributes attachedt to them. e.g. proteins have different chemical structure and properties, we can think of these poperties as atributes attached to the nodes of the network.
+additionally we want to create new features that describe how each nodes is positioned it relation to whole network and what its it local network structure. these additional features describe the topology of the network allow us to make more accurate predictions.
+we will be thinking about two types of features
+- structural features
+- features describing attributes and properties of the nodes
+
+structural features describe
+- structure of a link in broder surrounding network
+- structure of network neighborehood around a given node of interest
+- structure of the entire graph
+
+in tradicional machine learning pipeline we have two steps
+1. take data points, nodes, links, entire graphs and represent them as vectors of features, and on top of it we going to train ml classifier or a model, e.g. support vector machine, random forest, feed forward neural network
+2. apply the model when new node,link,graph appears, we can obtain its featurs and make prediction
+*** feature design
+using effective feature over graphs is the key to achiveving good test performance, becaues we wanna capture relation structure of the network
+*** handcrafted features
+for simplicity - only for undirected graphs
+** 2.1 Feature-based methods: node level classification tasks
+semi supervised case - based on structural features of the graph in training set, we will be able to construct features whcih will allow us to predict node types on previously unseen graph
+**** node degree - number of edges the node has 
+this statistical method treats all nodes equally, therefore nodes with same node degree are equal (from perspective of node degree) even if two nodes are in completely two different parts of the network. In other words, node degree counts the neighbboring nodes without capturing their importance
+**** node centrality - what's the important of a node in the graph
+***** Engenvector centrality - node importance is defined by importance of surrounding nodes :ATTACH:
+:PROPERTIES:
+:ID:       0dbbd5af-ecfa-48c3-b3f4-0d78c3c92f38
+:END:
+#+begin_src latex :exports results :file assets/eignevector-centrality.png :results file
+c_{v}=\frac{1}{\lambda} \sum_{u \in N(v)} c_{u}
+#+end_src
+
+#+RESULTS:
+#+begin_export latex
+[[file:assets/eignevector-centrality.png]]
+#+end_export
+
+[[attachment:_20210710_061146screenshot.png]]
+
+
+***** Betweenness centrality - how important of a connecter given node is :ATTACH:
+:PROPERTIES:
+:ID:       604d219b-9403-4254-94ac-881cffa70e5a
+:END:
+a node is important if it lies on many shortest paths between other nodes
+[[attachment:_20210710_072902screenshot.png]]
+
+***** Closeness centrality - how close to the center of the network node is
+:PROPERTIES:
+:ID:       5950d453-2e50-44ca-93bb-2cffba646e28
+:END:
+a node is important if it has small shortest path lengths to all other nodes
+
+[[attachment:_20210710_062516screenshot.png]]
+
+#+begin_src latex :exports results :file assets/eignevector-centrality.png :results file
+#+end_src
+
+***** Others...
+**** clustering coefficient - how connected node's neighbors are :ATTACH:
+:PROPERTIES:
+:ID:       a18db2f4-a5d3-41fe-9674-d5fa2a58edc0
+:END:
+this measurement looks into local (immediate vicinity) structure of the node
+
+clustering coefficient counts the number of triangles in the ego-network 
+[[attachment:_20210710_073403screenshot.png]]
+
+**** graphlets - rooted connected non-isomorphic subgraph :ATTACH:
+:PROPERTIES:
+:ID:       2b194903-d1fe-4a94-8fae-43a2cfb1b8c2
+:END:
+
+[[attachment:_20210711_022615screenshot.png]]
+(remember that position of the node of interest also matters)
+clustering coefficient counts the number of triangles...
+we can generalize this concept and count number of pre-specified subgraphs in the neighborhood of a given node
+***** GDV graphlet degree vector - count number of graphlets that a node touches :ATTACH:
+
+[[attachment:_20210711_024001screenshot.png]]
+considering graphlets on 2 to 5 nodes we get
+- vector of 73 coordinates that describes topology of one node's neighborhood
+- captures its interconnectivites out to a distance of 4 hops
+
+graphlet degree vector provides a measure of a nodes local network topology
+- compaing vectors of two nodes provides a more detailed measure of local topological similarity than node degrees or clusteing coefficients
+*** Questions
+**** 2.1 Building traditional ML pipeline
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph CS224W_2 CS224W MachineLearning
+:ANKI_NOTE_ID: 1624423323702
+:END:
+***** Front
+How to build traditional ML pipeline
+***** Back
+It's all about designing features. Effective feature design is the key to in obtaining good preictive performance, because we want to capture relational structure of the data.
+1. design features for nodes/links/graphs
+2. obtain faetures for all training data
+3. represent nodes, links, entire graphs with vectors of features
+4. train classical machine learning classifier e.g. random forest, support vector machine, neural network
+5. given a new node/link/graph, obtain its features and make a prediction
+6.
+
+**** 2.1 buncha stuff missing
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph CS224W_2 CS224W MachineLearning
+:END:
+***** Front
+***** Back
+** 2.2 Feature-based methods: link prediction tasks :ATTACH:
+:PROPERTIES:
+:ID:       32bdd23a-c263-4e09-bd03-bfd3bf516542
+:END:
+the task is to predict new linkes based on existing links in the network
+we have to evaluate all node pairs which are not linked and top K node pairs are predicted
+
+Two formulations of the link prediction task:
+1. Links missing at random
+   Useful for static networks like protein-protein interaction network
+   Remove a random set of links and then aim to predict them
+   
+2. Links over time
+   Useful for networks which evolve over time (eg transaction network, social network)
+  [[attachment:_20210713_073030screenshot.png]]
+ 
+
+*** Methodology
+how are we going to provide feature description for a given pair of nodes
+- for each pair of nodes (x,y) compute score c(x,y). e.g. number of common neighbors between x and y
+- sort pairs (x,y) by the decreasing score c(x,y)
+- predict top n pairs as new links
+- see which of these links actually appear in G[t1, t'1], and therefore evaluate our approach
+
+*** Link-level features overview
+**** Distance-based feature :ATTACH:
+***** Shorterst-path distance between two nodes
+ [[attachment:_20210713_082701screenshot.png]]
+However this does not capture the degree of neighborhood overlap...
+Node pair (B,H) has 2 sharde neighboring nods, while pairs (B,E) and (A,B) only have 1 such node. We can improve this with local neighborhood overlap
+**** Local neighborhood overlap :ATTACH:
+captures number of neighboring nodes shared between two nodes v1 and v2
+[[attachment:_20210713_083047screenshot.png]]
+limitation of this method: metric is always zero if two nodes do not have any neighbors in common, however the two nodes may still potentailly be connected in the future
+
+[[attachment:_20210713_100726screenshot.png]]
+
+**** Global neighborhood overlap :ATTACH:
+[[attachment:_20210729_173918screenshot.png]]
+***** Katz index :ATTACH:
+counts the number of all paths of all different lenghts between given pair of nodes
+- Computing number of paths between two nodes
+ [[attachment:_20210713_104130screenshot.png]]
+ [[attachment:_20210729_174320screenshot.png]]
+ [[attachment:_20210729_174603screenshot.png]]
+ [[attachment:_20210729_174619screenshot.png]]
+*** Questions
+**** 2.2 Common neighbors
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph CS224W_2 CS224W MachineLearning
+:END:
+***** Front
+How to calculate common neighbors between two nodes?
+***** Back
+Take union of neigbors of two nodes  $\left|N\left(v_{1}\right) \cap N\left(v_{2}\right)\right|$
+**** 2.2 Jaccard's coefficient
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph CS224W_2 CS224W MachineLearning
+:END:
+***** Front
+What is Jaccard's coefficient and how to calculate it?
+***** Back
+it's a metric describing connectivity between two nodes.
+to calculate it, take union of common neighbors between two nodes and divide by union of all neighbors between two nodes
+$\frac{\left|N\left(v_{1}\right) \cap N\left(v_{2}\right)\right|}{\left|N\left(v_{1}\right) \cup N\left(v_{2}\right)\right|}$
+**** 2.2 Jaccard's coefficient normalization
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph CS224W_2 CS224W MachineLearning
+:END:
+***** Front
+What is Jaccard's coefficient normalizes when compared to Common neighbors method?
+***** Back
+The issue with common neighbors is that nodes that have higher degree are more likely to have neighbors with others.
+**** 2.2 Adamic-Adar index
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph CS224W_2 CS224W MachineLearning
+:END:
+***** Front
+What is Adamic-Adar index and how to calculate it?
+***** Back
+It's local neighborhood overlap metric.
+The idea is to count how many neighbors two nodes have in common, but importance of a given neighbor decreases with its degree; so it's better to have a neighbor in common that have low degree than a neighbor with high degree count
+$\sum_{u \in N\left(v_{1}\right) \cap N\left(v_{2}\right)} \frac{1}{\log \left(k_{u}\right)}$
+**** 2.2 What are the limitations of local neighborhood features
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:END:
+***** Front
+What are the limitations of local neighborhood features?
+***** Back
+Metric is always zero if the two nodes do not have any neighbors in common, in other words, if number of hops between two nodes is bigger than 1, the metric will always be equal to zero.
+**** 2.2 Katz index
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:END:
+***** Front
+What is Katz index?
+***** Back
+Katz index is a global neighborhood overlap metric which counts the number of all paths of all different lenghts between given pair of nodes
+**** 2.2 Computing number of paths between two nodes
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:END:
+***** Front
+How to computing number of paths between two nodes?
+***** Back
+Use powers of the graph adjacency matrix
+** 2.3 Graph-Level Features and Graph Kernels
+the goal is to have features which characterize structe of an entire graph
+*** kernel methods
+In structure mining, a graph kernel is a kernel function that computes an inner product on graphs.[1] Graph kernels can be intuitively understood as functions measuring the similarity of pairs of graphs
+**** Bag-of-Nodes :ATTACH:
+:PROPERTIES:
+:ID:       628812fa-1289-4319-aa21-eb7748d1c130
+:END:
+[[attachment:_20210818_133425screenshot.png]]
+**** Bag-of-node-degrees :ATTACH:
+:PROPERTIES:
+:ID:       61ac9244-8594-4e90-bb6d-edf58f3ef517
+:END:
+[[attachment:_20210818_134337screenshot.png]]
+
+**** graphlet kernel (bag-of-graphlets) :ATTACH:
+:PROPERTIES:
+:ID:       ba147e75-0dd8-46e9-b386-5399d08ec813
+:END:
+the idea is to represent the graph as a count of the number of different graphlets in the graph
+[[attachment:_20210818_142908screenshot.png]]
+[[attachment:_20210818_142844screenshot.png]]
+given two graphs, $G$ and $G'$, graphlet kernel is computed as $K\left(G, G^{\prime}\right)=\boldsymbol{f}_{G}^{\mathrm{T}} \boldsymbol{f}_{G^{\prime}}$
+
+***** issue
+if G and G' have different sizes, that will greatly skew the value.
+Solution: normalize each faeture verctor
+$\boldsymbol{h}_{G}=\frac{\boldsymbol{f}_{G}}{\operatorname{Sum}\left(\boldsymbol{f}_{G}\right)} \quad K\left(G, G^{\prime}\right)=\boldsymbol{h}_{G}{ }^{\mathrm{T}} \boldsymbol{h}_{G^{\prime}}$
+**** weisfeiler-lehman kernel (bag-of-colors)
+**** random-walk kernel
+**** shartest-path graph kernel
+
+*** Questions
+**** 2.3 what are the limitations of graphlet kernels?
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:END:
+***** Front
+what are the limitations of graphlet kernels?
+***** Back
+counting gaphlets is very expensive! Counting size-k graphlets for a graph with size $n$ by enumeration takes $n^{k}$. This is unavoidable in the worst-case since subgraph isomorphism test (judging whether a graph is a subgraph) is NP-hard. If a graph's node degree is bounded by d, an $O(nd^{k-1})$ algorithm exists to count all the graphlets of size $k$.
+** 3. Node Embeddings
+** 3.1 Node Embeddings
+- Graph representation learning alleviates the need to do feature engineering every single time.
+
+notes on node embeddings:
+- this is unsepervised/self-supervised way of learning node embeddings
+- we are *not* utilizing node labels
+- we are *not* utilizing node features
+- the goal is to directly estimate a set of coordinates (i.e. the embedding) of a node so that some aspect of the network stucture (captured by Decoder) is preserved
+- these embeddings are task independednt - they are not trained for a specific task but can be used for any task
+
+*** Encoder+decoder framework/perspective on node embeddings. Definition, tools, techniques, practical methods :ATTACH:
+Setup:
+- represent graph as adjacency matrix
+- we're not going to assume any featuers or attribues on the nodes of the network
+- for simplicity: we're going to use undirected graph
+
+The goal is to encode nodes so that similarity in the embedding space (e.g. dot product) approximates similarity in the graph. $\operatorname{similarity}(u, v) \approx \mathbf{z}_{v}^{\mathrm{T}} \mathbf{z}_{u}$
+[[attachment:_20210825_184853screenshot.png]]
+
+Learning node embeddings:
+1. encoder maps from nodes to embeddings
+2. define a node similarity function (i.e. a measure of similarity in the original network)
+3. decoder maps from embeddings to the similarity score
+4. optimize the parameters of the encoder so that similarity in the original network appoximates similarity of the embedding
+
+*Key Components*
+- Encoder: maps each node to a low-dimensional vector
+- Similarity function: specifies how the relationships in vector space map to the relationships the original network
+
+*Shallow encoding* - the simplest encoding approach
+- [[https://arxiv.org/abs/1403.6652][DeepWalk paper: one of the first papers utilizing node embeddings]]
+- [[https://snap.stanford.edu/node2vec/][node2vec]]
+- Encoder is just an embedding-lookup - encoding of a given node is vector of numbers, and
+$\operatorname{ENC}(v)=\mathbf{z}_{v}=\mathbf{Z} \cdot v$
+ $\mathbf{Z} \in \mathbb{R}^{d \times|\mathcal{V}|}$ matrix, each column is a node embedding [what we learn / optimize]
+ $v \in \mathbb{I}^{|\mathcal{V}|}$ indicator vector, all zeroes except a one in column indicating node $v$
+[[attachment:_20210825_190836screenshot.png]]
+- because of the the size of embedding matrix $Z$ scales with number of nodes, this method can be scaled up to milions of nodes, but falls short for larger graphs because it will be slow because for every node we have to estimate $D$ parameters, but once we have the embedding matrix,
+- each nod is assigned a unique embedding vector (i.e. we directly optimize the embedding of each node)
+- parameters to optimize: $Z$ which contains node embeddings $\mathbf{z}_{u}$ for all nodes $u \in V$
+- Decoder: based on node similarity
+- Objective: maximize $\mathbf{z}_{\mathcal{V}}^{\mathrm{T}} \mathbf{z}_{u}$ for node pairs ($u$, $v$) that are similar
+*** How to define node similarity?
+- key choice of methods is how they define node similarity
+- should two nodes have a similar embedding if they...
+  + are linked?
+  + share neighbors?
+  + have similar "structural roles"?
+
+*** Questions
+**** Why should we create node embeddings?
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:END:
+***** Front
+Why should we create node embeddings?
+***** Back
+similarity of node embeddings between nodes indicates their similarity in the network
+**** What's the goal of node embeddings?
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:END:
+***** Front
+What's the goal of node embeddings?
+***** Back
+the goal is to automatically encode the information about network's structure
+**** Where node embeddings are useful?
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:END:
+***** Front
+Where node embeddings are useful?
+***** Back
+potentially can be used for many downstream prediction tasks, like:
+- node classification
+- link prediction
+- graph classification
+- anomalous node detection
+- clustering
+
+** 3.2 Random walk approaches for node embeddings :ATTACH:
+random walk is a technique that we can use to define similarity between nodes
+
+*Notation*
+- Vector $z_{u}$ - the embedding of node $u$ (what we aim to find)
+- Probability $P\left(v \mid \mathbf{z}_{u}\right)$ - the (predicted) probability of visiting node $v$ on random walks starting from node $v$
+
+*Non-linear functions used to produce predicted probabilities*
+- Softmax function - turns vector of $K$ real values (model predictions) into $K$ probabilities that sum to 1: $\sigma(z)_{i}=\frac{e^{z_{i}}}{\sum_{j=1}^{K} e^{z_{j}}}$
+- Sigmoid function - S-shaped function that turns real values into the range of (0, 1). $S(x)=\frac{1}{1+e^{-x}}$ . The way to think about this is it takes input from $-\infty$ to $+\infty$ and squishes it into (0, 1) range    [[attachment:_20210826_115453screenshot.png]]
+
+*Random Walk*
+- Given a graph and starting point, we select a neighbor of it at random, and move to this neighbor; then we select a neighbor of this point at random and move to it, etc.
+- The (random) sequence of point visited this way is a random walk on the graph
+- [[attachment:_20210826_122254screenshot.png]]
+- $\mathbf{Z}_{u}^{\mathrm{T}} \mathbf{z}_{v} \approx$ to define random-walk in terms of node similarity: learn coordinate $z$ such that the dot product of two nodes $u$ and $v$ is similar/equals/approximates the probability that $u$ and $v$ co-occur on a random walk over the graph
+-
+  1. Estimate probability of visiting node $v$ on a random walk sarting from node $u$ using some random walk strategy $R$
+    [[attachment:_20210826_132200screenshot.png]]
+ 
+  2. Optimize embeddings to encode these random walk statistics. Similarity in embedding space (here: dot product=$cos(\theta)$) encodes random walk "similarity"
+    [[attachment:_20210826_132145screenshot.png]]
+
+*** Unsupervised Feature Learning
+*intuition*: find embedding of nodes in $d$-dimensional space that preserves similarity
+*idea*: learn node embedding such that nearby nodes are close together in the network
+*given a node $u$, how do we define nearby nodes?*: $N_{R}(u)$ ... neighbourhood of $u$ obtained by some random walk strategy $R$, where $N$ are (?) labels neighborehood
+**** Feature learning as optimization
+Given the graph G, nodes V and edgeset V $G=(V,E)$, our goal is to learn mapping $f:u\rightarrow\mathbb{R}$: $f(u)=z_{u}$ (mapping from nodes to their embeddings), and we're going to maximize following log-likelihood objective: $\max _{f} \sum_{u \in V} \log \mathrm{P}\left(N_{\mathrm{R}}(u) \mid \mathbf{z}_{u}\right)$ where $N_{R}(u)$ is the neighborehood of node $u$ by strategy $R$.
+
+To put it into words: our goal is to find node embedding function $f(u)=z_{u}$, such that summation over all the nodes of log probabilities that given the node $u$, that maximizes log probabilities of nodes that appear in its local random-walk neighborehood.
+
+We want to maximize the sum which means we want to make nodes that are visited in same random walk to be embeddeded close together.
+
+Given node $u$, we want to learn feature representation that are predective of the nodes in its random walk neighborehood $N_{R}(u)$
+
+**** how to do it
+1. run short fixed-lenght random walks starting from each node $u$ in the graph using some random walk strategy $R$
+2. for each node $u$ collect $N_{R}(u)$, the multiset (multiset because $N_{R}(u)$ same node can appear multiple times in the neighborehood because it may be visited multiple times) of nodes visited on random walks starting from $u$
+3. define optimization problem and optimize embeddings according to: given node $u$, predict its neighbors $N_{R}(u)$
+   $\max _{f} \sum_{u \in V} \log \mathrm{P}\left(N_{\mathrm{R}}(u) \mid \mathbf{z}_{u}\right)$ --> Maximum likelihood objective
+
+equivalently,
+$\mathcal{L}=\sum_{u \in V} \sum_{v \in N_{R}(u)}-\log \left(P\left(v \mid \mathbf{z}_{u}\right)\right)$
+the intuition is to optimize embeddings $z_{u}$ to maximize the likelihood of random walk co-occurrences
+
+Parameterize $P(v|z_{u})$ using softmax:
+$\mathcal{L}=\sum_{u \in V} \sum_{v \in N_{R}(u)}-\log \left(P\left(v \mid \mathbf{z}_{u}\right)\right)$
+
+
+$\mathcal{L}=\sum_{u \in V} \sum_{v \in N_{R}(u)}-\log \left(\frac{\fam0 \exp(z_{u}^{T}z_{v})}{\sum_{n \in V}\exp(z_{u}^{T}z_{n})}\right)\right)$
+however, calculation from this formula grow quadratic in complexity in proportion to node count in the graph $O(|V|^2)$ (nested sum over nodes ($\sum_{n \in V}$ repeated twice)).
+
+To fix this, we're going to appox softmax with negative sampling
+**** Negative Sampling
+:PROPERTIES:
+:ID:       b811527c-403e-4ac6-adc2-1eb6759f99db
+:END:
+**** Stochastic Gradient Descent
+:PROPERTIES:
+:ID:       cfe92526-58ed-4574-bb19-eec4c47b97c0
+:END:
+
+**** Biased random walks (with node2vec)
+:PROPERTIES:
+:ID:       db1f17e5-c78c-49db-b4c8-960702505960
+:END:
+
+*** Questions
+**** Why use random walks
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:END:
+***** Front
+Why use random walks?
+***** Back
+1. Expressivity: flexible stochastic definition of node similarity that *incorporates both local and higher-order neighborhood information*. The idea: if random walk starting from node $u$ visits $v$ with high probability, $u$ and $v$ are similar (high-order multi-hop information)
+2. Efficiency: don't need to consider all node pairs when training; only need to consider pairs that co-occur on random walks
+
+**** Why use softmax to parametize probability of nodes similarity
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:END:
+***** Front
+Why use softmax to parametize probability of nodes similarity?
+***** Back
+We want node $v$ to be most similar to node $u$ (out of all nodes $n$)
+Intuition: $\sum_{i}\exp(x_{i})\approx\max_{i}\exp(x_{i})$
+**** Why use negative sampling
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:END:
+***** Front
+For random walks, why do we replace softmax similarity function with negative sampling?
+***** Back
+To reduce computational cost.
+Softmax requires us to calculate sum over all nodes (and do so for each node) in order to normalize back to distribution over the nodes.
+The idea with negative sampling is that we're going to sum only over subset of the nodes
+
+**** Why negative sampling approximation is valid
+:PROPERTIES:
+:ANKI_DECK: Data and Information
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Graph
+:END:
+***** Front
+For random walks, why negative sampling approximation is valid?
+***** Back
+Technically this is a different objective, however Negative Sampling is a form of [[id:4836ecae-f042-4a88-86fa-20909402d975][Noise Contrasive Estimation]] which approx. maximizes the log probablity of [[id:1c6f8eca-7057-4544-ae64-14e6f315898b][Softmax]].
+New formulation corresponds to using a logistic regression (sigmoid func.) to distinguish the target node $v$ from nodes $n_{i}$ sampled from background distribution $P_{v}$.
+More at [[https://arxiv.org/pdf/1402.3722.pdf]]
+
+* Code
+** 2. Traditional Methods for ML on Graphs
+#+begin_src python :results output
+import networkx as nx
+# import matplotlib
+# import matplotlib.pyplot as plt
+
+# fig = plt.figure(figsize=(3,2))
+# plt.plot([1,3,2])
+# fig.tight_layout()
+
+# fname = 'myyfig.pdf'
+# plt.savefig(fname)
+# return fname
+
+G = nx.Graph()
+print(G.is_directed())
+
+H = nx.DiGraph()
+H.add_node(0)
+print(H.is_directed())
+
+G.graph["Name"] = "Bar"
+print(G.graph)
+
+a = nx.nx_pydot.to_pydot(H)
+print(a)
+#+end_src
+
+#+RESULTS:
+: False
+: True
+: {'Name': 'Bar'}
+: strict digraph  {
+: 0;
+: }
+:
+
+* Glossary
+- ego-network - node's degree 1 network neighborehood
+- fully connected graph - graph where all nodes are connected with each other
+
+* Inbox
+** nodes have some attributes attached

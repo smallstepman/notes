@@ -1,0 +1,10 @@
+:PROPERTIES:
+:ID:       9e493ad6-5273-47c6-be9a-843af93bd6bc
+:END:
+#+title: CPU
+
+- there's more to it than just clock speed – it's all about how much work gets done in each clock cycle.
+* Pipelining & Instruction-Level Parallelism
+
+* Resources
+- http://www.lighterra.com/papers/modernmicroprocessors/

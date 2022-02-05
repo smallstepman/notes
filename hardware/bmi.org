@@ -1,0 +1,16 @@
+:PROPERTIES:
+:ID:       acb4f64a-d474-4662-b163-881dc27a0530
+:END:
+#+title: Brain-Machine Interface
+
+* [[id:2a3a3ebc-ebde-4940-8842-fd05ac4936b2][Resources]]
+** World Science Festival
+https://www.youtube.com/watch?v=SObhSqYglvQ
+Joseph Fins, , Chantel Prat, Andrea Stocco, Seung-Schik Yoo
+*** [[id:5fa1a135-2cff-49d6-8044-f674279d4061][Miguel Nicolelis]]
+**** Monkey
+***** moving cursor with joystick, taking the joystick away and monkey is still able to move the cursor
+***** moving the robot in japan with BMI in order to get the juice
+**** Human
+***** exosceleton
+phantom links

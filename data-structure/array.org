@@ -1,0 +1,45 @@
+:PROPERTIES:
+:ID:       1b92911a-baa1-4517-bc31-18e1302678df
+:END:
+#+TITLE: array
+
+
+
+- linear data structure
+- homogenous types
+- item in array is called **element**
+- has 3 attributes: name, size, type
+- once instantiated, size cannot be changed
+- parallel arrays have same number of elements, corresponding values in the same position
+- populate-later arrays are great for user input data
+- performance
+  - accessing =o(1)=
+  - searching, unsorted =o(nlogn)=
+  - searching, sorted =o(logn)=
+  - inserting =o(n)=
+  - deleting =o(n)=
+
+* strategies
+- multiple consecutive =O(n)= passes migth be better than =O(n^2)= solution
+- start from the end
+  - great for popping many items
+  - great for shifting/swaping elements in beginning->end direction
+- shifting is very costly operations (=O(n)=)
+- shifting array may be easier when starting from the end
+  #+begin_src C
+  for (int i = 3; i >= 0; i--) {
+    intArray[i + 1] = intArray[i];
+  }
+  #+end_src
+- when an (integer) array A is sorted, many problems involving A become easy (or easier)
+  + searching for a specific value v in array A,
+  + finding the min/max or the k-th smallest/largest value in (static) array A,
+  + testing for uniqueness and deleting duplicates in array A,
+  + counting how many time a specific value v appear in array A,
+  + set intersection/union between array A and another sorted array B,
+  + finding a target pair x ∈ A and y ∈ A such that x+y equals to a target z, etc.
+
+* techniques
+- rotation
+- sorting
+- searching

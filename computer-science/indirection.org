@@ -1,0 +1,10 @@
+:PROPERTIES:
+:ID:       973805cb-e63b-432a-86c4-894232ab2da0
+:ROAM_REFS: https://en.wikipedia.org/wiki/Indirection
+:END:
+#+title: indirection
+
+
+- also called dereferencing
+- the ability to reference something using a name, reference, or container instead of the value itself
+- the most common form of indirection is the act of manipulating a value through its memory address

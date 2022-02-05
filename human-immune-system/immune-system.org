@@ -1,0 +1,10 @@
+:PROPERTIES:
+:ID:       9a251992-042d-4a07-84ef-b7fb5c80ad91
+:END:
+#+title: immune system
+
+- macrophages are first line of defense, but are wasted after consuming ~100 bacterias
+- neurophils are suicide bommer that arrive next, they sometimes explod leaving toxic sludge of their dna
+- after that dendritic cells come and cover themselves with the bacteria, then travell to limbic system to find matching t-cell
+- t-cell then replicates itself, and half of it goes to where inflamation is, and half goes to b-cell
+- b-cell then produce antibodies which wipe stuff clean

@@ -1,0 +1,8 @@
+:PROPERTIES:
+:ID:       66a20696-fc81-4ef4-bcc4-3158804429a1
+:END:
+#+title: invariants
+
+- "something that must be true for your program to be correct"
+- a property of the program state that is always true
+- a predicate that, if true, will remain true throughout a specific sequence of operations, is called (an) invariant to that sequence.

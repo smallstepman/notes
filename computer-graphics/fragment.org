@@ -1,0 +1,15 @@
+:PROPERTIES:
+:ID:       8fe02e40-dbbb-4820-8486-1b9936954433
+:ROAM_REFS: https://en.wikipedia.org/wiki/Shader https://stackoverflow.com/questions/11375965/what-is-fragment-in-opengl-and-other-basic-graphics-questions
+:END:
+#+title: fragment
+
+- a unit of rendering work affecting at most a single output pixel
+- a "potential pixel"
+  - when line is rasterized, you end up with some pixel-like data. If, however, part of that line is hidden behind something else, some of those fragments won't ever be shown on screen, so they won't ever become pixels
+  - You might also have (for example) a line that's partially transparent, so it'll be blended with whatever's behind it before it gets shown on screen.
+  - To give a slightly different perspective, however, DirectX terms all of these as pixels, whether they ever get shown on screen or not
+- Pixel shaders, also known as:
+  - fragment shaders,
+  - compute color and
+  - other attributes of each "fragment"

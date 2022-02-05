@@ -1,0 +1,9 @@
+:PROPERTIES:
+:ID:       37d64c76-0782-4c06-803d-99d4d7a3d2ce
+:END:
+#+title: copyright
+
+- https://en.wikipedia.org/wiki/Software_license
+- https://en.wikipedia.org/wiki/Software_copyright
+- https://smallbusiness.findlaw.com/intellectual-property/copyright-licenses.html
+- https://research.utexas.edu/otc/for-inventors/software-open-source-copyright-licensing/

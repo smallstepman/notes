@@ -1,0 +1,6 @@
+:PROPERTIES:
+:ID:       c6e25d65-4a0e-425e-9000-6fc10aab58ea
+:END:
+#+title: GPU - Graphical Processing Unit
+
+- [[id:196124fa-181d-4750-870b-2135f03dc279][Shaders]]

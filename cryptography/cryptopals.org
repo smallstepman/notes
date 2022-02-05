@@ -1,0 +1,7 @@
+:PROPERTIES:
+:ID:       369f3803-40fb-475e-85d4-1cef3aa49430
+:END:
+#+TITLE: cryptopals
+#+filetags: :project:
+
+* TODO https://cryptopals.com/

@@ -1,0 +1,10 @@
+:PROPERTIES:
+:ID:       20943c39-7a83-4a46-81a1-3e2423b844be
+:ROAM_REFS: https://stackoverflow.com/questions/21057393/what-does-double-free-mean
+:END:
+#+title: double free
+
+- in C, leads to [[id:eca79387-9149-4816-9ad9-84c0664a9bac][undefinied behaviour]]
+  - As per published C11 standard, calling free on already free memory location leads to undefined behaviour
+- It can lead to bizarre situations such as memory not getting allocated even when it's available, heap getting corrupt, same memory location getting allocated to different
+- A fairly common one is when multiple different objects all have pointers to one another and start getting cleaned up by calls to free. When this happens, if you aren't careful, you might free the same pointer multiple times when cleaning up the objects

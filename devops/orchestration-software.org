@@ -1,0 +1,8 @@
+:PROPERTIES:
+:ID:       86366706-d878-41c9-8547-51b208882280
+:END:
+#+title: orchestration software
+
+- application orchestration in the software process means that we can integrate two or more applications
+- able to automate arrangement, coordination, and management of computer software
+- the goal of any orchestration process is to streamline and optimize frequent repeatable processes

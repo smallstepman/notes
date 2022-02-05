@@ -1,0 +1,7 @@
+:PROPERTIES:
+:ID:       5ebe0c97-0b9f-47a6-8650-9806bb27d0b0
+:END:
+#+title: dangling pointer
+
+- a pointer that points to invalid data or to data which is not valid anymore
+- a (non-NULL) pointer which points to unallocated (already freed) memory area

@@ -1,0 +1,16 @@
+:PROPERTIES:
+:ID:       5379a911-d4a4-4a93-9d1a-4482106ee6b8
+:END:
+#+TITLE: quantum machine learning
+#+created_at:<2021-07-09 Fri 04:47>
+#+roam_tags: Empty
+
+
+* Resources
+** https://www.youtube.com/watch?v=fNk_zzaMoSs&list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab&index=1&ab_channel=3Blue1Brown
+** https://www.youtube.com/watch?v=fNk_zzaMoSs&list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab&index=1&ab_channel=3Blue1Brown
+** https://www.deeplearningbook.org/
+** http://mmrc.amss.cas.cn/tlb/201702/W020170224608149940643.pdf
+** https://www.edx.org/course/quantum-information-science-i-part-1
+** https://qiskit.org/textbook/preface.html
+** https://www.springer.com/gp/book/9783319964232

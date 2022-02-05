@@ -1,0 +1,19 @@
+:PROPERTIES:
+:ID:       e8c987b8-c913-4328-8d8f-4b29caf1947a
+:END:
+#+title: information theory
+
+
+* Huffman codes
+1. Information $I(x)$ and probability $P(x)$ are inversely related
+2. $I(x) \geq 0$, observing event $x$ never causes a loss of information.
+3. $P(x)=1 \Rightarrow I(x)=0$
+4. $P(x \cap y)=P(x) \cdot P(y) \Rightarrow I(x \cap y)=I(x)+I(y)$
+$\underbrace{x \text { and } y \text { are independent events }}$
+
+** self information bits
+measures information after observing event $x$ with probability $P(x)$
+$I(x)=\log _{2}\left(\frac{1}{P(x)}\right)=-\log _{2} P(x)$
+*** examples
+- $x$ - dice rolls 6, $P(x)=\frac{1}{6}$, $I(x)=2.6 bits$
+- $x$ - coin lands heads, $P(x)=\frac{1}{2}$, $I(x)=1.0 bits$

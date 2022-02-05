@@ -1,0 +1,62 @@
+:PROPERTIES:
+:ID:       1c5a298b-2157-497d-a83f-f8ef45e9818d
+:END:
+#+title: Memory allocators
+
+- memory allocator organizes a region of computer memory, dispensng and reclaming authorized access to suitable sub-regions on demand
+- memory allocator is a stateful utility or mechanism that organizes a region of computer memory, dispensing and reclaming authorized access to suitable sub-regions on demand
+- memory allocator (the client-facing interface for) a stateful ulility or mechanism that organizes a region of computer memory, dispensing and reclaming authorized access to suitable sub-regions on demand
+- localily is good, according to John Lakos - if you can do some intensive data processing within boxed region of memory, you can get better performance
+- pointer to some region in memory
+
+* General purpose allocator
+e.g. malloc/free, new/delete, tcmalloc, jmalloc
+- is designed to work reasonably well for all use cases
+- satisfies all requirements for memory allocators
+* Special purpose allocator
+e.g. malloc/free
+- can work especially well for some use cases - if you know what you're doing, you can beat the compiler
+- need not satisfy all requirements for allocators - e.g.
+  + may no be safe to use in multithhreaded program
+  + may not reuse individually freed memory
+- requires specific knowledge of the context of use
+* global allocator
+- operates on a single ubiquitous region of memory
+- exists throughout the lifetime of a program
+- is inherently accessiblef from all parts of a program
+* local allocator
+e.g. multipool_allocator, alloca, monotonic_allocator
+- operates on a local sub-region ("arena") of memory
+- may exist for less than the lifetime of a program
+- is typically supplied for client use via a reference
+- can typically be used to free memory unilaterally
+- has =release()= mechanism, to quickly dispose
+* why care about memory allocators
+- enable to fine-tune at a low level when needed
+- they can improve runtime performance
+
+* benefits
+- diversifies memory
+  + fast
+  + shared
+  + protected
+  + mapped
+- workflow quality improvements
+  + testing
+  + debugging
+  + measuring
+- enhanced runtime performance
+  + better locality
+  + less contention
+
+* ways to access memory allocator utilities
+** C language
+- malloc.h - general purpose global allocator
+  - void *malloc
+  - void free
+- alloca.h - special porpose local allocator
+  - void *alloca
+** C++
+- namespace std
+  - void *operator new()
+  - void operator delete()

@@ -1,0 +1,13 @@
+:PROPERTIES:
+:ID:       3e3a2ec8-2201-4867-85df-3c162c6c57e5
+:END:
+#+title: computer science
+
+* method dispatch
+* dynamic dispatch
+* static dispatch
+* type variance
+:PROPERTIES:
+:ID:    17b47502-f697-47cc-b941-50d60ebf20eb
+:END:
+type variance is the reason why, in Java, you can pass a Turtle to a function that accepts an Animal if Turtle is a subtype of Animal, or why, in Rust, you can pass a &'static str to a function that accepts a &'a str.

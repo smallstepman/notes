@@ -1,0 +1,11 @@
+:PROPERTIES:
+:ID:       2fe3a089-8b16-40d1-842a-41335446a7a5
+:ROAM_REFS: https://cfsamson.gitbook.io/green-threads-explained-in-200-lines-of-rust/green-threads
+:END:
+#+title: non-preemptive multitasking
+
+- a task itself decides when the CPU would be better off doing something else than waiting for something to happen in the current task
+- commonly this is done by yielding control to the scheduler
+  - when the control is yielded a central scheduler direct the CPU to resume work on another task that is ready to actually do something else than just block
+- a normal use case for this is to yield control when something that will block execution occurs
+  - an example of this is IO operations

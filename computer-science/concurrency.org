@@ -1,0 +1,14 @@
+:PROPERTIES:
+:ID:       4bb652c2-af98-47fa-a2fa-ab035921e62d
+:END:
+#+TITLE: Concurrency
+#+created_at: <2021-03-28 Sun 03:57>
+#+roam_tags:
+
+multiple logical threads of execution with unknown inter-task dependencies
+
+* forward progress guarantee
+:PROPERTIES:
+:ID:       cee62cc9-b3fc-4625-89af-15ffa8e037a7
+:END:
+- no matter what threads do, within some constrains, they have to make a progress, the program has to complete

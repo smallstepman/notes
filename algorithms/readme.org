@@ -1,0 +1,55 @@
+:PROPERTIES:
+:ID:       9621f12e-5828-4fae-94cd-e09987779781
+:END:
+#+TITLE: Algorithms
+
+- Efficient procedures for solvind large-scale problems
+
+
+* tips on how to be competetive
+- fast typing, +70 WPM with special characters
+- quickly identify problem type
+  - confidently and often be able to say "I solved this before and can re-solve it again fast"
+  - minimize amount of times where problem has been seen but not solved before, or solved before but have low confidence on re-solving it fast
+  - reduce problem into another easier problem
+  - reduce a known NP-hard problem into the given problem
+  - identify hints
+  - special properties of the problem
+  - attack problem from non-obvious problem
+  - compress the input data?
+  - rework math formulas
+  - list observations and patterns
+  - perform case analysis of possible subcases of the problem
+- do [[id:ddf5bcff-2fbe-471f-9c55-608b0b59f9cc][algorithm analysis]]
+  - refrain from implementation until sure the solution is correct and fast enough
+  - given max input bound, can currently implemented solution with its time/space complexity, pass the memory/time limit?
+  - Modern CPU can do 100M operations. If max input size is 100K and the algo is $$O(n^2)$$ then there are $^{10}$$ operations to be made, therefore the program will run for 100 seconds
+- master programming languages
+- master the art of testing code
+- practice practice practice
+- team work
+
+
+
+
+* Resources
+- https://www.youtube.com/c/JukkaSuomela/videos
+- https://visualgo.net
+- https://github.com/stevenhalim/cpbook-code
+- https://cpbook.net
+- https://topcoder.com/community/competetive-programming
+- https://codeforces.com/contents
+- https://train.usaco.org/usacogate
+- https://icpcarchive.org
+- https://www.udebug.com
+- https://uhunt.onlingjudge.org
+- https://www.onlinejudge.org
+- https://open.kattis.com
+- [[https://docs.python.org/3/library/itertools.html#itertools-recipes][Python Itertools]]
+- [[https://www.youtube.com/watch?v=SPHSu4uc8DQ][David Scot Taylor]]
+- https://en.wikipedia.org/wiki/Subset_sum_problem
+- https://arxiv.org/pdf/1807.11597.pdf
+- https://arxiv.org/pdf/2008.10577.pdf
+- Thomas H Cormen, Charles E Leiserson, Ronald L Rivest, Cliff Stein - *Introduction to algorithm*
+- Sanjoy Dasgupta, Chrestis Papadimitriou, Umesh Vazirani - *Algoithms*
+- Jon Kleinberg, Eva Tardos - *Algorithm Design*

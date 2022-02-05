@@ -1,0 +1,43 @@
+:PROPERTIES:
+:ID:       f4178f8e-cc11-4ad6-a5c1-020fdfdd7c2e
+:END:
+#+TITLE: Cryptocurrencies
+#+roam_tags: Technology Money
+
+- money should work as value, which allows to  exchange for one good to another without reduction in value
+
+* Bitcoin
+- P2P money
+** each bitcoin has
+*** input
+where money came from
+*** output
+- where the money is sent
+- there are two types of output bitcoin can have
+  1. [[id:e528ad41-68f0-415f-8e61-99ceceff0728][UTXO - Unspent transaction output]]
+  2. spent transaction output
+*** an age
+when last time bitcoin was moved
+* adoption
+- ATM
+- sending money
+** merchant adoption
+- low transaction fees and no chargebacks
+- super slow transatcions and price is very volatile
+** social sentiment
+- general public is more important than developers
+* hashes and miners
+- [[https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Fdisassembler%2F2XH_HTp98Q.png?alt=media&token=4d41c265-57ea-4e21-9316-0b898dc9f5e2][miners economy]]
+- [[https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Fdisassembler%2FMm-uzLMNcX.png?alt=media&token=d7ab15e6-a282-4f00-9c03-8be55dae9259][miners economy]]
+- 51% attack
+* Resources
+- bitcoin money you can't fuck with Williams
+- bitcoin standard
+- layerd money
+- bitcoin and black america
+- https://www.youtube.com/watch?v=3jPYk7ucrjo
+* questions
+- what are bitcoin wallets?
+- what's the difference between wallet and addresses
+- how can we track wallet growth and activity
+- HODL waves and how to measure them to indicate whether people are buying or selling bitcoins

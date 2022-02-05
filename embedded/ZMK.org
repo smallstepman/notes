@@ -1,0 +1,18 @@
+:PROPERTIES:
+:ID:       8e38112e-1432-447d-9a1c-d46086af2d12
+:END:
+#+TITLE: ZMK
+
+- https://zmkfirmware.dev/
+- https://www.zephyrproject.org/
+* mouse sensor
+** PAW3212
+https://www.pixart.com/products-detail/20/PAW3212DB-TJDT
+** PMW3360
+https://www.pixart.com/products-detail/10/PMW3360DM-T2QU
+* logging
+#+begin_quote
+- you configure ZMK to spit logging over a USB basically, so when ZMK boots it drops a serial port device onto the compute rwhich you can read using minicom or tio etc.
+- On the topic of logging, you may also need initialization logging because you're going to be writing a driver.  If my memory serves me correctly, that __might__ be before USB logging is fully initialized?  I'm not sure.  I know it has an option to be started early, but I don't remember the fine print.  If so, you'll need to use other debugging tech such as SWO (there's several options, they usually require a tool * worth reading around the topic).
+- I personally use a Pi with openocd over GPIO bitbashing * but it's not the most reliable and I'm going to buy or make a tool.
+#+end_quote

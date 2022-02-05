@@ -1,0 +1,6 @@
+:PROPERTIES:
+:ID:       1c6f8eca-7057-4544-ae64-14e6f315898b
+:END:
+#+title: Softmax
+
+https://en.wikipedia.org/wiki/Softmax_function

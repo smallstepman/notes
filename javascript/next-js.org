@@ -1,0 +1,265 @@
+:PROPERTIES:
+:ID:       991e2bcc-4b7d-4e03-9819-75d4dda4ce07
+:END:
+#+title: Next.js
+#+filetags: :project:
+
+* syntax, notes, gotchas
+- ={' '}= adds an empty space, which is used to divide text over multiple lines.
+- Next.js polyfills =fetch()= on both the client and server. You don't need to import it.
+-
+* routes
+** static
+- pages are associated with a route based on their file name
+  - in development, =pages/index.js= is associated with the =/= route
+  - =pages/posts/first-post.js= is associated with the =/posts/first-post= route
+  - =pages/posts/index.js= is associated with the =/posts= route
+** dynamic
+- pages that begin with [ and end with ] are dynamic routes in Next.js.
+- page called =[id].js= under =pages/posts= will generate =/posts/<id>= endpoint.
+* components
+#+begin_src shell
+mkdir components
+touch components/layout.js
+#+end_src
+#+begin_src js
+// layout.js
+export default function Layout({ children }) {
+  return <div className={styles.container}>{children}</div>
+}
+#+end_src
+* links
+#+begin_src typescript
+import Link from 'next/link'
+<h1 className="title">
+  Read{' '}
+  <Link href="/posts/first-post">
+    <a>this page!</a>
+  </Link>
+</h1>
+#+end_src
+* assets
+- sits under the top-level =public= directory.
+- files inside =public= can be referenced from the root of the application similar to pages.
+- =robots.txt= goes there too
+** images
+=<Image>= is a fancy extension of =<img>=:
+- supports =WebP= (optimizes img size per device viewport), even for externally hosted images
+- lazy loaded
+- takes care of Cumulative Layout Shift, therefore improves google search ranking
+-
+#+begin_src typescript
+import Image from 'next/image'
+<Image
+    src="/images/profile.jpg" // Route of the image file
+    height={144} // Desired size with correct aspect ratio
+    width={144} // Desired size with correct aspect ratio
+    alt="Your Name"
+/>
+#+end_src
+* CSS
+** SASS
+- install
+  #+begin_src shell
+  npm install sass
+  #+end_src
+- configure
+  #+begin_src js
+  const path = require('path')
+
+  module.exports = {
+    sassOptions: {
+      includePaths: [path.join(__dirname, 'styles')],
+    },
+  }
+  #+end_src
+** Tailwind CSS - [[https://tailwindcss.com/docs/guides/nextjs][follow me]] & [[https://github.com/vercel/next.js/commit/aaa999d69623267aa55bf775f41f747a8f64649f][tailwind-jit]]
+- install & init
+  #+begin_src shell
+  npm install -D tailwindcss@latest postcss@latest autoprefixer@latest
+  npx tailwindcss init -p
+  #+end_src
+- edit =tailwind.config.js= to optimize tree shaking
+  #+begin_src js
+  module.exports = {
+   //purge: [],
+   purge: ['./pages/**/*.{js,ts,jsx,tsx}', './components/**/*.{js,ts,jsx,tsx}'],
+    darkMode: false, // or 'media' or 'class'
+    theme: {
+      extend: {},
+    },
+    variants: {
+      extend: {},
+    },
+    plugins: [],
+  }
+  #+end_src
+- import
+  - option #1 - when =globals.css= and other =.css= files aren't gonna be used.
+    - Edit =pages/_app.js=:
+    #+begin_src js
+    //import '../styles/globals.css' <- byebye
+    import 'tailwindcss/tailwind.css'
+
+    function MyApp({ Component, pageProps }) {
+      return <Component {...pageProps} />
+    }
+
+    export default MyApp
+    #+end_src
+    - Delete =globals.css= and =Home.module.css=, and all their references inside =.tsx= files
+  - option #2 - include Tailwind in =.css= files
+    - replace contents of =./styles/globals.css= file with
+    #+begin_src js
+    @tailwind base;
+    @tailwind components;
+    @tailwind utilities;
+    #+end_src
+    - import in =pages/_app.js=
+    #+begin_src js
+    import '../styles/globals.css'
+
+    function MyApp({ Component, pageProps }) {
+        return <Component {...pageProps} />
+    }
+
+    export default MyApp
+    #+end_src
+** Components
+#+begin_src shell
+mkdir components
+touch components/layout.js
+touch components/layout.module.css
+#+end_src
+=layout.module.css=
+#+begin_src css
+.container {
+  max-width: 36rem;
+  padding: 0 1rem;
+  margin: 3rem auto 6rem;
+}
+#+end_src
+=layout.js=
+#+begin_src js
+import styles from './layout.module.css'
+
+export default function Layout({ children }) {
+  return <div className={styles.container}>{children}</div>
+}
+#+end_src
+** Global CSS
+#+begin_src shell
+mkdir styles
+touch styles/global.css
+touch pages/_app.js
+#+end_src
+=styles/global.css=
+#+begin_src css
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu,
+    Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  line-height: 1.6;
+  font-size: 18px;
+}
+
+a {
+  color: #0070f3;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+#+end_src
+=pages/_app.js=
+#+begin_src js
+import '../styles/global.css'
+
+export default function App({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}
+#+end_src
+* Rendering
+- Next.js generates HTML for each page in advance (better SEO and performance)
+- Hydration
+** Static Generation
+- generates HTML at build time
+- can be stored in [[roam:CDN]] therefore it's significantly faster
+*** =getStaticProps=
+If you export an =async= function called =getStaticProps= from a page, Next.js will pre-render this page at build time using the props returned by =getStaticProps=.
+#+begin_src js
+export async function getStaticProps(context) {
+  return {
+    props: {}, // will be passed to the page component as props
+  }
+}
+#+end_src
+- runs at build time in production
+- only runs on the server-side. It will never run on the client-side. It won’t even be included in the JS bundle for the browser. That means you can write code such as direct database queries without them being sent to browsers.
+- =getStaticProps= can only be exported from a page. You can’t export it from non-page files.
+**** TODO Development vs. Production
+- In development (npm run dev or yarn dev), getStaticProps runs on every request.
+- ??? In production, getStaticProps runs at build time. However, this behavior can be enhanced using the fallback key returned by getStaticPaths
+**** TODO =getStaticPaths=
+If a page has dynamic routes (documentation) and uses getStaticProps it needs to define a list of paths that have to be rendered to HTML at build time.
+If you export an async function called getStaticPaths from a page that uses dynamic routes, Next.js will statically pre-render all the paths specified by getStaticPaths.
+#+begin_src js
+export async function getStaticPaths() {
+  return {
+    paths: [
+      { params: { ... } } // See the "paths" section below
+    ],
+    fallback: true or false // See the "fallback" section below
+  };
+}
+#+end_src
+**** TODO =fallback= key
+The fallback key (required)
+The object returned by getStaticPaths must contain a boolean fallback key.
+
+fallback: false
+If fallback is false, then any paths not returned by getStaticPaths will result in a 404 page. You can do this if you have a small number of paths to pre-render - so they are all statically generated during build time. It’s also useful when the new pages are not added often. If you add more items to the data source and need to render the new pages, you’d need to run the build again.
+
+Here’s an example which pre-renders one blog post per page called pages/posts/[id].js. The list of blog posts will be fetched from a CMS and returned by getStaticPaths . Then, for each page, it fetches the post data from a CMS using getStaticProps. This example is also in the Pages documentation.
+
+** Server-side rendering
+- generates HTML on each HTTP request
+*** =getServerSideProps=
+If you export an async function called getServerSideProps from a page, Next.js will pre-render this page on each request using the data returned by getServerSideProps.
+#+begin_src js
+export async function getServerSideProps(context) {
+  return {
+    props: {}, // will be passed to the page component as props
+  }
+}
+#+end_src
+** Client-side rendering
+=SWR= hook, handles caching, revalidation, focus tracking, refetching on interval, and more.
+#+begin_src js
+import useSWR from 'swr'
+
+function Profile() {
+  const { data, error } = useSWR('/api/user', fetch)
+
+  if (error) return <div>failed to load</div>
+  if (!data) return <div>loading...</div>
+  return <div>hello {data.name}!</div>
+}
+#+end_src
+* API
+Any file inside the folder =pages/api= is mapped to =/api/*= and will be treated as an API endpoint instead of a page. They are server-side only bundles and won't increase your client-side bundle size.
+#+begin_src js
+// req = HTTP incoming message, res = HTTP server response
+export default function handler(req, res) {
+   res.status(200).json({ text: 'Hello' })
+}
+#+end_src
+- req is an instance of [[https://nodejs.org/api/http.html#http_class_http_incomingmessage][http.IncomingMessage]], plus some pre-built middlewares you can see [[https://nextjs.org/docs/api-routes/api-middlewares][here]].
+- res is an instance of [[https://nodejs.org/api/http.html#http_class_http_serverresponse][http.ServerResponse]], plus some helper functions you can see [[https://nextjs.org/docs/api-routes/response-helpers][here]].
+** Do Not Fetch an API Route from getStaticProps or getStaticPaths
+** A Good Use Case: Handling Form Input
+** TODO Preview Mode
+** TODO Dynamic API Routes

@@ -1,0 +1,10 @@
+:PROPERTIES:
+:ID:       1cf0e378-de72-481b-86ba-deef0a1dc09b
+:END:
+#+title: System Calls
+#+created_at: 20210324134951
+
+- from the perspective of a program the primary thing which defines an operating system is what system calls it makes available
+- system calls are functions in the operating system code, which programs can invoke using special instruction
+- these functions are the primary means by which the operating system exposes functionality to programs so that programs can use features or hardware like say read and write data on a storage device or send or receive data across the network
+- ways to access the kernel

@@ -1,0 +1,63 @@
+:PROPERTIES:
+:ID:       4246b986-f0cb-4443-9b2a-28e952117a60
+:END:
+#+title: Python parallel execution
+
+#+begin_src python
+import threading, queue
+import random
+
+def calc_square(num, out_queue1):
+    l = []
+    for x in num:
+        l.append(x*x)
+    s = random.random()*3
+    print(s)
+#     time.sleep(s)
+#     out_queue1.put(l)
+
+
+arr = [1,2,3,4,5,6,7,8,9,10]
+out_queue1=queue.Queue()
+t1=threading.Thread(target=calc_square, args=(arr,out_queue1))
+t1.start()
+t1.join()
+print(out_queue1.get())
+#+end_src
+
+
+#+begin_src python
+import threading
+# use Queue for python2
+import queue
+import random
+
+LETTERS = 'abcdefghijklmnopqrstuvwxyz'
+LETTERS = [ x for x in LETTERS ]
+
+NUMBERS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+def fib(n):
+    if n in [0,1]: return 1
+    return fib(n-1)+fib(n-2)
+
+def randoms(k, q):
+    result = dict()
+#     fib(4)
+    result['letter'] = random.choice(LETTERS)
+    result['number'] = random.choice(NUMBERS)
+    q.put({k: result})
+
+threads = list()
+q = queue.Queue()
+results = dict()
+
+for name in ['yankee']* 3:
+    threads.append( threading.Thread(target=randoms, args=(name, q)) )
+    threads[-1].start()
+_ = [ t.join() for t in threads ]
+while not q.empty():
+    results.update(q.get())
+
+print(results)
+#+end_src

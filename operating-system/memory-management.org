@@ -1,0 +1,228 @@
+:PROPERTIES:
+:ID:       fd722d95-80c0-4801-8d70-6b0cc8b227fc
+:END:
+#+title: Memory Management
+#+created_at: 20210324171715
+
+- a task of the System Kernel
+- dynamic memory allocation is needed to better utilize the physical memory usage
+  + once the address is allocated to process, it cannot be changed
+- Memory Managment handles
+  + Relocation
+  + Protection
+  + Sharing
+  + Logical Organization
+  + Physical Organization
+- May involve movement between RAM and Disk, or Disk and RAM
+
+* brk
+#+begin_src shell :results verbatim
+man 2 brk
+#+end_src
+* jemalloc
+http://jemalloc.net/jemalloc.3.html
+#+begin_src shell :results verbatim
+man 3 jemalloc
+#+end_src
+* malloc
+- given a number of bytes, request a piece of memory at least that size
+- return value is pointer to that area
+** freeing
+given a pointer returned by malloc, mark that area unallocated
+* understanding mmap
+#+begin_src shell :results verbatim
+apropos mmap
+#+end_src
+
+#+RESULTS:
+: mmap (2)             - map or unmap files or devices into memory
+: mmap (3p)            - map pages of memory
+: mmap2 (2)            - map files or devices into memory
+: mmap64 (3)           - map or unmap files or devices into memory
+: PerlIO::mmap (3perl) - Memory mapped IO
+: XkbOutOfRangeGroupInfo (3) - Returns only the out-of-range processing informa...
+: XkbOutOfRangeGroupNumber (3) - Returns the out-of-range group number, represe...
+
+- focus on relationship between: user's ASM code instructions & page table entries & and how kernel and CPU use them
+- page table maps only in direction from virtual address space to physical memory. It's not possible to use page table to simply reverse that direction and find out which physical address is mapped to which virtual address
+- fork with paging[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]] - copy page table, mark writeable things RO but copy on write. No new physical memory needed until pages are written
+- exec with paging[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]] - set up new page tabl, mark where pages are on disk. No new physical memory needed until pages are accessed.
+- [[id:bf2625f2-703a-4646-9299-e6f8213db340][???]] the advantage of posix_spawn (and linux clone syscall) - can avoid copying the original page table if exec is going to overwrite it all
+
+* Adress spaces
+** Physical Memory
+*** Single Address Space
+- Memory and peripherals share same space
+- All processes and OS share the same memory space
+- No memory protection
+- Processes can stomp one another
+- Urser space can stomp kernel mem
+- Rogue programs can corrupt the entire system
+- Tricky management: process need to know or detect total RAM, need to keep processes separated
+- Multiple memory access methods limit portability[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]]
+** Virtual Memory
+- maps virtual address space to physical address space
+- maps virtual addresses to physical RAM
+- maps virtual addresses to hardware devices
+  + PCI devices
+  + GPU RAM
+  + On-SOC IP blocks[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]]
+- each process can have a different memory mapping
+- built-in memory protecion
+  + one process RAM is inaccessible to other processes
+  + kernel  RAM is inaccessible to user space processes
+- memory can be moved
+- memory can be swapped to disk
+- hardware device memory can be mapped into a process's address space[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]]
+- physical RAM can be mapped into multiple processes (shared memory)
+- memory regions can have access permissions (read/write/execute)
+
+* Memory-Management Unit (MMU)
+:PROPERTIES:
+:ID:       22b5548b-fd3f-4131-8153-a75a177e87f5
+:END:
+- [[id:38d9e9c7-3bc1-4110-a569-62c3d0516233][hardware]] responsible for implementing virtual memory
+- sits between [[id:9e493ad6-5273-47c6-be9a-843af93bd6bc][CPU]] core and the memory (often part of CPU architecture)
+- it's separate from RAM controller, DDR controller is a separate IP block[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]]
+- transparently handles all memory accesses from lode/store instructions from virtual to physical addresses
+- maps memory accesses using ivrtual addersses to system RAM
+  Maps accesses using virtual adersses to memory-mapped peripheral hardware
+- handles permissions
+- generates exceptions (page fault[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]]) on invalid access (e.g. unmapped addresses or insufficient permissions)
+** How it works
+- [[id:053afb29-164f-494f-bec9-44d3951b9ce9][Translation Lookaside Buffer]] (TLB) is a list of mappings from virtual to physical address space in hardware (also holds pemission bits)
+- MMU consults TLB, if the virtual adderss is in TLB, the MMU can lookup physical resource (RAM or hardware)
+- if the virtual address is not in TLB, or the address is there but permissions are insufficient, the [[id:b3c27145-0d01-47c7-943a-d3428d09fced][Page fault]] is generated. Kernel handles page fault exceptions regularly as part of its memory management design.
+  + TLB is often smaller than total number of maps for process[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]]
+  + page faults at context switch time[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]]
+  + lazy allocation[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]]
+- operates on basic units of memory called [[id:f306ed73-c753-4181-930b-8206cf7344aa][memory pages]]. MMU maps physical page frames to virtual addresses. Mapping often covers multiple pages
+- mappings to virtually contiguous regions do not have to be physically contiguous. This makes memory easier to allocate. Almost all user space code does not need physically contiguous memory.
+- each process has its own set of mappings, e.g. _this_ emacs session may live on two different RAM sticks, 16 different dies, but despite that, it appears as contiguous memory block from linux kernel perspective.
+- The same virtual addresses in two different proocesses will likely be used to map different physical addresses.[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]]
+** Shared memory
+- easily implemented with MMU
+- simply map the same physical frame into two different processes
+- the virtual addresses need not be the same
+- if pointers to values insied a shared memory region are used, it migh be important for them tho have the same virtual addresses though[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]]
+- =nmap()= [[id:1cf0e378-de72-481b-86ba-deef0a1dc09b][System Call]] allows the user space process to request a specific virtual address to map the shared memory region. Kernel may not be able to grant a mapping at this address, causing =nmap()= to return failure.
+** Lazy allocation
+- performance optimization - kernel will not immediately allocate pages requested by the process
+- kernel will wait with allocating physical memory page, until those pages are actually used
+- for memory that get allocated but never used, allocation never has to happen
+- user space program is never aware that the page fault happend, however it is detectable with tracing tools
+- for time-sensitive processes, pages can be pre-faulted, or simply touched at the start of execution with =mlock()= or =mlockall()=
+*** How it works
+  + when memory is requested, the kernel simply creates a record of the request in its page tables and then returns (quickly) to the process, without updating the TLB
+  + when that newly-allocated memory is touched, the CPU will generate a page fault, because the CPU doesn't know about the mapping.
+  + when page fault occurs, the kernel uses its page tables to determine that the mapping is valid (from the kernel's point of view) yet unmapped in the TLB
+  + the kernel will allocate a physical page frame and update the TLB with the new mapping
+  + the kernel return from the exception handler and the user space program can resum
+** Page Tables
+- additional data structure - provides a layer of indirection, made to store all the [[id:bf2625f2-703a-4646-9299-e6f8213db340][???]] mappings at all times.
+- implemented with [[https://github.com/torvalds/linux/blob/75013c6c52d80b2255ba273eedac013d58754b02/include/linux/mm_types.h#L387-L572][=struct_mm=]] and [[https://github.com/torvalds/linux/blob/75013c6c52d80b2255ba273eedac013d58754b02/include/linux/mm_types.h#L304-L373][=vm_area_struct=]] - it's a hierarchy which leads to 4k page, and associeted mapping to page frame number and permissios - so everything is inline with what's getting loaded to TLB. It also keeps some additional metadata for house keeping (e.g. valid or not)
+- Page Tables are needed because entries in the TLB are a limited resource, and, far more mapping can be made that can fit in the TLB at one time, I.e. TLB can hold a limited subset of the total mappings for process - some valid mappings will not have TLB entries (when these adresses are touched, the CPU will generate a page fault, because the CPU has no knowledge of the mapping; only kernel does)
+- Demand Paging[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]]
+- Zero page[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]] - used when requesting memory allocation, the kernel gives back empty page with no physical memory allocated behind it, just so the process can start loading. The moment the process acutally requests data, the zero page is swapped for page frame number with mapping to physical memory
+*** How it works
+- when the page fault handler executes in this case, it will:
+  - find the appropriate mapping for the offedig address in the kernel's page tables
+  - select and remove an existing TLB entry
+  - craete a TLB entry for the page containing the address
+  - return to the user space process
+** Swapping
+- possible thanks to MMU
+- when memory utilization is high, the kernel may swap some frames to disk to free up RAM
+- kernel can copy a frame to disk and remove its TLB entry
+- frame can be re-used by another process
+- when frame is needed again, CPU will generate a page fault (because the address is not in the TLB), then, kernel can do:
+  + put process to sleep
+  + copy the frame from the disk into unused frame in RAM
+  + fix the page table entry
+  + wake the process
+  when page is restored to RAM, it's not necessarily restored to the same physical frame where it originally was located, however, MMU will use the same virtual address though, so the user space program will not know the difference
+** User Space
+There are sevral ways to allocate memory (ignoring =alloc()= which is common API on top of platforms)
+*** =nmap()= - directly allocate and map pages
+- standard way to allocate large amounts of memory from user space
+- ofter used for files
+- =MAP_ANONYMOUS= flag causes =nmap()= to allocate normal memory for the process
+- =MAP_SHARED= flag can make the allocated pages sharable with other processes
+*** =brk()= / =sbrk()= - increase the heap size
+- [[https://github.com/torvalds/linux/blob/e138138003eb3b3d06cc91cf2e8c5dec77e2a31e/mm/mmap.c#L3063-L3129][implementation]]
+  + modify page tables for new area
+  + wait for the page fault (or optionally, can pre-fault the new area and allocate it. Check =mlock(2)= to control this behavior)
+*** =malloc()= and =calloc=
+- will use either =nmap()= or =brk()=, depending on requested allocation size (large or small respectively). =mallopt(3)= and =M_MMAP_THRESHOLD= param control this behavior
+-
+*** Stack expansion
+[[https://github.com/torvalds/linux/blob/e138138003eb3b3d06cc91cf2e8c5dec77e2a31e/arch/arm64/mm/fault.c#L481-L508][ARM architecture example]]
+- if a process accesses memory beyond its stack, the CPU will trigger a page fault. The page fault handler detects the address is just beyond the stack, and allocates a new page to extend the stack. New page will not be physically contiguous with the rest of the stack.
+* Virtual Memory System
+#+begin_src
++------------------------------+   +---------+
+|System-on-Chip                |   |   RAM   |
+|                              |   |         |
+|               +-----+        |   | +-----+ |
+|               | ALU |        |   | |#####| |
+|               +-----+        |   | +-----+ |
+|                  |           |   | |#####| |
+|  +-----+      +-----+        |   | +-----+ |
+|  | TLB |------| MMU |        |   | |     | |
+|  |     |      +-----+        |   | +-----+ |
+|  |     |         |           |   | |#####| |
+|  +-----+      +-----------+  |   | +-----+ |
+|  | buf |      | Memory    |  |   | |     | |
+|  +------      | Controler |<---->| +-----+ |
+|  | buf |      +-----------+  |   | |@@@@@| |
+|  +------                     |   | +-----+ |
+|  | buf |                     |   | |     | |
+|  +------                     |   | +-----+ |
+|                              |   |         |
++------------------------------+   +---------+
+#+end_src
+* Kernel Virtual Memory, In [[id:98d61c90-2d7f-4b5b-8b52-b5d7c1dea7e9][Linux]]
+- Virtual address space is split
+  + upper part is for kernel
+  + lower part is for user space
+  + on 32-bit system, the split is at =0xC0000000= (default value of =CONFIG_PAGE_OFFSET=)
+    - on 4gb RAM system, 1gb is for kernel (from =0xFFFFFFFF= to =0xC0000000=), 3gb is for user (from =0xC0000000= to =00000000=)
+  + on 64-bit system the split varies by architecture,
+    - ARM64 - the split is at  =0x8000000000000000= by default
+    - x86_64 - the split is at =0xffff880000000000= by default
+** kinds
+*** Kernel Logical Address
+- normal address space of the kernel
+- includes memory allocated with =kmalloc()= (and most other allocation methods), and kernel stacks[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]] (per process)
+- virtual memory addresses are a fixed offset (fixed mapping) from their physical addresses =virt: 0xc0000000 -> phys: 0x00000000=. This means virtually-contiuous regions are by nature also physically contiguous. This also makes converting between physical and virtual addresses easy. Addresses can be converted from physical addresses using the macros =__pa(x)= and =__va(x)=.
+- for small systems (below 1GB) Kernel Logical address space starts at =PAGE_OFFSET= and goes trough the end of physical memory (this however doesn't mean that the kernel is actually using every byte of memory on the system)
+- can never be swaped out
+- suitable for DMA transfers[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]], because it's physically/virtually contiguous and non-swappable
+*** Kernel Virtual Address
+- addresses in the region above the kernel logical address mapping
+- also called =vmalloc()= area
+- non-contiguous memory mappings, therefore easier to allocate, but also unsiutable for DMA
+- used for large buffers, which could potentially be too large to find contiguous memory
+- used for memory-mapped I/O - map peripheral devices into kernel: PCI, Soc IP blocks =ioremap()= =kmap()=
+**** User Virtual Space
+- that's where user application and processes are mapped to
+- virtual addresses below =PAGE_OFFSET=
+- most of the memory on the most systems
+- each process has its own memory map, =struct mm=, pointers in =task_struct=
+- threads share a mapping
+- complex behavior with =clone(2)=[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]]
+- at context swithc time[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]], the memory map is changed - this is part of the overhead
+*** Bus Addresses[[id:bf2625f2-703a-4646-9299-e6f8213db340][???]] (learn more in Linux Device Drivers ed3)
+* [[id:2a3a3ebc-ebde-4940-8842-fd05ac4936b2][Resources]]
+- https://www.youtube.com/watch?v=w9YQawAfkPw
+- https://www.youtube.com/watch?v=wbi6IZDIv_4
+- https://www.youtube.com/watch?v=7aONIVSXiJ8
+* Inbox :ATTACH:
+
+[[attachment:_20210427_233755screenshot.png]]
+[[attachment:_20210427_233730screenshot.png]]
+[[attachment:_20210427_233714screenshot.png]]
+reclaim - process trying to free memory pages
+[[attachment:_20210427_233915screenshot.png]]
+[[attachment:_20210427_235044screenshot.png]]
+[[attachment:_20210427_235034screenshot.png]]

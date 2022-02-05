@@ -1,0 +1,11 @@
+:PROPERTIES:
+:ID:       b3c27145-0d01-47c7-943a-d3428d09fced
+:END:
+#+created_at: 20210324183502
+#+title: Page fault
+
+- [[id:9e493ad6-5273-47c6-be9a-843af93bd6bc][CPU]] exception, generated when software attempts to use an invalid virtual address, occurs when:
+  - virtual address is not mapped for process requesting it
+  - the virtual address is not mapped for the process requesting it
+  - process has insufficient permissions for the address
+  - the virtual address is valid but swapped out (software condition)

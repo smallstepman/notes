@@ -1,0 +1,35 @@
+:PROPERTIES:
+:ID:       e7dbea73-c020-4fe7-8c08-12d724ce9c96
+:END:
+#+title: C++
+
+* [[id:c5caaf64-134a-481b-aadb-23af7ca289ce][Questions]]
+- what is namespace
+- what is abstract base class
+- what is derived class
+- what are virtual inline functions
+* [[id:2a3a3ebc-ebde-4940-8842-fd05ac4936b2][Resources]]
+- https://www.youtube.com/watch?v=JM8F2DPm_0E&list=PLs3KjaCtOwSYdpfm74DYyd1kOXEhCd1Rv&index=34
+- https://www.youtube.com/watch?v=T3wKtiqW2PI&t=195s
+- [[https://developers.google.com/edu/c++]]
+- https://isocpp.org/faq
+- https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md#SS-readers
+- https://www.modernescpp.com/
+- https://web.corral.tacc.utexas.edu/CompEdu/pdf/isp/
+- https://docs.microsoft.com/en-us/cpp/cpp/cpp-language-reference?view=msvc-160
+- https://cmake.org/cmake/help/latest/guide/tutorial/index.html
+- https://stackoverflow.com/questions/388242/the-definitive-c-book-guide-and-list
+** C++ for Rust devs
+- http://nercury.github.io/c++/intro/2017/01/22/cpp-for-rust-devs.html
+- https://github.com/nrc/r4cppp
+- reddit
+  + C++ has references, also using the & sigil. You will probably use them less than in rust, except as inputs to functions. If you try to be fancy there are some surprisingly subtle rules around const-references.
+  + Inheritance from a class with "virtual" methods is similar to implementing traits, but any struct members come along for the ride.
+  + I think exceptions are probably going to be the biggest weirdness? They're very much like panics, but used for most error reporting. You're expected to catch them in at least some code.
+  + exceptions most of C++ is similar to a more-permissive, more mutable version of rust.
+  + My experience is that once you know one imperative language it's reasonably easy to pick up others. Rust is imperative enough to count.
+  + A lot of the things in C++ are similar. Inheritance and virtual dispatch are different.
+  + The whole deal with move/copy/assign/moveassign constructors/operators can be confusing too. Once used to an affine type model like Rust it's hard to go back to implicit copy ctors being called willy nilly. Pay close attention to these; if you have been programming too much Rust you may end up assuming that everything moves.
+  + You will have to build a discipline for writing safe code. Using ideas from Rust helps, since Rust enforces such a discipline.
+  + It should be easier to learn C++ since you already understand many other concepts of low level programming from Rust.
+https://stackoverflow.com/questions/57483/what-are-the-differences-between-a-pointer-variable-and-a-reference-variable-in

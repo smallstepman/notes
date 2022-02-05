@@ -1,0 +1,23 @@
+:PROPERTIES:
+:ID:       d6b44551-52b3-409f-bd02-2c26ec25e1b6
+:END:
+#+TITLE: Data services
+#+created_at:<2021-03-28 Sun 21:05>
+#+roam_tags: Empty
+
+* Databases vs Data services
+- DBA requires deep knowledge
+- design time tradeoffs - while making choices in regards to application requirements. scaling assumptions and deployment options, there is a risk of making a wrong jugement call.
+- a lot of 'boilerplate work' is eliminated when using data services (e.g. db driver installation, connection initialization, creating prepared statement, connection management). Data services leaves us only with the "good parts" which is =Execute the statement -> data service -> parse and use the result=
+- data services eliminate a lot of complex reasoning, planning and discussions, e.g. when we want to migrate database schema
+
+* Examples
+- facebook Akkio
+- stargate
+- k8ssandra
+
+* Criteria
+- on-demand scaling
+- elastic - pay for what you need
+- near 100% uptime
+- maximum flexibility | minimum tradeoffs

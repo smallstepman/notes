@@ -1,0 +1,211 @@
+:PROPERTIES:
+:ID:       cf093664-2aae-4f62-848b-3e0eed17b83c
+:END:
+#+title: Genomics
+#+filetags: :project:
+
+zygote - first cell, formed from union of male/female egg/sperm
+
+* Things
+** [[https://en.wikipedia.org/wiki/Chromatin][Chromatin]]
+:PROPERTIES:
+:ID:       57528914-4b88-4a51-b622-31e3831758d9
+:END:
+- a complex of DNA and protein found in eukaryotic cells
+*** primary function
+- packaging long DNA molecules into more compact, denser structures. This prevents the strands from becoming tangled and also plays important roles in reinforcing the DNA during cell division preventing DNA damage and regulating gene expression and DNA replication.
+*** 3 levels of chromatin organization:
+- DNA wraps around histone proteins, forming nucleosomes and the so-called beads on a string structure (euchromatin).
+- Multiple histones wrap into a 30-nanometer fibre consisting of nucleosome arrays in their most compact form (heterochromatin).
+- Higher-level DNA supercoiling of the 30-nm fibre produces the metaphase chromosome (during mitosis and meiosis).
+*** Major structures in DNA compaction
+[[download:_20210919_164600screenshot.png]]
+
+** [[https://en.wikipedia.org/wiki/Chromosome][Chromosome]]
+:PROPERTIES:
+:ID:       1efc5f80-06ed-442f-b606-748b9647532b
+:END:
+- a long DNA molecule with part or all of the genetic material of an organism
+*** centromere
+:PROPERTIES:
+:ID:       673e3ed6-c06b-4741-bbb7-3625a9c4418c
+:END:
+- specialized DNA sequence of a chromosome that links a pair of sister chromatids
+
+** DNA
+** Mitochondrial DNA (mtDNA or mDNA)
+- Mitochondrial DNA is the small circular chromosome found inside [[id:fef3cd63-d03a-40e6-8140-5ca6f6922164][Mitochondria]]
+- [[https://www.ncbi.nlm.nih.gov/nuccore/NC_012920.1?report=graph][complete mitochodrion genome (homo spaiens)]]
+- Mitochondrial DNA is only a small portion of the DNA in a eukaryotic cell (most of the DNA can be found in the cell nucleus and, in plants and algae, also in plastids such as chloroplasts)
+- [[id:36f19b0b-8af8-4be5-886b-8d401f6211d6][History of biology and biochemistry]]: Human mitochondrial DNA was the first significant part of the human genome to be sequenced. This sequencing revealed that the human mtDNA includes 16,569 base pairs and encodes 13 proteins.
+- Since animal mtDNA evolves faster than nuclear genetic markers, it represents a mainstay of phylogenetics and evolutionary biology. It also permits an examination of the relatedness of populations, and so has become important in anthropology and biogeography.
+[[download:_20210920_155040screenshot.png]]
+
+** Genotype
+:PROPERTIES:
+:ID:       be83abe6-4e97-4237-8366-8bd75a8d890c
+:END:
+- complete set of genetic material of an organism
+- the term is often used to refer to a single gene or set of genes, such as the genotype for eye color
+
+** [[https://en.wikipedia.org/wiki/Nucleosome][Nucleosome]] :ATTACH:
+- basic structural unit of DNA packaging in eukaryotes
+- The structure of a nucleosome consists of a segment of DNA wound around eight histone proteins and resembles thread wrapped around a spool
+- Each nucleosome is composed of a little less than two turns of DNA wrapped around a set of eight proteins called histones, which are known as a *histone octamer*. Each histone octamer is composed of two copies each of the histone proteins H2A, H2B, H3, and H4.
+[[download:_20210919_164533screenshot.png]]
+
+** Phenotype
+:PROPERTIES:
+:ID:       a856dc13-befa-4761-9228-a8a155aa378f
+:END:
+- the set of observable characteristics or traits of an organism
+** [[https://en.wikipedia.org/wiki/Protein_isoform][Protein isoform]]
+- is a member of a set of highly similar proteins that originate from a single gene or gene family and are the result of genetic differences. While many perform the same or similar biological roles, some isoforms have unique functions. A set of protein isoforms may be formed from alternative splicings, variable promoter usage, or other post-transcriptional modifications of a single gene; post-translational modifications are generally not considered. Through RNA splicing mechanisms, mRNA has the ability to select different protein-coding segments (exons) of a gene, or even different parts of exons from RNA to form different mRNA sequences. Each unique sequence produces a specific form of a protein.
+:PROPERTIES:
+:ID:       2a818d34-6bf5-4437-acec-9abeda47c0e8
+:END:
+[[download:_20210919_175214screenshot.png]]
+** [[https://en.wikipedia.org/wiki/Solenoid_(DNA)][Solenoid]]
+:PROPERTIES:
+:ID:       b95f406e-d268-47e4-bfbd-fb5bff600fd0
+:END:
+- a model for the structure of the 30 nm chromatin fibre
+
+** [[https://en.wikipedia.org/wiki/Transcription_factor][Transcription factor]]
+:PROPERTIES:
+:ID:       9a746ea2-bdad-457a-8ab1-4ad75aeaa752
+:END:
+- a protein that controls the rate of transcription of genetic information from DNA to messenger RNA, by binding to a specific DNA sequence
+- The function of TFs is to regulate—turn on and off—genes in order to make sure that they are expressed in the right cell at the right time and in the right amount throughout the life of the cell and the organism
+- Groups of TFs function in a coordinated fashion to direct cell division, cell growth, and cell death throughout life; cell migration and organization (body plan) during embryonic development; and intermittently in response to signals from outside the cell, such as a hormone
+- There are up to 1600 TFs in the human genome
+*** RNA
+**** [[https://en.wikipedia.org/wiki/Messenger_RNA][Messenger RNA (mRNA)]]
+:PROPERTIES:
+:ID:       a2243cfd-12d7-4c98-aa49-055ec995e109
+:END:
+- a single-stranded molecule of RNA that corresponds to the genetic sequence of a gene, and is read by a ribosome in the process of synthesizing a protein
+**** [[https://en.wikipedia.org/wiki/Transfer_RNA][Transfer RNA (tRNA)]]
+- adaptor molecule composed of RNA, typically 76 to 90 nucleotides in length (in eukaryotes),
+- serves as the physical link between the mRNA and the amino acid sequence of proteins. Transfer RNA (tRNA) does this by carrying an amino acid to the protein synthetic machinery of a cell called the ribosome. Complementation of a 3-nucleotide codon in a messenger RNA (mRNA) by a 3-nucleotide anticodon of the tRNA results in protein synthesis based on the mRNA code. As such, tRNAs are a necessary component of translation, the biological synthesis of new proteins in accordance with the genetic code.
+[[download:_20210919_172915screenshot.png]]
+
+**** [[https://pl.wikipedia.org/wiki/Pre-mRNA][pre-mRNA (hnRNA)]]
+**** [[https://en.wikipedia.org/wiki/Non-coding_RNA][Non-coding RNA (ncRNA)]]
+**** Codon
+- mRNA sequences of nucleotide triplets
+- [[https://upload.wikimedia.org/wikipedia/commons/d/d6/GeneticCode21-version-2.svg][Codon coding visualization]]
+- [[https://en.wikipedia.org/wiki/Stop_codon][Stop codon]]
+- [[https://en.wikipedia.org/wiki/Start_codon][Start codon]]
+*** TODO transcription factors vs epiginome
+* Mechanisms and Properties
+** [[https://en.wikipedia.org/wiki/Cell_potency][Cell potency]]
+:PROPERTIES:
+:ID:       598db954-0651-4667-8df3-5c63e9d56f16
+:END:
+- a cell's ability to differentiate into other cell types.
+
+** [[https://plastid.readthedocs.io/en/latest/concepts/coordinates.html][Coordinate systems used in genomics]]
+- Genomic coordinates are directly related to the reference genome, and include the chromosome name, start position, and end position in the following format: chr1:1234570-1234870
+*** 1-based vs. 0-based coordinates
+** [[https://en.wikipedia.org/wiki/DNA_methylation][DNA methylation]]
+:PROPERTIES:
+:ID:       7f987eaf-0fc7-4f5e-881a-dfbf55ca9a5b
+:END:
+- biological process by which methyl groups are added to the DNA molecule
+- Methylation can change the activity of a DNA segment without changing the sequence. When located in a gene promoter, DNA methylation typically acts to repress gene transcription. I
+
+** [[https://en.wikipedia.org/wiki/Transcription_(biology)][Transcription]]
+:PROPERTIES:
+:ID:       6bd4f759-5e85-4313-ac48-7077065852d4
+:END:
+*** [[https://en.wikipedia.org/wiki/Exon][Exon]]
+- An exon is any part of a gene that will encode a part of the final mature RNA produced by that gene after introns have been removed by RNA splicing. The term exon refers to both the DNA sequence within a gene and to the corresponding sequence in RNA transcripts. In RNA splicing, introns are removed and exons are covalently joined to one another as part of generating the mature messenger RNA. Just as the entire set of genes for a species constitutes the genome, the entire set of exons constitutes the exome.
+*** [[https://en.wikipedia.org/wiki/RNA_splicing][RNA splicing]]
+- RNA splicing is a process in molecular biology where a newly-made precursor messenger RNA (pre-mRNA) transcript is transformed into a mature messenger RNA (mRNA). It works by removing introns (non-coding regions of RNA) and so joining together exons (coding regions). For nuclear-encoded genes, splicing occurs in the nucleus either during or immediately after transcription.
+*** introns
+- is any nucleotide sequence within a gene that is removed by RNA splicing during maturation of the final RNA product.
+*** modified guanine :ATTACH:
+
+[[download:_20210919_164312screenshot.png]]
+
+*** poly-A tail :ATTACH:
+- adenine
+[[attachment:_20210918_022923screenshot.png]]
+
+*** RNA polymerase
+*** promoter
+- recognition sites
+*** terminator :ATTACH:
+
+[[download:_20210919_164424screenshot.png]]
+
+*** template strand vs coding strand :ATTACH:
+
+[[download:_20210919_164438screenshot.png]]
+
+*** TODO https://en.wikipedia.org/wiki/Directionality_(molecular_biology)
+** [[https://en.wikipedia.org/wiki/Translation_(biology)][Translation]]
+:PROPERTIES:
+:ID:       b7083071-ea5f-4224-84ea-5706bd130900
+:END:
+** [[https://pl.wikipedia.org/wiki/Epigenom][Epigenome]]
+:PROPERTIES:
+:ID:       d98b9ffe-77eb-40d3-83d3-a5cd11ed5b1d
+:END:
+- a record of the chemical changes to the DNA and histone proteins;
+- can be passed down to an organism's offspring via transgenerational stranded epigenetic inheritance;
+- changes to the epigenome can result in changes to the structure of chromatin and changes to the function of the genome;
+- involved in regulating gene expression, development, tissue differentiation, and suppression of transposable elements. Unlike the underlying genome, which remains largely static within an individual, the epigenome can be dynamically altered by environmental conditions.
+
+*** mechanizmy
+- [[id:7f987eaf-0fc7-4f5e-881a-dfbf55ca9a5b][DNA methylation]]
+- ??? acetylacja - rozluźnianie chromatyny
+
+*** [[https://en.wikipedia.org/wiki/Epigen][Epigen]]
+:PROPERTIES:
+:ID:       ea5f9dca-43e5-44d9-b260-83a07442e868
+:END:
+- protein that in humans is encoded by the EPGN gene
+- plays a role in cell survival, proliferation and migration
+
+*** cancer
+Human tumors undergo a major disruption of DNA methylation and histone modification patterns. The aberrant epigenetic landscape of the cancer cell is characterized by a global genomic hypomethylation, CpG island promoter hypermethylation of tumor suppressor genes, an altered histone code for critical genes and a global loss of monoacetylated and trimethylated histone H4
+
+*** research
+-
+
+** [[https://en.wikipedia.org/wiki/Gene_expression][Gene expression]]
+:PROPERTIES:
+:ID:       46064ab7-0956-4893-9931-6272c646dd1c
+:END:
+- *gene information -> proteins or non-protein-coding RNA (tRNA/snRNA)*
+- the process by which information from a gene is used in the synthesis of a functional gene product that enables it to produce end products, protein or non-coding RNA, and ultimately affect a phenotype, as the final effect. These products are often proteins, but in non-protein-coding genes such as transfer RNA (tRNA) and small nuclear RNA (snRNA), the product is a functional non-coding RNA
+- gene expression is the most fundamental level at which the genotype gives rise to the phenotype, i.e. observable trait
+- The genetic information stored in DNA represents the genotype, whereas the phenotype results from the "interpretation" of that information. Such phenotypes are often expressed by the synthesis of proteins that control the organism's structure and development, or that act as enzymes catalyzing specific metabolic pathways
+- All steps in the gene expression process may be modulated (regulated), including the transcription, RNA splicing, translation, and post-translational modification of a protein. Regulation of gene expression gives control over the timing, location, and amount of a given gene product (protein or ncRNA) present in a cell and can have a profound effect on the cellular structure and function. Regulation of gene expression is the basis for cellular differentiation, development, morphogenesis and the versatility and adaptability of any organism. Gene regulation may therefore serve as a substrate for evolutionary change.
+*** Mechanism
+**** Transcription
+**** mRNA processing
+**** Non-coding RNA maturation
+**** RNA export
+**** Translation
+**** Folding
+**** Translocation
+**** Protein transport
+** [[https://en.wikipedia.org/wiki/Sequence_assembly][Sequence assembly]]
+- aligning and merging fragments from a longer DNA sequence in order to reconstruct the original sequence. This is needed as DNA sequencing technology cannot read whole genomes in one go, but rather reads small pieces of between 20 and 30,000 bases, depending on the technology used. Typically the short fragments, called reads, result from shotgun sequencing genomic DNA, or gene transcript (ESTs)
+- The problem of sequence assembly can be compared to taking many copies of a book, passing each of them through a shredder with a different cutter, and piecing the text of the book back together just by looking at the shredded pieces. Besides the obvious difficulty of this task, there are some extra practical issues: the original may have many repeated paragraphs, and some shreds may be modified during shredding to have typos. Excerpts from another book may also be added in, and some shreds may be completely unrecognizable.
+
+* COMMENT resources
+- https://www.youtube.com/watch?v=Vh-3SpPgS20
+- https://www.youtube.com/watch?v=vdANObA4Dpg
+
+** TODO from John Hopkins - day 1
+- https://en.wikipedia.org/wiki/Ribosome_biogenesis#Eukaryotes
+- https://en.wikipedia.org/wiki/Endoplasmic_reticulum#Rough_endoplasmic_reticulum
+- https://en.wikipedia.org/wiki/Chromosome
+- https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Animal_cell_cycle-en.svg/1920px-Animal_cell_cycle-en.svg.png
+- https://en.wikipedia.org/wiki/Mitosis
+- https://en.wikipedia.org/wiki/Nucleolus
+- https://en.wikipedia.org/wiki/Centromere

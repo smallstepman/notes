@@ -1,0 +1,39 @@
+:PROPERTIES:
+:ID:       fb7c2bf0-b642-40b1-876a-1e90b246d24b
+:END:
+#+title: sorting algorithms
+
+* Comparison-based Sorting Algorithms
+
++ Bubble Sort - O(n^2) (or O(n) if already sorted)
+  1. loop array, for i in arr
+  2. compare arr[i] and arr[i+1], swap places if they out of order
+  3. repeat 2. until the and of arr is reached
+  4. repeat 1., starting from i+1
++ Selection Sort - O(n^2) (or O(n) if already sorted
+  1. loop trough array,
+  2. find smallest integer,
+  3. loop again from beginning to find first bigger swap candidate
+  4. repeat 1. starting from index+1
++ Insertion Sort - O(n^2) (or O(n) if already sorted
++ Merge Sort (recursive implementation) - O(log n) (or O(n) if already sorted
+  - merge subroutine: Given two sorted array, A and B, of size N1 and N2, we can efficiently merge them into one larger combined sorted array of size N = N1+N2, in O(N) time. This is achieved by simply comparing the front of the two arrays and take the smaller of the two at all times.
+  1. Merge each pair of individual element (which is by default, sorted) into sorted arrays of 2 elements,
+  2. Merge each pair of sorted arrays of 2 elements into sorted arrays of 4 elements,
+  3. Repeat the process...,
+  4. Final step: Merge 2 sorted arrays of N/2 elements
++ Quick Sort (recursive implementation) - O(log n) (or O(n) if already sorted
++ Heap Sort - O(log n) (or O(n) if already sorted
++ Random Quick Sort (recursive implementation)
+
+* Not Comparison-based Sorting Algorithms
++ Counting Sort - O(n) (or O(n) if already sorted
++ Radix Sort - O(n) (or O(n) if already sorted
++ Bucket Sort - O(n) (or O(n) if already sorted
+
+* Questions
+- Comparison versus non-comparison based strategies
+- Iterative versus Recursive implementation
+- Divide-and-Conquer paradigm (this or that)
+- Best/Worst/Average-case Time Complexity analysis
+- Randomized Algorithms, etc.

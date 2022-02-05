@@ -1,0 +1,41 @@
+:PROPERTIES:
+:ID:       e276d8aa-77cb-4922-87c8-44fc07ebe85d
+:END:
+#+TITLE: Graph databases
+#+created_at:<2021-06-25 Fri 15:59>
+#+roam_tags: Empty
+
+* RDF (resource definitin format) and triplet stores
+- linked data, json-ld
+- became popular after 2001 article in sciam "rdf is a key tech for developing the semantic web"
+** use cases
+- publishng
+- consume public rdf data
+- seo
+- data integration
+** model
+*** relationships
+- rdf does not uniquely identify instances of relationships of the same type, in other words, no two connections of same type between a pair of nodes. possible workarounds are: intermediate nodes, or reification, or singleton property. The issue here is that we're distancing our mental model of the graph away from actual implementation by imposing additional technical abstraction to comply to technical limitation.
+*** atributes
+**** vertices
+resources : URIs
+attribute values: literal values
+**** edges
+relationships: URIs
+* labed property graph
+- 2000-2007
+- efficient (graph native) storage
+- fast query and traversal
+- human model: close to the way we humans conceive the world
+** model
+*** relationships
+- same connection of same type between two nodes is possible
+*** attributes
+nodes and edges have internal structure
+**** vertecies
+nodes: Id + set of key-value pairs
+**** edges
+relationships: Id + Type + set of key-value pairs
+
+* resources
+https://neo4j.com/blog/rdf-triple-store-vs-labeled-property-graph-difference/

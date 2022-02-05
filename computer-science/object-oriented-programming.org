@@ -1,0 +1,22 @@
+:PROPERTIES:
+:ID:       340b655e-e614-4ba8-8705-7f6f630597ad
+:END:
+#+title: Object-oriented programming
+
+* SOLID design principles
+** single responsibility principle:
+- a class should have one clearly defined responsibility
+** open/closed principle
+- a class should be open to extension – generally via inheritance – but closed to modification
+- design classes so that we don't need to tweak the code to add or change features
+** liskov substitution principle
+- we need to design inheritance so that a subclass can be used in place of the superclass.
+** interface segregation principle
+- when writing a problem statement, be sure that collaborating classes have as few dependencies as possible
+- in many cases, this principle will lead us to decompose large problems into many small class definitions.
+** dependency inversion principle
+- it's less than ideal for a class to depend directly on other classes
+- it's better if a class depends on an abstraction, and a concrete implementation class is substituted for the abstract class
+
+* duck typing
+[[download:_20220205_115541screenshot.png]]

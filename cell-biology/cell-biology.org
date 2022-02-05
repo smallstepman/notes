@@ -1,0 +1,12 @@
+:PROPERTIES:
+:ID:       119146d9-6de8-4890-a9c4-0e89e138d30a
+:END:
+#+title: Cell biology
+
+* Mitochondria
+:PROPERTIES:
+:ID:       fef3cd63-d03a-40e6-8140-5ca6f6922164
+:END:
+cellular organelles within eukaryotic cells that convert chemical energy from food into a form that cells can use, adenosine triphosphate (ATP)
+- [[https://www.youtube.com/watch?v=LQmTKxI4Wn4][Visualization: Electron transport chain]]
+- [[https://www.youtube.com/watch?v=kXpzp4RDGJI][Visualization: ATP synthase in action]]

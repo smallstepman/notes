@@ -1,0 +1,5 @@
+:PROPERTIES:
+:ID:       ccaf2cd2-b341-4190-ba1c-d65e8193e5fd
+:END:
+#+title: WebXR
+https://github.com/immersive-web/WebXR-WebGPU-Binding/blob/main/explainer.md

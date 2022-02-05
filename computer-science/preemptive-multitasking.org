@@ -1,0 +1,8 @@
+:PROPERTIES:
+:ID:       b36dbafd-3bfc-43d4-a518-be7aa87914e5
+:ROAM_REFS: https://cfsamson.gitbook.io/green-threads-explained-in-200-lines-of-rust/green-threads
+:END:
+#+title: preemptive multitasking
+
+- Some external scheduler is in charge of when to stop a task and when to run another before switching back
+- Kernels use this in operating systems, i.e. to allow you to use the UI while running the CPU to do calculations on single threaded systems

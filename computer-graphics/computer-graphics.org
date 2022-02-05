@@ -1,0 +1,7 @@
+:PROPERTIES:
+:ID:       be148dd4-064b-47ff-92f5-9f4d0ba54a0c
+:END:
+#+title: Computer Graphics
+
+* Resources
+- [[https://en.wikipedia.org/wiki/Glossary_of_computer_graphics#fixed-function_pipeline][wiki glossary]]

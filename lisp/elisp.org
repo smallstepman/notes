@@ -1,0 +1,7 @@
+:PROPERTIES:
+:ID:       4db2066d-13a9-4937-979c-8df04731128f
+:END:
+#+title: emacs lisp
+#+filetags: :project:
+* TODO the nature of lisp by defmacro
+- read to understand what lisp could do

@@ -1,0 +1,6 @@
+:PROPERTIES:
+:ID:       4836ecae-f042-4a88-86fa-20909402d975
+:END:
+#+title: Noise Contrasive Estimation
+
+* TODO https://www.kdnuggets.com/2019/07/introduction-noise-contrastive-estimation.html

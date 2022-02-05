@@ -1,0 +1,60 @@
+:PROPERTIES:
+:ID:       a9134cf7-dcbe-47c2-a5be-12b08e440997
+:END:
+#+title: Python async
+
+#+begin_src python
+import asyncio
+
+import aiohttp
+
+
+async def fetch(session, url):
+    print("Getting {}...".format(url))
+    async with session.get(url) as resp:
+        text = await resp.text()
+    return "{}: Got {} bytes".format(url, len(text))
+
+
+async def fetch_all():
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch(session, "http://httpbin.org/delay/{}".format(delay))
+                 for delay in (1, 1, 2, 3, 3)]
+        for task in asyncio.as_completed(tasks):
+            print(await task)
+    return "Done."
+
+
+loop = asyncio.get_event_loop()
+resp = loop.create_task(fetch_all())
+
+# resp = loop.run_until_complete()
+print(resp)
+# loop.close()
+#+end_src
+
+#+begin_src python
+import concurrent.futures
+import time
+
+def foo(bar):
+    print('hello {}'.format(bar))
+    time.sleep(1)
+    return 'foo'
+
+with concurrent.futures.ThreadPoolExecutor(10) as executor:
+    results = []
+    future = executor.submit(foo, 'world!')
+    results.append(future.result())
+    future = executor.submit(foo, 'world!')
+    results.append(future.result())
+    future = executor.submit(foo, 'world!')
+    results.append(future.result())
+    future = executor.submit(foo, 'world!')
+    results.append(future.result())
+    future = executor.submit(foo, 'world!')
+    future = executor.submit(foo, 'world!')
+    future = executor.submit(foo, 'world!')
+
+    print(return_value)
+#+end_src

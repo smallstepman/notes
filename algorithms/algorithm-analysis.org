@@ -1,0 +1,22 @@
+:PROPERTIES:
+:ID:       ddf5bcff-2fbe-471f-9c55-608b0b59f9cc
+:END:
+#+title: algorithm analysis
+
+* time and space complexity analysis
+** theta vs BigO
+- theta - 'of the order of n'; gives lower and upper bound
+- bigO - gives only upper bound
+** basic time and space complexity analysis for iterative and recursive algorithms
+- __k__ nested loops with __n__ iterations has $$O(n^k)$$ complexity
+** BigO notation
+- time complexity equations works by inserting the size of the data set as an integer **n**, and returning the number of operations that need to be conducted by the computer before the function can finish
+- worst case scenario is always used
+- from best to worst:
+  + `O(1)` - constant time of 1 operations
+  + `O(5)` - constant time of 5 operations
+  + `O(log n)` - logarithmic complexity
+  + `O(n)` - linear amount of operations, equal to dataset size **n**
+  + `O(n log n)` - relatively bad
+  + `O(n²)` - polynomial complexity
+  + `O(2^n)` - exponential complexity :03/26/2021 03:03

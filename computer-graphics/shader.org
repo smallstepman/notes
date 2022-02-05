@@ -1,0 +1,29 @@
+:PROPERTIES:
+:ID:       196124fa-181d-4750-870b-2135f03dc279
+:ROAM_REFS: https://en.wikipedia.org/wiki/Shader
+:END:
+#+title: Shader
+
+
+Mini programs that are send to [[id:c6e25d65-4a0e-425e-9000-6fc10aab58ea][GPU]] to perform operations on the data
+* Types
+** [[id:4963bcfc-3ac6-4c40-8a2a-e48293e84d9f][vertex]]
+- We use a vertex shader to manipulate the vertices in order to transform the shape to look the way we want it
+- always require a 3D scene
+** pixel
+- Pixel shaders may be applied in intermediate stages to any two-dimensional images—sprites or textures—in the pipeline
+- a pixel shader is the only kind of shader that can act as a postprocessor or filter for a video stream after it has been rasterized
+- a pixel shader alone cannot produce some kinds of complex effects because it operates only on a single fragment, without knowledge of a scene's geometry (i.e. vertex data)
+- pixel shaders do have knowledge of the screen coordinate being drawn, and can sample the screen and nearby pixels if the contents of the entire screen are passed as a texture to the shader
+  - This technique can enable a wide variety of two-dimensional postprocessing effects such as blur, or edge detection/enhancement for cartoon/cel shaders
+** [[id:8fe02e40-dbbb-4820-8486-1b9936954433][fragment]]
+The fragment shader decides what color the fragment will be.
+Every pixel in result image gets at least one fragment (or more if e.g. transparency is applied, or some postprocessing e.g. blur)
+** compute
+** geometry
+
+* Language
+** [[https://www.khronos.org/registry/spir-v/][SPIR-V]]
+- machine code / instructions set
+** [[https://github.com/KhronosGroup/GLSL/blob/master/extensions/khr/GL_KHR_vulkan_glsl.txt][GLSL]]
+- human readable, converted to [[SPIR-V]]

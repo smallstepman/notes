@@ -1,0 +1,17 @@
+:PROPERTIES:
+:ID:       f306ed73-c753-4181-930b-8206cf7344aa
+:END:
+#+title: memory pages
+#+created_at: 20210325004407
+
+unit of memory sized and aligned at the page size
+- page size varies by architecture
+  | ARM   | 4k           |
+  | ARM64 | 4k or 64k    |
+  | MIPS  | configurable |
+  | x86   | 4k           |
+- some architectures have configurable pages (at kernel build time)
+- *page frame*, or frame, is a page-sized and page-aligned physical memory block
+  + page is somewhat abstract, page frame is concrete
+  + in the kernel =pfn= is page frame number, used to refer to physical page frames
+https://github.com/torvalds/linux/blob/75013c6c52d80b2255ba273eedac013d58754b02/include/linux/mm_types.h#L70-L225

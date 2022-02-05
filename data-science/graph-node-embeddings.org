@@ -1,0 +1,17 @@
+:PROPERTIES:
+:ID:       e96bada2-e9d5-4225-9712-39d447b58375
+:END:
+#+TITLE: graph node embeddings
+#+created_at:<2021-06-27 Sun 21:59>
+
+#+begin_src latex :exports results :file assets/e96bada2-e9d5-4225-9712-39d447b58375/equation-deep-encoder.png :results file
+\begin{aligned}
+\mathbf{h}_{v}^{0} &=\mathbf{x}_{v} \\
+\mathbf{h}_{v}^{k} &=\sigma\left(\mathbf{W}_{k} \sum_{u \in N(v)} \frac{\mathbf{h}_{u}^{k-1}}{|N(v)|}+\mathbf{B}_{k} \mathbf{h}_{v}^{k-1}\right), \forall k \in\{1, \ldots, K\} \\
+\mathbf{z}_{v} &=\mathbf{h}_{v}^{K}
+\end{aligned}
+#+end_src
+
+#+RESULTS:
+[[file:assets/e96bada2-e9d5-4225-9712-39d447b58375/equation-deep-encoder.png]]
+

@@ -1,0 +1,9 @@
+:PROPERTIES:
+:ID:       a677715e-4022-4037-8b7f-9fb40b0f59d8
+:ROAM_REFS: https://en.wikipedia.org/wiki/Test_double
+:END:
+#+title: test double
+
+- a generic (meta) term used for objects or procedures
+  - frequently, the final release software consists of a complex set of objects or procedures interacting together to create the final result
+  - in automated unit testing, it may be necessary to use objects or procedures that look and behave like their release-intended counterparts, but are actually simplified versions that reduce the complexity and facilitate testing

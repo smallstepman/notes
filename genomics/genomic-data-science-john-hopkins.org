@@ -1,0 +1,70 @@
+:PROPERTIES:
+:ID:       c9db8d38-5382-4156-a23e-7abffe98f3fd
+:END:
+#+title: Genomic Data Science (John Hopkins)
+#+filetags: :project:
+
+* Introduction to genomic technologies
+:PROPERTIES:
+:ID:       fcafe34f-570e-491e-9595-60c43edf05d3
+:END:
+- [[id:cf093664-2aae-4f62-848b-3e0eed17b83c][Genomics]] is the study of genomes
+- human genes are 99.9% identical
+- genome determines how the body develops
+- cancer is genetic desease - cancer cells are replicating without control
+- mutation is change in genome (DNA damaged, error in transcription)
+- typical protein is 300-400 letters long
+- proteins can self regulate
+- cost of DNA sequencting dropped from dozens of milions of dolars (early 2002), to houndreds of dollars
+- National Center for Biotechnology, Sequence Read Archive
+- 3 bilion nucleotides constitutes to human geneome
+- The structure of the human genome is that it's divided into 23 chromosome pairs. 22 of them are, identical to one another is two, two nearly identical copies. One from mom and one from dad, and then you have x and y. And if you're a man, you have x and y. If you're a woman, you have x and x. So that's another way to think about the structure. And then within each chromosome, there's a little bit of more structure we occasionally talk about. In the middle of every chromosome, there's something called the centromere. And at the ends of the chromosomes, there are these special sequences that cap the chromosomes called telomere.
+- all living things on this planet use DNA to encode its features, and it also have to replicate the DNA
+
+
+[[download:_20210921_180018screenshot.png]]
+
+- genomics data science is intersection of biology statistics and computer data science (also know as bioinformatics, statistical genomics)
+** TODO chipq-seq metyl-seq ???
+** TODO system biology
+** TODO itegrated genomics
+* Cell biology
+** Mitosis
+:PROPERTIES:
+:ID:       fb5768fe-dd4d-4c28-9b71-e05e50655318
+:END:
+
+[[download:_20210921_200238screenshot.png]]
+
+* Important molecules
+** Nucleotides
+- Purines
+  - Adeine
+    [[download:_20210923_212448screenshot.png]]
+  - Guanine
+    [[download:_20210923_212505screenshot.png]]
+- Pyrimidines
+  - Cytosine
+    [[download:_20210923_212519screenshot.png]]
+  - Thymine
+    [[download:_20210923_212531screenshot.png]]
+DNA direction == strandedness
+positive strand (from 5' to 3')
+negative strand (from 3' to 5')
+RNA *can* form double strand
+*** TODO mapping BAC vs Celera skipping mapping and going straight to sequencing
+*** TODO RNA genes, RNAC
+*** TODO dna repaets
+- tandem repeats
+- interspersed repeats
+
+*** mRNA coding
+[[download:_20210924_000541screenshot.png]]
+
+*** Proteins
+- secondary structure as well so when the two common secondary structures of proteins form are called beta sheets and alpha helices.
+**** TODO https://en.wikipedia.org/wiki/Protein_structure
+**** TODO https://en.wikipedia.org/wiki/Beta_sheet
+*** TODO Transcription factors
+[[download:_20210924_001932screenshot.png]]
+*** TODO https://en.wikipedia.org/wiki/Histone_methylation

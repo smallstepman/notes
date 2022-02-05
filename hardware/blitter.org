@@ -1,0 +1,7 @@
+#+title: Blitter
+
+Superseded by [[id:c6e25d65-4a0e-425e-9000-6fc10aab58ea][GPU - Graphical Processing Unit]]
+
+A blitter is a circuit, sometimes as a coprocessor or a logic block on a microprocessor, dedicated to the rapid movement and modification of data within a computer's memory. A blitter can copy large quantities of data from one memory area to another relatively quickly, and in parallel with the CPU, while freeing up the CPU's more complex capabilities for other operations. A typical use for a blitter is the movement of a bitmap, such as windows and fonts in a graphical user interface or images and backgrounds in a 2D video game. The name comes from the bit blit operation of the 1973 Xerox Alto,[1] which stands for bit-block transfer.[2] A blit operation is more than a memory copy, because it can involve data that's not byte aligned (hence the bit in bit blit), handling transparent pixels (pixels which should not overwrite the destination), and various ways of combining the source and destination data.
+
+https://en.wikipedia.org/wiki/Blitter

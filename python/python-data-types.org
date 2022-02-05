@@ -1,0 +1,452 @@
+:PROPERTIES:
+:ID:       d17564da-f0b9-4c0d-a748-83fdb13b1e23
+:END:
+#+title: Python data types
+#+filetags: :project:
+
+* types of objects
+** simple
+*** numbers
+**** size bounds
+- the sys.maxsize value is the largest of the small integer values
+- we computed the =log tobase 2= to find out how many bits are required for this number
+- this tells us that our Python uses 63-bit values for small integers
+- the range of smallish integers is from -263 ... 263 * 1, outside this range, largish integers are used
+#+BEGIN_SRC python :results output :exports both :session arst
+import sys, math
+print(math.log(sys.maxsize, 2))
+print(sys.maxsize)
+#+END_SRC
+
+#+RESULTS:
+: 63.0
+: 9223372036854775807
+
+the values in =sys.int_info= tell us that large integers are a sequence of 30-bit digits, and each of these digits occupies 4 bytes.
+#+BEGIN_SRC python :results output :exports both :session arst
+print(sys.int_info)
+#+END_SRC
+
+#+RESULTS:
+: sys.int_info(bits_per_digit=30, sizeof_digit=4)
+
+**** choosing between float, decimal, and fraction
+***** decimal
+- currency
+#+BEGIN_SRC python :results output :exports both
+import decimal
+from decimal import Decimal
+
+tax_rate = Decimal("7.25") / Decimal(100)
+print(tax_rate.as_integer_ratio())
+print(tax_rate.as_tuple())
+print(tax_rate.canonical())
+print(tax_rate.compare(Decimal("0.00095")))
+print(tax_rate.compare(Decimal("95")))
+print(tax_rate.quantize(Decimal("0.01")))
+print(Decimal("0.054").quantize(Decimal("0.01", decimal.ROUND_HALF_DOWN)))
+#+END_SRC
+
+#+RESULTS:
+: (29, 400)
+: DecimalTuple(sign=0, digits=(7, 2, 5), exponent=-4)
+: 0.0725
+: 1
+: -1
+: 0.07
+: 0.05
+
+***** fractions
+- scale
+#+BEGIN_SRC python :results output :exports both :session arst
+from fractions import Fraction
+
+sugar_cups = Fraction("2.5")
+scale_factor = Fraction(5 / 8)
+print(sugar_cups == Fraction(2.5) == Fraction("25/10"))
+print(scale_factor * sugar_cups)
+print(scale_factor.denominator)
+print(str(scale_factor))
+print(scale_factor.as_integer_ratio())
+#+END_SRC
+
+#+RESULTS:
+: True
+: 25/16
+: 8
+: 5/8
+: (5, 8)
+
+***** floats
+- float values are really approximations
+- math module contains several specialized functions for working with floating-point values
+  - square root, logarithms, various trigonometry functions, gamma, factorial, and the Gaussian error function
+  - math.fsum() function will compute a floating-point sum more carefully than the built-in sum() function (less susceptible to approximation issues)
+  - math.isclose() function will compare two floating-point values to see if they're nearly equal
+#+BEGIN_SRC python :results output :exports both :session arst
+print((19/155)*(155/19) == 1.0)
+print(math.isclose((19/155)*(155/19), 1))
+#+END_SRC
+
+#+RESULTS:
+: False
+: True
+****** don't compare floating-point values for exact equality
+#+BEGIN_SRC python :results output :exports both :session arst
+print((19/155)*(155/19) != 1)
+print((19/155)*(155/19) == 0.9999999999999999)
+#+END_SRC
+
+#+RESULTS:
+: True
+: True
+
+****** why use floating-point?
+- not all computable numbers can be represented as fractions - a value like √2, can't be represented as a fraction
+  - that's why mathematicians introduced (or perhaps discovered) irrational numbers
+  - the built-in float type is as close as we can get to the mathematical abstraction of irrational numbers
+- float values are very fast on modern processors
+****** converting numbers from one type into another
+We can use the =float()= function to create a float value from another value
+#+BEGIN_SRC python :results output :exports both :session arst
+print(float(sugar_cups * scale_factor))
+print(float(total_amount))
+#+END_SRC
+
+#+RESULTS:
+: 1.5625
+- it rarely works out well to try to convert float into Decimal or Fraction:
+#+BEGIN_SRC python :results output :exports both :session arst
+print(Fraction(19/155))
+print(Decimal(19/155))
+#+END_SRC
+
+#+RESULTS:
+: 8832866365939553/72057594037927936
+
+
+
+*** strings
+**** rewriting strings - strings are immutable
+#+BEGIN_SRC python :results output :exports both :session arst
+'arsasr'[2] = 'a'
+#+END_SRC
+
+#+RESULTS:
+: TypeError: 'str' object does not support item assignment
+
+therefore a useful strategy is to overwrite them
+#+BEGIN_SRC python :results output :exports both :session arst
+from string import whitespace, punctuation, Template
+
+print("rarsrra".partition("rs"))
+
+
+text = "rast , rats  ,fffw ooa -* = rast../,\ []"
+
+for character in whitespace + punctuation:
+    text = text.replace(character, "_")
+print(text)
+
+
+translate_map = {ord(c): "_" for c in whitespace + punctuation}
+print(text.translate(translate_map))
+#+END_SRC
+
+#+RESULTS:
+: ('ra', 'rs', 'rra')
+: rast___rats___fffw_ooa______rast________
+: rast___rats___fffw_ooa______rast________
+
+**** regex
+#+BEGIN_SRC python :results output :exports both :session arst
+import re
+
+pattern = re.compile(
+    r"""
+ (?P<ingredient>[\w\s]+):\s+  # name of the ingredient up to the ":"
+ (?P<amount>\d+)\s+           # amount, all digits up to a space'
+ (?P<unit>\w+)                # units, alphanumeric characters
+""",
+    re.X,
+)
+match = pattern.match(text)
+print(match is None)
+print(match.groups())
+print(match.group(1))
+print(match.group(2))
+print(match.group(3))
+#+END_SRC
+
+#+RESULTS:
+: True
+
+**** formatting
+- https://docs.python.org/3/library/string.html#formatexamples.org
+- https:/docs.python.org/3/reference/lexical_analysis.html#formatted-string-literals.org
+#+BEGIN_SRC python :results output :exports both :session arst
+import locale
+
+# locale.setlocale(local)
+id = "IAD"
+location = "Dulles Intl Airport"
+max_temp = 32
+min_temp = 13
+precipitation = 0.4
+print(
+    f"{id:3s} : {location:19s} : {max_temp:3d} / {min_temp:3d} / {precipitation:5.2f}"
+)
+data = dict(
+    id=id,
+    location=location,
+    max_temp=max_temp,
+    min_temp=min_temp,
+    precipitation=precipitation,
+)
+print(
+    "{id:3s} : {location:19s} : {max_temp:3d} / {min_temp:3d} / {precipitation:5.2f}".format_map(
+        data
+    )
+)
+print(
+    "{id:3s} : {location:19s} : {max_temp:3d} / {min_temp:3d} / {precipitation:5.2f}".format(
+        **data
+    )
+)
+print("{2}, {1}, {0}".format(*"abc"))
+print(f"BINARY      :b   {16:b}")
+print(f"BINARY      :b   {16:>08b}")
+print(f"UNICODE     :c \\u \\N  {0x2661:c} \u2680 \u0001F000 \N{MAHJONG TILE RED DRAGON}")
+print(f"DECIMAL     :d   {123:d}")
+print(f"DECIMAL     :d   {0xf:d}")
+print(f"DECIMAL     :d   {0o10:d}")
+print(f"SCIENTIFIC  :E   {2**256:E}")
+print(f"FLOAT       :f   {12:.2f}")
+print(f"GENERAL     :g   {9**99:g} {0.1:g}")
+print(f"LOCALE      :n   {1213123123:n}")
+print(f"OCTAL       :o   {12333:o}")
+print(f'STRING      :s   {"123123":s}')
+print(f"HEX         :x   {123213:x}")
+print(f"PERCENTAGE  :%   {3/100:.2%}")
+print(f"FILL/ALIGN  :.<  {123:.<10}")
+print(f"FILL/ALIGN  :.>  {123:.>10}")
+print(f"FILL/ALIGN  :^   {123:^10}")
+print(f"FILL/ALIGN  :.^  {123:.^10}")
+print(f"SIGN        :+*  {0:+5.3f}")
+print(f"SIGN        :+*  {123:+5.3f}")
+print(f"SIGN        :+*  {-0:+5.3f}")
+print(f"SIGN        :+*  {-10:+5.3f}")
+print(f"SIGN        :+*  {-10:-5.3f}")
+print(f"SIGN        :+*  {10:-5.3f}")
+print(f"ALTERNATE   :#A  {0:#x} {3:#b} ")
+print(f"ZEROPADDING :>0n {123:>010}")
+print(f'REPR        !r   {"arst"!r}')
+print(f'STR         !s   {"arst"!s}')
+print(f'ASCII       !a   {"arts"!a}')
+print(f"DEBUG       =    {id=}")
+print(100_000_000 == 100000000)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+IAD : Dulles Intl Airport :  32 /  13 /  0.40
+IAD : Dulles Intl Airport :  32 /  13 /  0.40
+IAD : Dulles Intl Airport :  32 /  13 /  0.40
+c, b, a
+BINARY      :b   10000
+BINARY      :b   00010000
+UNICODE     :c \u \N  ♡ ⚀ F000 🀄
+DECIMAL     :d   123
+DECIMAL     :d   15
+DECIMAL     :d   8
+SCIENTIFIC  :E   1.157921E+77
+FLOAT       :f   12.00
+GENERAL     :g   2.95127e+94 0.1
+LOCALE      :n   1213123123
+OCTAL       :o   30055
+STRING      :s   123123
+HEX         :x   1e14d
+PERCENTAGE  :%   3.00%
+FILL/ALIGN  :.<  123.......
+FILL/ALIGN  :.>  .......123
+FILL/ALIGN  :^      123
+FILL/ALIGN  :.^  ...123....
+SIGN        :+*  +0.000
+SIGN        :+*  +123.000
+SIGN        :+*  +0.000
+SIGN        :+*  -10.000
+SIGN        :+*  -10.000
+SIGN        :+*  10.000
+ALTERNATE   :#A  0x0 0b11
+ZEROPADDING :>0n 0000000123
+REPR        !r   'arst'
+STR         !s   arst
+ASCII       !a   'arts'
+DEBUG       =    id='IAD'
+True
+#+end_example
+
+** containers
+*** named tuples
+#+BEGIN_SRC python :results output :exports both :session arst
+from typing import NamedTuple
+from collections import namedtuple
+
+
+class Keyboard(NamedTuple):
+    model: str
+    hardware: str
+
+
+K = namedtuple("Keyboard", ("model", "hardware"))
+
+dmote = dmote_class = Keyboard("dmote", "nrfmicro")
+dmote_var = K("dmote", "nrfmicro")
+
+print(dmote_var == dmote_class)
+print(dmote.hardware == dmote[1])
+
+
+class CardPoints(NamedTuple):
+    rank: int
+    suit: str
+
+    def points(self) -> int:
+        if 1 <= self.rank < 10:
+            return self.rank
+        else:
+            return 10
+#+END_SRC
+
+#+RESULTS:
+: True
+: True
+
+*** set
+**** =set= - mutable
+***** =|= for set union, often typeset as 𝐴𝐴 ∪ 𝐵𝐵.
+***** =&= for set intersection, often typeset as 𝐴𝐴 ∩ 𝐵𝐵 .
+***** =^= for set symmetric difference, often typeset as 𝐴𝐴 Δ 𝐵𝐵 .
+***** =-= for set subtraction, often typeset as 𝐴𝐴 − 𝐵𝐵 .
+**** =frozenset= - immutable
+*** sequence
+**** =list= - mutable
+**** =tuple= - immutable
+**** =deque= - double ended mutable queue
+- more efficient when changes at both ends are needed
+**** =bisect= - searching sorted list
+**** =heapq= - priority queue
+#+begin_src python :results output :exports both :session arst
+from heapq import (
+    heapify,
+    heappop,
+    heappush,
+    heappushpop,
+    heapreplace,
+    nlargest,
+    merge,
+    nsmallest,
+)
+
+a = []
+h = heappush(a, (32, "rasr"))
+h = heappush(a, (31, "rrasr"))
+h = heappush(a, (3, "aarasr"))
+print([heappop(a) for e in range(len(a))])
+#+end_src
+
+#+results:
+: [(3, 'aarasr'), (31, 'rrasr'), (32, 'rasr')]
+
+*** mapping
+**** mutable
+- =dict=
+**** immutable
+- =defaultdict= - can provide defauld value for a missing key
+- =Counter= - designet to count occurences of a key (also called multiset of bag)
+- =OrderedDict= - retains order
+- =ChainMap= - combines several dictionaries into single mapping
+*** objects
+- Single Responsibility principles
+- Interface Segregation principles
+- The idea of extension via inheritance is sometimes called the generalization-specialization relationship. It's sometimes also called an `is-a` relationship.
+- The aggregation and composition cases are generally implemented by some kind of "wrapping" design techniques.
+#+BEGIN_SRC python :results output :exports both :session arst
+class A:
+    __slots__ = ("x", "y")
+
+    def __init__(self):
+        self.x = 1
+        self.y = 1
+        self.r = 1
+
+
+q = A()
+#+END_SRC
+
+#+RESULTS:
+: AttributeError: 'A' object has no attribute 'r'
+
+**** Data classes
+#+BEGIN_SRC python :results output :exports both :session arst
+from dataclasses import dataclass, field
+from typing import List, ClassVar, Tuple
+
+
+@dataclass
+class CribbageHand:
+    cards: List[CardPoints]
+
+    def to_crib(self, card1, card2):
+        self.cards.remove(card1)
+        self.cards.remove(card2)
+
+
+@dataclass(init=False)
+class Deck:
+    suits: ClassVar[Tuple[str, ...]] = (
+        "\N{Black Club Suit}",
+        "\N{White Diamond Suit}",
+        "\N{White Heart Suit}",
+        "\N{Black Spade Suit}",
+    )
+    cards: List[CardPoints]
+
+    def __init__(self) -> None:
+        self.cards = [
+            CardPoints(rank=r, suit=s) for r in range(1, 14) for s in self.suits
+        ]
+        random.shuffle(self.cards)
+
+
+@dataclass(frozen=True, order=True)
+class Card:
+    rank: int
+    suit: str
+
+
+@dataclass(frozen=True, order=True)
+class Hand:
+    cards: List[CardPoints] = field(default_factory=list)
+
+
+crib = Hand()
+print(crib)
+d3 = CardPoints(rank=3, suit="◊")
+print(crib)
+crib.cards.append(d3)
+print(crib)
+crib.cards.remove(d3)
+print(crib)
+#+END_SRC
+
+#+RESULTS:
+: Hand(cards=[])
+: Hand(cards=[])
+: Hand(cards=[CardPoints(rank=3, suit='◊')])
+: Hand(cards=[])
+
+***** https://stackoverflow.com/questions/51671699/data-classes-vs-typing-namedtuple-primary-use-cases
+***** https://stackoverflow.com/questions/33827585/class-versus-namedtuple-to-simulate-a-deck-in-python
+***** https://stackoverflow.com/questions/47955263/what-are-data-classes-and-how-are-they-different-from-common-classes
+***** TODO https://www.python.org/dev/peps/pep-0557

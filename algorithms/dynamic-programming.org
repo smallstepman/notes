@@ -1,0 +1,339 @@
+:PROPERTIES:
+:ID:       8b718e4f-8b5f-492d-a483-8d37b2858f1e
+:END:
+#+TITLE: Dynamic Programming
+#+roam_tags: Technology
+
+[[https://en.wikipedia.org/wiki/Dynamic_programming][Wikipedia]]
+
+* What is dynamic programming?
+- Dynamic programming is both a [[https://en.wikipedia.org/wiki/Mathematical_optimization][mathematical optimization]] method and a computer programming method.
+- The method was developed by [[https://en.wikipedia.org/wiki/Richard_Bellman][Richard Bellman]] in the 1950s and
+- has found applications in numerous fields, from [[https://en.wikipedia.org/wiki/Aerospace_engineering][aerospace engineering]] to [economics](https://en.wikipedia.org/wiki/Economics).
+- In both contexts it refers to simplifying a complicated problem by breaking it down into simpler sub-problems in a [recursive](https://en.wikipedia.org/wiki/Recursion) manner. While some decision problems cannot be taken apart this way, decisions that span several points in time do often break apart recursively. Likewise, in computer science, if a problem can be solved optimally by breaking it into sub-problems and then recursively finding the optimal solutions to the sub-problems, then it is said to have [optimal substructure](https://en.wikipedia.org/wiki/Optimal_substructure). If sub-problems can be nested recursively inside larger problems, so that dynamic programming methods are applicable, then there is a relation between the value of the larger problem and the values of the sub-problems. In the optimization literature this relationship is called the [Bellman equation](https://en.wikipedia.org/wiki/Bellman_equation).
+* Steps
+- Get recursive solution
+  - break into smaller, similar looking problems
+- Parameter analysis
+  - How many distinct parameter combinations are there?
+  - Are there few enough to store answers for each combination of parameters?
+- Memonize
+  - Allocate a table to hold stored answers.
+  - Before running recursive code, check if you have computed the answer
+- Move to iterative version
+  - For a given answer, what answers does it depend upon?
+  - Figure out order for indices to fill in answers after things they depend upon
+- Garnish
+  - Can I reuse space? Optimize for space.
+  - Do I need to store extra information for a constructive answer?
+
+* Building an understanding from ground up
+** can sum
+#+begin_src rust
+use std::collections::HashMap;
+
+fn main() {
+    println!("{}", solve(7, &vec![3, 3, 1, 2], &mut HashMap::new()));
+}
+
+fn solve(target: i128, numbers: &Vec<i128>, memo: &mut HashMap<i128, bool>) -> bool {
+    println!("{}{:?}", target, numbers);
+    if memo.contains_key(&target) {
+        return *memo.get(&target).unwrap();
+    }
+    if target < 0 {
+        return false;
+    }
+    if target == 0 {
+        return true;
+    };
+    for n in numbers.into_iter() {
+        let remind = target - n;
+        if solve(remind, &numbers, memo) == true {
+            memo.insert(target, true);
+            return true;
+        };
+    }
+    memo.insert(target, false);
+    return false;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn should_pass() {
+        assert_eq!(true, solve(7, &vec![3, 3, 1], &mut HashMap::new()));
+    }
+    #[test]
+    fn t1() {
+        assert_eq!(
+            true,
+            solve(70, &vec![3, 3, 3, 1, 50, 5, 5, 5, 5], &mut HashMap::new())
+        );
+    }
+    #[test]
+    fn t2() {
+        assert_eq!(true, solve(1, &vec![1], &mut HashMap::new()));
+    }
+    #[test]
+    fn t3() {
+        assert_ne!(true, solve(1, &vec![5], &mut HashMap::new()));
+    }
+    #[test]
+    fn t4() {
+        assert_eq!(true, solve(0, &vec![5], &mut HashMap::new()));
+    }
+    #[test]
+    fn t5() {
+        assert_eq!(true, solve(3, &vec![1, 5, 4], &mut HashMap::new()));
+    }
+    #[test]
+    fn t6() {
+        assert_eq!(true, solve(100, &vec![5], &mut HashMap::new()));
+    }
+    #[test]
+    fn t7() {
+        assert_eq!(true, solve(0, &vec![], &mut HashMap::new()));
+    }
+    #[test]
+    fn t8() {
+        assert_eq!(true, solve(40000, &vec![1], &mut HashMap::new()));
+    }
+    #[test]
+    fn t9() {
+        assert_eq!(
+            false,
+            solve(
+                1,
+                &vec![2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+                &mut HashMap::new()
+            )
+        );
+    }
+}
+#+end_src
+
+#+RESULTS:
+: 7[3, 3, 1, 2]
+: 4[3, 3, 1, 2]
+: 1[3, 3, 1, 2]
+: -2[3, 3, 1, 2]
+: -2[3, 3, 1, 2]
+: 0[3, 3, 1, 2]
+: true
+
+** show sum
+#+begin_src rust
+
+use std::collections::HashMap;
+
+fn main() {
+    println!(
+        "{:?}",
+        solve(560, &vec![3, 2, 4, 5, 6], &mut HashMap::new())
+    );
+}
+
+fn solve(
+    target: i128,
+    numbers: &Vec<i128>,
+    memo: &mut HashMap<i128, Vec<i128>>,
+) -> Option<Vec<i128>> {
+    if memo.contains_key(&target) {
+        return Some(memo.get(&target).unwrap().to_vec());
+    }
+    if target == 0 {
+        return Some(vec![]);
+    }
+    if target < 0 {
+        return None;
+    }
+    for n in numbers.into_iter() {
+        match solve(target - *n, numbers, memo) {
+            None => {}
+            Some(mut x) => {
+                x.push(*n);
+                memo.insert(target, x.clone());
+                return Some(x);
+            }
+        }
+    }
+
+    return None;
+}
+
+#+end_src
+** fib
+#+begin_src rust :exports both
+use std::collections::HashMap;
+use std::hash::Hash;
+
+fn main() {
+    let a = 15;
+    println!("{}", fib(a, &mut HashMap::new()));
+    let a = 15;
+    println!("{}", fib2(a, &mut HashMap::new()));
+}
+
+fn fib(n: i128, m: &mut HashMap<i128, i128>) -> i128 {
+    match m.get(&n) {
+        Some(result) => *result,
+        None => {
+            let result = match n {
+                0 => 1,
+                1 => 1,
+                2 => 1,
+                x if x > 2 => fib(x - 1, m) + fib(x - 2, m),
+                _ => panic!("asrt"),
+            };
+            m.insert(n, result);
+            result
+        }
+    }
+}
+
+fn memoize<A, R, T>(cache: &mut HashMap<A, R>, func: T, arg: A) -> R
+where
+    A: Eq + Hash + Copy,
+    R: Copy,
+    T: Fn(A, &mut HashMap<A, R>) -> R,
+{
+    match cache.get(&arg) {
+        Some(result) => *result,
+        None => {
+            let result = func(arg, cache);
+            cache.insert(arg, result);
+            result
+        }
+    }
+}
+
+fn fib2(n: i128, m: &mut HashMap<i128, i128>) -> i128 {
+    match n {
+        x if x <= 2 => 1,
+        x if x > 2 => memoize(m, fib2, x - 1) + memoize(m, fib2, x - 2),
+        _ => panic!("stdh"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bench_recursive_fibonacci() {
+        fib(10, &mut HashMap::new());
+    }
+
+    #[test]
+    fn bench_dynamic_programming_recursive_fibonacci() {
+        fib2(10, &mut HashMap::new());
+    }
+}
+
+#+end_src
+** grid travel
+#+begin_src rust :exports both
+use std::collections::HashMap;
+
+fn main() {
+    println!("{}", travel(18, 18, &mut HashMap::new()));
+}
+
+fn travel(x: i128, y: i128, memo: &mut HashMap<(i128, i128), i128>) -> i128 {
+    if memo.contains_key(&(x, y)) {
+        match memo.get(&(x, y)) {
+            Some(x) => *x,
+            None => panic!("arst"),
+        }
+    } else if x == 0 || y == 0 {
+        0
+    } else if x == 1 || y == 1 {
+        1
+    } else {
+        let result = travel(x - 1, y, memo) + travel(x, y - 1, memo);
+        memo.insert((x, y), result);
+        memo.insert((y, x), result);
+        result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn arst() {
+        assert_eq!(2, travel(2, 2, &mut HashMap::new()));
+        assert_eq!(1, travel(1, 2, &mut HashMap::new()));
+        assert_eq!(1, travel(1, 1, &mut HashMap::new()));
+        assert_eq!(0, travel(10, 0, &mut HashMap::new()));
+        assert_eq!(2333606220, travel(18, 18, &mut HashMap::new()));
+    }
+}
+#+end_src
+
+** best sum
+
+#+begin_src rust :exports both
+fn main() {
+    println!("{:?}", solve(18, vec![1, 1, 1, 1, 1, 17]));
+}
+
+fn solve(target: i128, numbers: Vec<i128>) -> Option<Vec<i128>> {
+    if target == 0 {
+        return Some( vec![] );
+    }
+    if target < 0 {
+        return None;
+    }
+
+    let mut shortest_combination: Option<Vec<i128>> = None;
+
+    for n in numbers.clone().into_iter() {
+        let reminder = target - n;
+        let reminder_combination = solve(reminder, numbers);
+        if reminder_combination != None {
+            let mut combination = reminder_combination.unwrap().clone();
+            combination.push(n);
+            if combination.len() < shortest_combination.unwrap().len() {
+
+
+                shortest_combination = Some( combination );
+            }
+        }
+        match reminder_combination {
+            None => {},
+            Some(mut x) => {
+                x.push(n);
+                match shortest_combination {
+                    None => {
+
+                    },
+                    Some(mut y) => {
+
+
+                if y.len() < x.len() {
+
+                }
+                    }
+                }
+            }
+        }
+    }
+
+    shortest_combination
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn arst() {
+        assert_eq!(vec![1, 17], solve(18, vec![1, 1, 1, 1, 1, 17]));
+        assert_eq!(vec![17], solve(17, vec![1, 1, 1, 1, 1, 17]));
+    }
+}
+#+end_src

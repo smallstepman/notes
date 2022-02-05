@@ -1,0 +1,42 @@
+:PROPERTIES:
+:ID:       c2ece597-28dc-4ed0-9f08-4ddf1d09c1b2
+:END:
+#+title: GLSL
+
+* [[https://github.com/KhronosGroup/GLSL/blob/master/extensions/khr/GL_KHR_vulkan_glsl.txt][specification]]
+* examples
+** shader vertex
+#+begin_src C
+#version 450
+
+const vec2 positions[3] = vec2[3](
+    vec2(0.0, 0.5),
+    vec2(-0.5, -0.5),
+    vec2(0.5, -0.5)
+);
+
+void main() {
+    gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
+}
+#+end_src
+** shader fragment
+#+begin_src C
+#version 450
+
+layout(location=0) out vec4 f_color;
+
+void main() {
+    f_color = vec4(0.3, 0.2, 0.1, 1.0);
+}
+#+end_src
+
+* variables
+** =gl_Position=
+- define where the vertex position data is going to be stored as 4 floats,
+- functions as an out variable for vertex position data, so shader.vert doesn't need any out variables.
+** =gl_VertexIndex=
+the index of the current vertex in the vertex data.
+** =in=
+An in variable will expect data from outside the shader. In the case of the vertex shader, this will come from vertex data. In a fragment shader, an in variable will pull from out variables in the vertex shader.
+** =out=
+When an out variable is defined in the fragment shader, it means that the value is meant to be written to a buffer to be used outside the shader program.

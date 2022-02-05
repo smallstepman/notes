@@ -1,0 +1,16 @@
+:PROPERTIES:
+:ID:       c3785610-d4b9-4248-8768-04744998b49c
+:END:
+#+title: WebGPU
+
+* Purpose
+allow web code access to GPU functions in a safe and reliable manner
+* Concepts
+** Pipeline
+- More robust version of [[id:196124fa-181d-4750-870b-2135f03dc279][Shaders]] from [[id:a90cc23f-ecdd-4fdf-9688-b9712e5bdacb][OpenGL]]
+- Desrcibes all the actions the gpu will preform when acting on a set of data.
+
+* Resources
+- https://github.com/mikbry/awesome-webgpu/blob/master/readme.md
+- https://alain.xyz/blog/raw-webgpu
+- https://sotrh.github.io/learn-wgpu/

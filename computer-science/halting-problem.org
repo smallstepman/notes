@@ -1,0 +1,6 @@
+:PROPERTIES:
+:ID:       aa11e98a-56ad-4388-b2ce-aa7bc653a747
+:ROAM_REFS: https://en.wikipedia.org/wiki/Halting_problem
+:END:
+#+title: halting problem
+the problem of determining, from a description of an arbitrary computer program and an input, whether the program will finish running, or continue to run forever

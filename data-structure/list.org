@@ -1,0 +1,56 @@
+:PROPERTIES:
+:ID:       f6ad4bd0-5214-41da-b1c0-3090c9127312
+:END:
+#+title: list
+
+* Linked list
+:PROPERTIES:
+:ID:       01e29ab6-9324-44d2-8e3e-90f268997590
+:END:
+- linear data structure
+- Linked list is a one-at-a-time linear-access structure.
+- every element is a separate object called a Node
+- **methods**:
+  - add
+  - remove
+  - head
+  - tail
+- performance
+  - Accessing =O(n)=
+  - Searching =O(n)=
+  - Inserting =O(n) | O(1)=
+  - Deleting =O(n) | O(1)=
+- Linked list
+  #+begin_src dot :file test.png :exports both
+  digraph "rast" {
+  rankdir=TD;
+          node [shape=record]
+               A[label="asrt"]
+               B[label="asrt"]
+               A -> B
+                 }
+  #+end_src
+  + Node has 2 parts: data and reference which points to next Node in list
+  + can only iterate forwards, never backwards
+  + last node points to null
+- Doubly-linked list
+  #+begin_src dot :file test.png :exports both
+  digraph "rast" {
+  rankdir=TD;
+          node [shape=record]
+               A[label="asrt"]
+               B[label="asrt"]
+               A -> B
+                 }
+  #+end_src
+  + Node has 3 parts: data and 2 references which points to previous and next Node in list
+  + can iterate forwards and backwards
+  + last and first node points to null
+
+
+** Techniques
+- Traversal
+- Insertion
+- Deletion
+- Two-pointer technique
+- Reversing

@@ -1,0 +1,13 @@
+:PROPERTIES:
+:ID:       053afb29-164f-494f-bec9-44d3951b9ce9
+:END:
+#+title: Translation Lookaside Buffer
+
+- hardware buffer
+- holds set of mappings of virtual to physical memory
+- there is granularity in those mappings
+- architecture specific
+- part specific
+- performance sensitive
+- wide varience in designes
+- part of [[id:22b5548b-fd3f-4131-8153-a75a177e87f5][MMU]]

@@ -1,0 +1,10 @@
+:PROPERTIES:
+:ID:       8fa36b92-7393-48c2-a55c-1d083bd49a47
+:END:
+#+title: Machine Learning
+
+* Resources
+- https://www.coursera.org/specializations/generative-adversarial-networks-gans
+- https://www.youtube.com/watch?v=wqQKFu41FIw&ab_channel=CodingTech
+- https://www.reddit.com/r/MachineLearning/comments/psn6vk/d_list_of_literature_review_tools/
+- https://www.reddit.com/r/MachineLearning/comments/pmzx3g/d_machine_learning_wayr_what_are_you_reading_week/

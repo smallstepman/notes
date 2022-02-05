@@ -1,0 +1,24 @@
+:PROPERTIES:
+:ID:       1704e35c-17d7-4643-a033-5dd7fbbc67c6
+:END:
+#+TITLE: Hash table
+
+
+* Hash table
+** Collision resolution mechanims
+*** Open Addressing
+**** Double Hashing
+*** Closed Addressing
+**** Separate Chaining
+** Direct Access Table
+Works for: ASCII chars, DNA, octal, hex, binary, days of week/month/year, months in year
+#+BEGIN_SRC python :results output
+days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+print(days[0])
+DNA = ['a','c','g','t']
+print(DNA[0])
+#+END_SRC
+
+#+RESULTS:
+: Mon
+: a

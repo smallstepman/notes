@@ -1,0 +1,26 @@
+:PROPERTIES:
+:ID:       e598efd2-e18c-4af5-8fea-845adeaa8a98
+:END:
+#+title: Computer Science
+#+roam_tags: Technology
+
+* abstraction barriers
+- limited interaction
+- limited customization
+
+* Resources
+- https://www.dataorienteddesign.com/dodbook/
+- http://www.catb.org/esr/structure-packing/
+- https://en.wikipedia.org/wiki/Call_stack
+- https://www.agner.org/optimize/
+- https://beej.us/guide/bgnet/html/
+- https://github.com/danistefanovic/build-your-own-x
+- https://github.com/ossu/computer-science
+- https://github.com/jwasham/coding-interview-university
+- https://github.com/public-apis/public-apis
+- https://github.com/yangshun/tech-interview-handbook
+- https://github.com/donnemartin/system-design-primer
+- https://github.com/bradtraversy/design-resources-for-developers
+- https://github.com/ossu/computer-science
+- https://github.com/EbookFoundation/free-programming-books/blob/master/books/free-programming-books.md
+- https://devopedia.org/

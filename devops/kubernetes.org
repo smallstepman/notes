@@ -1,0 +1,177 @@
+:PROPERTIES:
+:ID:       873bc5ca-aa69-48f5-8d5e-c84049509ff9
+:ROAM_REFS: https://intellipaat.com/blog/interview-question/kubernetes-interview-questions-answers/
+:END:
+#+TITLE: Kubernetes
+#+created_at:<2021-04-27 Tue 18:32>
+#+roam_tags: Empty
+
+- Kubernetes is a container [[id:86366706-d878-41c9-8547-51b208882280][orchestration tool]]
+- it creates groups of containers that can be logically discovered and managed for easy operations on containers
+- automates the manual operations that are involved in the deployment, management, and scaling of containerized applications
+- monitors and provisions contenerized applications
+  - restarts orphaned ones
+  - shuts down the unused
+  - automatically provides resources such as storage, memory, and CPU when required
+
+* benefits of Kubernetes
+- it becomes extremely easy to handle containers
+- respond to customer demands by deploying the applications faster and in a more predictable manner
+- automatic scheduling
+- automated rollback
+- horizontal scaling
+- auto-healing capabilities
+** comparison with Docker Swarm
+- Docker Swarm is a default container orchestration tool that comes with Docker
+- Docker Swarm can only orchestrate simple Docker containers
+- Kubernetes, on the other hand, helps manage much more complex software application containers
+- Kubernetes offers support for larger demand production environment
+
+* kubernetes cluster
+- Kubernetes cluster is a group of nodes that run containerized applications across various environments and machines—cloud-based, physical, virtual, and on-premises
+- it enables the easy development of applications as well as their management and movement
+** federated clusters
+- multiple clusters that are managed as a single cluster is referred to as federated clusters
+** container cluster
+- container cluster lets us place and manage containers in a dynamic setup
+- it can be considered as a set of nodes or Compute Engine instances
+- the API server of Kubernetes does not run on cluster nodes, instead the Container Engine hosts the API server
+** architecture
+*** pods
+- the smallest units that Kubernetes administers
+- constitutes a set of containers, that are run on the same host
+- shares a single IP address and all the resources, such as storage and memory, among every container within it
+- pod can have a single container when the service or application is a single process
+- if a pod dies, Kubernetes replaces it to prevent any downtime.
+*** deployments
+- Kubernetes deployments determine the scale at which one wants to run an application
+  - how the pods need to be replicated on the Kubernetes nodes
+  - the desired number of pod replicas to be run
+  - the desired update strategy for the deployment
+*** services
+- service is the only interface that the application consumers deal with
+- when pods are changed, their internal names and IPs might change as well
+- a service exposes a single IP address or machine name linked to pods whose numbers and names are unreliable
+  - it ensures that nothing appears changed to the outside network
+**** headless service
+- headless service is like normal services but without the Cluster IP
+- enables direct access to pods without the need for a proxy
+**** load balancing
+- the process of load balancing will let us expose services
+- internal load balancing
+  - this is used for balancing the loads automatically and allocating the pods with the required configuration
+- external load balancing
+  - this directs the traffic from the external loads to the backend pods
+***** static IP
+- kubernetes master assigns a new ip address.
+- we can set a static ip for kubernetes load balancer by changing the dns records whenever kubernetes master assigns a new ip address
+*** nodes
+- node collects, runs, and manages pods that function together
+- a worker machine which is also known as a minion
+  - node could be a physical machine or a virtual machine
+- for each node, there is a service to run pods, and it is managed by master components
+- the node services could include kubelet, kube-proxy,
+**** kubelet
+- a component of a node
+- the lowest level component in a Kubernetes
+- responsible for making the individual machines run
+- keeps track of the state of a pod and ensures that every container is operating well
+**** kube proxy
+- a component of a node
+- network proxy that maintains network rules on nodes
+- sends requests for work to the appropriate containers
+- it can do simple tasks such as TCP, UDP, forwarding
+- it shows the services in the Kubernetes API on each node
+**** etcd
+- a component of a node
+- the primary data store of Kubernetes, responsible for storing all Kubernetes cluster data
+- manages and holds the critical data that distributed systems require to operate
+- it is an open-source distributed key-value store that is used to share the state of a cluster
+- helps with the setup of the overlay network for containers.
+*** kubernetes control plane
+- the main entry point for users and administrators to handle the management of various nodes
+- HTTP calls or command-line scripts are used to assign operations to it
+- how Kubernetes interacts with applications is controlled by the control plane
+- kubernetes control plane
+**** api server
+- a component of a control plane
+- API server validates and configures data for API objects, including pods, replication controllers, services, etc
+- serves REST operations and provides the frontend to the cluster’s shared state through which all other components communicate
+**** scheduler
+- a component of a control plane
+- assigns work/pods to the nodes, keeps track of the capacity of resources
+- ensures that a worker node’s operation is within the right threshold
+- kube-scheduler is the default scheduler for Kubernetes
+- designed such that if you prefer, you can write your own one and use that instead
+***** scheduling life cycle
+1. a pod is created and the preferred state is mentioned, and without filling the node name, it is saved to etcd
+2. the scheduler notices the new pod with no node bound
+3. it finds a suitable node for that pod
+4. it then informs the API server to bind the pod to the node, and next, the new desired state is saved to etcd
+5. kubelets watch the pods that are bound and start the containers on the particular node
+**** controller manager
+- a component of a control plane
+- ensures that a cluster’s shared state is operating in the desired manner
+- it monitors various controllers, which respond to events
+- kube-controller-manager is a daemon that embeds the core control loops which regulate the system state, and it is a non-terminating loop
+
+*** namespace
+- used in the environment wherein we have multiple users spread in the geographically vast areas and working on multiple projects
+- deviedes the cluster resources between multiple users
+
+
+
+* how to automate Kubernetes App
+- build phase
+  - code is checked in repo
+  - take code from repo and build a container
+  - take a container and put it in container registry
+  - tools examples: jenkins, gitlab ci/cd, =docker build=
+- deployment phase
+  - take container from registry
+  - deploy it with
+  - tools examples: jenkins, gitlab ci/cd, =helm=, =kubectl=
+
+
+* recommended security measures for Kubernetes
+- defining resource quotas
+- auditing support
+- providing restricted access to etcd
+- regular security updates
+- network segmentation
+- strict resource policies
+- regular scans for security vulnerabilities
+- using images from repositories that are authorized
+** API Security
+- using the correct auth mode with the API server authentication_mode=Node,RBAC
+- ensuring that the traffic is protected by TLS
+- using API authentication
+- ensuring that kubeless protects its API via authorization-mode=Webhook
+- monitoring RBAC failures
+- removing default Service Account permissions
+- ensuring that the kube-dashboard applies a restrictive RBAC policy
+- implementing a pod security policy for container restrictions and the protection of the node
+- using the latest version of kube
+
+* COMMENT questions
+- How to optimize cost/performance kubernetes
+- Real world kubernetes challenges
+- How to scale Kubernetes
+- Authentication, Authorization, Logging, Helm, Deploying with Spinnaker, Prometheus, Scheduling and more
+- kubeadm, Rook with Ceph, Cert-Manager, Dex with Github and LDAP, Envoy and Istio, Calico, Vault, and Openshift
+** Heapster
+- the Heapster lets us do the container cluster monitoring
+- it lets us do cluster-wide monitoring and event data aggregation
+- has native support for Kubernetes
+** replica set vs. replication controller
+- the difference is mainly in the selectors used for pod replication
+- a replica set uses set-based selectors, and replication controllers use equity-based selectors
+** How does Kubernetes scale
+- the kubectl scale command enables the ability to instantly change the number of replicas needed for running an application.
+- while using this command, the new number of replicas need to be specified by setting the –replicas flag.
+** What is a Kubernetes context?
+A context is a group of access parameters that has a cluster, a user, and a namespace. The current context is the cluster that is currently the default for kubectl, and all kubectl commands run against that cluster.
+** What are the components of a Kubernetes Master?
+The components of the Kubernetes Master include the API server, the controller manager, the Scheduler, and the etcd components. The Kubernetes Master components are responsible for running and managing the Kubernetes cluster.
+** What do I need on-premises to run the Kubernetes architecture?
+Many on-premises environments are remodeled to enable Kubernetes integration. Integrating storage, servers, and networking into a smoothly running environment requires top skills. For Kubernetes, deciding the right storage and networking equipment is crucial as it facilitates interaction with resources for storage, load balancers, etc. A critical part of Kubernetes’ value proposition is the ability to automate storage and the networking components.

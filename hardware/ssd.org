@@ -1,0 +1,41 @@
+:PROPERTIES:
+:ID:       e981993f-0401-4dda-a1bb-2c33299755de
+:END:
+#+title: Solid State Drive
+
+- SSD can access any piece of data almost instantaniously
+
+* [[id:e6f46193-d592-46c6-ba2d-76aafbb8b95d][NAND Flash Microchips]]
+=Chip:Die:Plane:Block:Page=
+** each chip has a stack of dies
+*** each dia has two planes
+**** each plane is array of vertically stacked charge trap flash memory cells organized into thousands of blocks
+***** each block is organized into hundreds of pages
+****** each page contains tens of thousands of memory cells
+******* each trap flash memory cell can hold 3/4 bits of information
+******** TLC - 3 bits- Triple Level Cell
+******** QLC - 4 bits - Quad Level Cell
+** superpage
+same address in each of NAND flash chips.
+Results in paralell read/write (extra performance)
+* SSD Controller Microchip
+Interface between all NAND Flash chips and the PC.
+* DRAM Chips
+memory buffers, holding lookup tables or translation tables that tell where all the information is stored
+* Memory channel
+Composed of traces running trough the PCB.
+- Reading the address of where data is located and transferring the actual data to write to or read from the nand flash.
+- Additional traces are uesd to sending commands to write to read out the information from nand chips
+
+* Wear leveling
+
+* Garbage collection
+
+* Eror-Correction Code
+
+* [[id:2a3a3ebc-ebde-4940-8842-fd05ac4936b2][Resources]]
+** https://www.youtube.com/watch?v=YtBysgPOKx4&ab_channel=BranchEducation
+** https://www.youtube.com/watch?v=5Mh3o886qpg&ab_channel=BranchEducation
+** https://www.youtube.com/watch?v=E7Up7VuFd8A&ab_channel=BranchEducation
+** https://www.youtube.com/watch?v=5f2xOxRGKqk&ab_channel=BranchEducation
+** https://www.youtube.com/watch?v=r-SivgEpA1Q&ab_channel=BranchEducation

@@ -1,0 +1,9 @@
+:PROPERTIES:
+:ID:       14d8a8de-a1e8-4e10-b714-021fd4a6edef
+:END:
+#+title: Python Global Interpreter Lock
+
+- prevents multiple Python threads from executing Python code at the same time
+- one GIL for each interpeter
+- prevents from changing refcount to object concurently
+- with multi-processing, each process will have it's own GIL. Responsibility is shifted to the developer

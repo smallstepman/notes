@@ -1,0 +1,7 @@
+:PROPERTIES:
+:ID:       e6f46193-d592-46c6-ba2d-76aafbb8b95d
+:END:
+#+title: NAND Flash Microchips
+
+* Memory cell
+data is written thanks to [[id:695bce68-726e-4bd9-872b-2d51b3db69f5][Quantum mechanics]]

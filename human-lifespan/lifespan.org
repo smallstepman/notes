@@ -1,0 +1,28 @@
+:PROPERTIES:
+:ID:       d16793cb-4805-4ef8-b74e-11b260790e51
+:END:
+#+title: lifespan
+
+* episode 1
+** cold therapy
+** heat therapy
+** peptides
+** exasomes
+** why aging happens
+- animals which dont have a lot of predation (dont get eaten) (whales, shares, moles) - they can put their energy into long lasting body
+-
+** longevity genes
+- get turned on by adversity
+- mTOR (mammalian target of rapamycin) - makes a protein that sends an aminoacid
+  - after eating a stake it goes "oh a have a log of protein, im gonna build muscles"
+** AMPK
+- AMP-activated protein kinase
+- we want more of it
+- we want to activate ampk by fasting
+- makes body more sesnitive to insuline
+- downregulate mtor when fasting
+*** medformin
+- safe
+-
+** rapamycin
+- mouse given rapamycin are living dramatically longer

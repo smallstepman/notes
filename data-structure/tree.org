@@ -1,0 +1,153 @@
+#+TITLE: Trees
+
+
+* Binary Heap
+- dynamic ordering of the keys based on priotites
+- used in algos:
+  - Prim, Kruskal (Minumum Spanning Tree)
+  - Dijkstra (Single Source Shortest Path)
+  - A* Search
+
+| Algorithm    | Average     | Worst case | Notes                                |
+|--------------+-------------+------------+--------------------------------------|
+| Space        | O(n)        | O(n)       |                                      |
+| Search       | O(n)        | O(n)       |                                      |
+| Insert       | O(1)        | O(log n)   |                                      |
+| Find-min     | O(1)        | O(1)       |                                      |
+| Delete-min   | O(log n)    | O(log n)   |                                      |
+| Heap Sort    | O(n log n)  | O(n log n) |                                      |
+| Partial Sort | O(k log n)  | O(k log n) | k is number of elements to be sorted |
+| Merge        | O(n log k)? |            | python: from heapq import merge      |
+
+    MAX TREE            MIN TREE - python default
+       90                   1
+       / \                 / \
+      /   \               /   \
+     /     \             /     \
+    36     19           3       2
+   / \     / \         / \     / \
+  25  3   1   7       7  25   17 19
+ /  \                / \
+2   17              36 90
+
+** Basic example
+#+BEGIN_SRC python :results output
+from heapq import heappush, heappop, heapify, heapreplace
+
+min_heap = []
+max_heap = []
+
+for i in [2,7,17,3,25,1,19,36,90]:
+    heappush(min_heap, i)
+    heappush(max_heap, -i)
+
+print(min_heap)
+print([-n for n in max_heap])
+
+minpop = heappop(min_heap)
+maxpop = heappop(max_heap)
+print(min_heap, minpop)
+print([-n for n in max_heap], maxpop)
+
+print("max item =", -max_heap[0])
+
+max_pop2 = -heapreplace(max_heap, 55)
+print("replaced item =", max_pop2)
+print([-n for n in max_heap], max_pop2)
+#+END_SRC
+
+#+RESULTS:
+: [1, 3, 2, 7, 25, 17, 19, 36, 90]
+: [90, 36, 19, 25, 3, 1, 7, 2, 17]
+: [2, 3, 17, 7, 25, 90, 19, 36] 1
+: [36, 25, 19, 17, 3, 1, 7, 2] -90
+: max item = 36
+: replaced item = 36
+: [25, 17, 19, 2, 3, 1, 7, -55] 36
+** Determining the depth of a tree
+#+BEGIN_SRC python :results output
+from heapq import heappush, heappop, heapify, heapreplace
+
+heap = []
+
+for i in [2,7,17,3,25,1,19,36,90]:
+    heappush(heap, i)
+
+heappop(heap)
+heappop(heap)
+tree_depth = len(heap).bit_length()
+print(tree_depth, len(heap))
+#+END_SRC
+
+#+RESULTS:
+: 3 7
+
+** Walking trough the tree using bitwise operators
+#+BEGIN_SRC python :results output
+from heapq import heappush, heappop, heapify, heapreplace
+
+heap = []
+
+for i in [2,7,17,3,25,1,19,36,90,   111,112,113,111,111,122,112,122,133]:
+    heappush(heap, i)
+
+tree_depth = len(heap).bit_length()
+print(" ", heap, '\n')
+for level in range(tree_depth):
+    level_start = (1 << level) - 1
+    level_end = (1 << (level+1)) - 1
+    print(level, level_start, level_end, heap[level_start:level_end])
+#+END_SRC
+
+#+RESULTS:
+:   [1, 3, 2, 7, 25, 17, 19, 36, 90, 111, 112, 113, 111, 111, 122, 112, 122, 133]
+:
+: 0 0 1 [1]
+: 1 1 3 [3, 2]
+: 2 3 7 [7, 25, 17, 19]
+: 3 7 15 [36, 90, 111, 112, 113, 111, 111, 122]
+: 4 15 31 [112, 122, 133]
+** Partial sort
+Returns smallest N items from heap
+#+BEGIN_SRC python :results output
+from heapq import heappush, heappop, heapify, heapreplace
+
+N = 4
+heap = []
+
+for i in [2,7,17,3,25,1,19,36,90,   111,112,113,111,111,122,112,122,133]:
+    heappush(heap, i)
+
+for n in range(N):
+    print(heappop(heap))
+#+END_SRC
+
+#+RESULTS:
+: 1
+: 2
+: 3
+: 7
+
+* Binary Balanced Search Tree
+- BST vs AVL: difference only in Insert and Removal
+- is and efficient data structure to implement a certain kind of Table/Map Abstract Data Type. Table ADT has to be ordered and has to support
+  + Search
+  + Insert
+  + Remove
+  + and has to be ordered - otherwise BST will have O(n) for Search/Delete, and O(1) for insert (only at the back)
+-
+| Algorithm | Average  | Worst case |
+|-----------+----------+------------|
+| Space     | O(n)     | O(n)       |
+| Search    | O(log n) | O(n)       |
+| Insert    | O(log n) | O(n)       |
+| Delete    | O(log n) | O(n)       |
+** AVL
+Adelson-Velskii Landis
+** Red Black
+
+
+* Order Statistics Tree
+* Fenwick Tree (Binary Indexed)
+* Segment Tree
+* Union-Find Disjoint Sets

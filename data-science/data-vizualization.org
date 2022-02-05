@@ -1,0 +1,29 @@
+:PROPERTIES:
+:ID:       f2c87b44-2fd4-42d9-863a-1296ca3a59cb
+:END:
+#+title: Data vizualization
+
+* Why
+Computer based visualization systems provide visual representations of datasets designed to help people carry out tasks more effectively
+** external representation: replace cognition with percetion
+** don't need vis when fully automatic solution exists and is trusted
+** many analysis problems ill-specified
+- don't know exactly what questions to ask in advance
+** posibilities
+- long-term use for end users (e.g. exploratory analysis of scientific data)
+- presentation of know results
+- stepping stone to better understanding of requirements before developing models
+- help developers of automatic solution refine/debug, determin paramenters
+- help end users of automatic solution verify, build trust
+
+* inspiration / sources
+- reuters graphics
+- the upshot
+- the pudding
+- fivethirtyeight
+- reddit.com/r/dataisbeautiful
+- kantar information is beautiful awards
+- quartz data vis
+- graphic detail - the economist
+- observable
+- #dataviz on twitter

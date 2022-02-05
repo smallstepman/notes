@@ -1,0 +1,19 @@
+:PROPERTIES:
+:ID:       f6319a71-93aa-4aaa-a0b1-90b9743c8a78
+:END:
+#+title: WebGL
+
+* [[id:2a3a3ebc-ebde-4940-8842-fd05ac4936b2][Resources]]
+- [[https://webglfundamentals.org][funtamentals]]
+- [[https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API][Mozilla]]
+
+* Web GL has no knowledge of 3D
+* 3D is achieved trough [[id:ef8ee3cf-eb12-4bfe-98e4-113980bbf981][Linear Algebra]]
+* WebGL's univers is a box, ranging from -1 to +1 on each axis
+* Z-axis (depth) can optimize efficiency in calculation when semi-transparency is disabled
+* dataflow:
+- input data (xyz position)
+  + buffer data for gpu
+    - vertex shader
+      + fragment shader
+        - pixels put on screen

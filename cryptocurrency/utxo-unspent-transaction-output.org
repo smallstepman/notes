@@ -1,0 +1,7 @@
+:PROPERTIES:
+:ID:       e528ad41-68f0-415f-8e61-99ceceff0728
+:ROAM_REFS: https://en.wikipedia.org/wiki/Unspent_transaction_output
+:END:
+#+title: UTXO - Unspent transaction output
+
+- UTXO bands: help visualize the age distribution held in wallets.

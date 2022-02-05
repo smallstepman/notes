@@ -1,0 +1,8 @@
+:PROPERTIES:
+:ID:       4963bcfc-3ac6-4c40-8a2a-e48293e84d9f
+:END:
+#+title: vertex
+
+A vertex is a point in 3d space (can also be 2d). These vertices are then bundled in groups of 2s to form lines and/or 3s to form triangles.
+
+[[attachment:_20210314_170150screenshot.png]]

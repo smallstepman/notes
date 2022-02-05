@@ -1,0 +1,18 @@
+:PROPERTIES:
+:ID:       49a3aa2a-3d3d-4b2f-b64c-ad2f92f7de21
+:END:
+#+TITLE: Substrate
+#+roam_tags: Technology Money
+
+* [[id:e528ad41-68f0-415f-8e61-99ceceff0728][UTXO - Unspent transaction output]]
+* The Framework for Runtime Aggregation of Modularized Entities (FRAME) 
+- a set of modules (called pallets) and support libraries that simplify runtime development
+- Pallets are individual modules within FRAME that host domain-specific logic
+* Proof of Existence
+- an online service that verifies the existence of computer files as of a specific time via timestamped transactions in the bitcoin blockchain
+* Updating
+** https://substrate.dev/rustdocs/v2.0.0/frame_system/enum.Call.html#variant.set_code
+Set the new runtime code.
+- O(C + S) where C length of code and S complexity of can_set_code
+- 1 storage write (codec O(C)).1 call to can_set_code: O(S) (calls sp_io:misc:runtime_version which is expensive).
+- 1 event. The weight of this function is dependent on the runtime, but generally this is very expensive. We will treat this as a full block.

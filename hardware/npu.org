@@ -1,0 +1,4 @@
+:PROPERTIES:
+:ID:       ed691790-cbff-4bec-b1ad-2f0edefce202
+:END:
+#+title: NPU

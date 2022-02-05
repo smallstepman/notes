@@ -1,0 +1,34 @@
+:PROPERTIES:
+:ID:       714b53ba-afa5-433e-868d-ab39a0afa488
+:END:
+#+TITLE: Python
+#+filetags: :project:
+
+
+* Python file assotiation
+=#!/usr/bin/env python3=
+* TODO Code documentation
+* Encoding
+** UTF-8
+#+BEGIN_SRC python :results output :exports both :session arst
+𝜋 = 355/113
+print(𝜋)
+#+END_SRC
+
+#+RESULTS:
+: 3.1415929203539825
+
+
+* It's a noble aspiration to write a program that never crashes
+Interfering with some of Python's internal exceptions, however, doesn't create a more reliable program. Instead, it creates a program where a clear failure is masked and made into an obscure mystery.
+* TODO
+** I/O read bytes?
+** static methods
+** class method
+** property
+** micro-optimialirations
+** `& | ^ << >>` symbols?
+** optimization,
+** memory,
+** function calls
+https://www.quora.com/How-does-Python-special-ordinary-attributes-lookup-work-including-new__-and-getattribute__-attributes/answer/Tony-Flury

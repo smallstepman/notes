@@ -1,0 +1,10 @@
+:PROPERTIES:
+:ID:       d25c9dab-fd6c-48b8-8252-620102b6b549
+:END:
+#+title: nix
+
+* tools
+- nixops - tools for deploying nix and nixos
+- disnix - tools for deploying sevrices like ansible
+- hyda - ci system
+- cachix - cache your nix builds

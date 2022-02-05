@@ -1,0 +1,107 @@
+:PROPERTIES:
+:ID:       e0c37bb2-105e-41f9-99e3-8a09e286434f
+:ROAM_REFS: https://www.amazon.com/Modern-Python-Cookbook-flawless-expressive-ebook/dp/B08DHZ473S
+:END:
+#+title: Python memory management
+
+- when new variable is created, python allocates a pointer on the stack. The pointer holds reference to heap, where value is located.
+* references and reference count
+- they all point to same
+#+BEGIN_SRC python :results output :exports both :session arst
+x = 300
+y = 300
+z = [300, 300]
+print(id(x), id(y), id(z[0]), id(z[1]))
+print(x is y)
+#+end_src
+
+#+RESULTS:
+: 140345935052272 140345935052272 140345935052272 140345935052272
+: True
+
+- reference count can go down by
+  - using del statment
+  - going out of scope
+  - exiting program
+
+** del statement
+- removes name as a reference to that object
+- reduces the ref count by 1
+** __del__ magic method
+- destructor
+- runs before an object is removed from memory
+** __slots__
+#+BEGIN_SRC python :results output :exports both :session arst
+import sys
+
+print(sys.getsizeof(dict()))
+print(sys.getsizeof(tuple()))
+#+end_src
+
+#+RESULTS:
+: 232
+: 40
+
+
+#+BEGIN_SRC python :results output :exports both :session arst
+
+#+end_src
+* garbage collection
+a way for a program to automatically release memory when the object taking up that space is no longer in use. Two main types of garbage collection are refcounting and tracing. In early days there was only refcounting, but it wasn't enought since there are many things which do have cyclical references (e.g. doubly linked list, graphs)
+** reference counting
+- when refcount reaches 0, PyObject is removed from memory
+- space overhead - reference count is stored for every object
+- execution overhead - reference count is changed on every assigment
+- not generally thread safe
+- does not detect cylical references
+#+begin_src python
+class Node:
+    def __init__(self, value):
+        self.value = value
+    def next(self, next):
+        self.next = next
+
+root = Node('root')
+left = Node('left')
+right = Node('right')
+
+root.next(left)
+left.next(right)
+right.next(left)
+#+end_src
+
+#+begin_src dot :file assets/cylical_reference.png :cmdline -Kdot -Tpng :exports results
+digraph {
+    root[label="root, RC=1"]
+    left[label="left, RC=3"]
+    right[label="right, RC=2"]
+
+    root -> left
+    left -> right
+    right -> left
+}
+#+end_src
+
+#+RESULTS:
+[[file:assets/cylical_reference.png]]
+
+#+begin_src python
+del root
+del node1
+del node2
+#+end_src
+#+begin_src dot :file assets/cylical_reference2.png :cmdline -Kdot -Tpng :exports results
+digraph {
+    root[label="root, RC=0"]
+    left[label="left, RC=1"]
+    right[label="right, RC=1"]
+
+    left -> right
+    right -> left
+}
+#+end_src
+
+#+RESULTS:
+[[file:assets/cylical_reference2.png]]
+** tracing / generational garbage collection
+"most objects die young"

@@ -1,0 +1,183 @@
+:PROPERTIES:
+:ID:       1425ac44-6197-4582-ab08-d767997e0158
+:END:
+#+title: Python syntax
+
+* dealing with long lines of code
+- decomposing long statment by assigning intermediate results to separate variables
+- using on of
+  - =\=
+  - =()=
+  - =[]=
+  - ={}=
+* =else=/=raise= pattern
+Avoiding a potential problem with break statements, like here
+#+BEGIN_SRC python :results output :exports both :session arst
+sample_1 = "some_name = the_value"
+sample_2 = ""
+for position in range(len(sample_2)):
+    if sample_1[position] in "=:":
+        break
+print(f"name={sample_1[:position]!r}", f"value={sample_1[position+1:]!r}")
+#+END_SRC
+
+#+RESULTS:
+
+* reconstruction =for=-=break= into =while x :=break_contition=
+secure with better initialization, and catch exceptions with if statement afterwards
+#+BEGIN_SRC python :results output :exports both :session arst
+position = -1
+for position in range(len(sample_2)):
+    if sample_2[position] in '=:':
+        break
+
+if position == -1:
+    print(f"name=None value=None")
+elif not(sample_2[position] == ':' or sample_2[position] =='='):
+    print(f"name={sample_2!r} value=None")
+else:
+    print(f"name={sample_2[:position]!r}",
+    f"value={sample_2[position+1:]!r}")
+#+END_SRC
+
+#+RESULTS:
+: name=None value=None
+
+* move exception condition processing forward
+best but hardest solution
+#+BEGIN_SRC python :results output :exports both :session arst
+if len(sample_2) > 0:
+    name, value = sample_2, None
+else:
+    name, value = None, None
+for position in range(len(sample_2)):
+    if sample_2[position] in '=:':
+        name, value = sample_2[:position], sample2[position:]
+        break
+print(f"{name=} {value=}")
+#+END_SRC
+
+#+RESULTS:
+: name=None value=None
+
+* use `for-else` loop
+not recommended, lacks clarity
+* https://www.sciencedirect.com/science/article/pii/0167642383900151
+* `try` clauses
+- don't capture the BaseException class
+** Options when exception is raised
+*** Ignore it
+If we do nothing, the program stops. We can do this in two ways—don't use a try statement in the first place, or don't have a matching except clause in the try statement.
+*** Log it
+We can write a message and use a raise statement to let the exception propagate after writing to a log; generally, this will stop the program.
+*** Recover from it
+We can write an except clause to do some recovery action to undo any effects of the partially completed try clause.
+*** Silence it
+If we do nothing (that is, use the pass statement), then processing is resumed after the try statement. This silences the exception.
+*** Rewrite it
+We can raise a different exception. The original exception becomes a context for the newly raised exception.
+** Don't use except with no exception class
+- This matches all exceptions, including exceptions we should avoid trying to handle (e.g. Ctrl+C, SystemError, RuntimeError, MemoryError).
+** Concealing exception's root cause
+#+BEGIN_SRC python
+class MyAppError(Exception):
+    pass
+
+try:
+    None.some_method(42)
+except AttributeError as exception:
+    raise MyAppError("Some Known Problem") #from None # where the magic happens
+
+out = """
+---------------------------------------------------------------------------
+MyAppError                                Traceback (most recent call last)
+<ipython-input-256-e5d1c1b4a149> in <module>
+      5     None.some_method(42)
+      6 except AttributeError as exception:
+----> 7     raise MyAppError("Some Known Problem") from None
+
+MyAppError: Some Known Problem
+"""
+#+END_SRC
+
+#+RESULTS:
+
+** Managing a context using the `with` statement to avoid memory leaks by releasing resources (files, network connection, database transactions, release locks) on exception
+A context manager is notified of three significant events surrounding the indented block of code:
+* Entry
+* Normal exit with no exception
+* Exit with an exception pending
+The context manager will—under all conditions—disentangle our program from external resources.
+#+BEGIN_SRC python :results output :exports both :session arst
+import csv
+from pathlib import Path
+some_source = [[3,2,3],[1,1,1],[2,3,4]]
+target_path = Path.cwd()/"test.csv"
+try:
+    with target_path.open('w', newline='') as target_file:
+        writer = csv.writer(target_file)
+        writer.writerow(['column', 'data', 'heading'])
+        writer.writerow(some_source[0])
+        raise Exception("Testing")
+except Exception as exc:
+    print(f"{target_file.closed=}")
+    print(f"{exc=}")
+print(f"Finished Writing {target_path.name}")
+
+out = """
+target_file.closed=True
+exc=Exception('Testing')
+Finished Writing test.csv
+"""
+#+END_SRC
+
+#+RESULTS:
+: target_file.closed=True
+: exc=Exception('Testing')
+: Finished Writing test.csv
+
+* functions
+** don't use mutable defaults for functions
+A mutable object (set, list, dict) should not be a default value for a function parameter.
+** include types, check stuff with `mypy` and utilize its `reveal_types` function
+#+BEGIN_SRC python :results output :exports both :session arst
+from typing import Optional, Tuple
+def dice(n: Optional[int] = None, sides: int = 6) -> Tuple[int, ...]:
+  	if n is None:
+      	n = 2 if sides == 6 else 1
+    return tuple(random.randint(1,sides) for _ in range(n))
+#+END_SRC
+
+#+RESULTS:
+
+** parameters
+#+BEGIN_SRC python :results output :exports both :session arst
+def a(q,w,f,/,y,u,l,*args,z,x,c,**kwargs):
+    print(args,kwargs)
+print(a(3,3,3,'y',333,'u','l',111,222,z=1,c=2,x=3,vvv=333))
+print(('l', 111, 222) {'vvv': 333})
+
+def b(q,w,f,/,a,r,s,*,z,x,c):
+    """     ^       ^---* only keyword arguments after asteriks
+            |
+            |---* only positional arguments after forwardslash
+    """
+    return
+print(b(1,2,3,4,5,6,z=7,x=8,c=9))
+#+END_SRC
+
+#+RESULTS:
+
+*** The `*` character has a number of distinct meanings in the definition of a function:
+
+**** `*` is used as a prefix for a special parameter that receives all the unmatched
+positional arguments. We often use `*args` to collect all of the positional arguments into a single parameter named args.
+**** `**` is used a prefix for a special parameter that receives all the unmatched named arguments. We often use `**kwargs` to collect the named values into a parameter named kwargs.
+**** `*`, when used by itself as a separator between parameters, separates those
+parameters. It can be applied positionally or by keyword. The remaining parameters can only be provided by keyword.
+*** The `/` separator divides the parameter names into two groups. In front of `/` are parameters where the argument values must be provided positionally: named argument values cannot be used. After `/` are parameters where names are permitted.
+**** Parameters before the `/` separator must be given by position. These must be first.
+**** Parameters after the `/` separator can be given by position or name.
+**** Parameters after the `*` separator must be given by name only. These names are provided last, since they can never be matched by position.
+*** `from functools import partial` for function wrapping
+***

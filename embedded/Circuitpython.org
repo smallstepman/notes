@@ -1,0 +1,26 @@
+:PROPERTIES:
+:ID:       63349158-8240-491f-88ef-033b93130a53
+:END:
+#+TITLE: Circuitpython
+#+roam_tags: Technology
+
+* issue with mounting on linux
+- https://askubuntu.com/questions/1044237/no-ttyacm0-for-arduino-nano-on-ubuntu-how-can-i-attach-it
+- https://bbs.archlinux.org/viewtopic.php?id=222093
+- https://bbs.archlinux.org/viewtopic.php?id=122180
+- https://bbs.archlinux.org/viewtopic.php?id=178552
+- https://bbs.archlinux.org/viewtopic.php?id=18154
+- https://wiki.archlinux.org/index.php/arduino#Accessing_serial
+- https://wiki.archlinux.org/index.php/Users_and_groups#Group_management
+#+begin_src shell
+udevadm info /dev/ttyACM0 -a
+stat ttyACM0
+sudo usermod -a -G uucp marcin
+lsblk
+dmesg | grep USB
+#+end_src
+
+* compatible hardware
+- https://www.digikey.pl/en/maker/projects/circuitpython-basics-i2c-and-spi/9799e0554de14af3850975dfb0174ae3
+- https://learn.adafruit.com/circuitpython-basics-i2c-and-spi/i2c-devices
+- https://learn.adafruit.com/circuitpython-basics-i2c-and-spi/following-along-in-the-repl

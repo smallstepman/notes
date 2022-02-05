@@ -1,0 +1,648 @@
+:PROPERTIES:
+:ID:       2fe6b0ef-16e9-48e5-a3cd-3e3fb19eb751
+:END:
+#+title: Solana
+#+filetags: :project:
+
+* glossary
+:PROPERTIES:
+:ANKI_DECK: Solana
+:ID:       1e3348cb-ecae-498d-8463-8eb6956ea3c6
+:END:
+** accounts
+:PROPERTIES:
+:ID:       2a9ba801-e7d7-4ce9-9c4f-145b59900b40
+:END:
+- can hold data or be [[id:b9defbad-c518-4ecc-95bb-6a0169f1bee5][executable]] [[id:45334a04-2f62-42d9-967b-ed4643d09dd8][program]]
+- can hold lamports ([[id:b1062f1f-bfd8-492e-b914-4c61ac72d7b1][SOL]])
+- addressable by [[id:44965eba-f994-45aa-9b3d-dcd3c4713451][public key]]
+- contains [[id:cf4a917d-7e46-4848-ab60-b945d0a169dc][fields]]
+:PROPERTIES:
+:ID:       ca5ff6b8-1cfd-424e-b6cd-c06f565d5e2f
+:END:
+*** fields
+:PROPERTIES:
+:ID:       cf4a917d-7e46-4848-ab60-b945d0a169dc
+:END:
+- [[id:0ac1d13a-7260-48c1-89ec-8771c9466f04][key]] [[id:f1c80c84-c9b3-4de0-92a1-7c70100e4ef9][is_signer]] [[id:eda8bdc1-9c4b-4fb0-ab09-606b08727008][is_writable]] [[id:d9cb33b7-61fb-4898-81d7-aeab966d4199][lamports]] [[id:f8df458e-2bd6-4d6f-8c24-211dba215ae0][owner]] [[id:d724eb79-1639-47de-86cb-674852d80cbf][data]] [[id:c470be13-b068-4305-9119-a08181a2f65d][rent_epoch]] [[id:b9defbad-c518-4ecc-95bb-6a0169f1bee5][executable]]
+**** key
+:PROPERTIES:
+:ID:       0ac1d13a-7260-48c1-89ec-8771c9466f04
+:END:
+Public key of the account =&'a Pubkey=
+**** is_signer
+:PROPERTIES:
+:ID:       f1c80c84-c9b3-4de0-92a1-7c70100e4ef9
+:END:
+Was the transaction signed by this account's public key? =bool=
+**** is_writable
+:PROPERTIES:
+:ID:       eda8bdc1-9c4b-4fb0-ab09-606b08727008
+:END:
+Is the account writable? =bool=
+**** lamports
+:PROPERTIES:
+:ID:       d9cb33b7-61fb-4898-81d7-aeab966d4199
+:END:
+The lamports in the account. Modifiable by programs. =Rc<RefCell<&'a mut u64>>=
+**** data
+:PROPERTIES:
+:ID:       d724eb79-1639-47de-86cb-674852d80cbf
+:END:
+The data held in this account. Modifiable by programs. =Rc<RefCell<&'a mut [u8]>>=
+**** owner
+:PROPERTIES:
+:ID:       f8df458e-2bd6-4d6f-8c24-211dba215ae0
+:END:
+Program that owns this account =&'a Pubkey=
+- can only be owned by programs. only owning program is capable of modifying the account
+- Account can only be owned by [[id:45334a04-2f62-42d9-967b-ed4643d09dd8][program]]
+**** execuable
+:PROPERTIES:
+:ID:       b9defbad-c518-4ecc-95bb-6a0169f1bee5
+:END:
+This account's data contains a loaded program (and is now read-only) =bool=
+**** rent_epoch
+:PROPERTIES:
+:ID:       c470be13-b068-4305-9119-a08181a2f65d
+:END:
+The epoch at which this account will next owe rent =Epoch= [[id:db1a354f-e160-4f84-9e8c-462132b24cb3][epoch]]
+*** fee account
+:PROPERTIES:
+:ID:       6ce0371e-632d-4b52-be0e-0100237bf00b
+:END:
+- account that pays for the cost of including the [[id:dcf07431-0bcc-410f-bfb7-d1ecedf2ac96][transactions]] in the [[id:5845b2a7-1732-4fc5-bf52-b0209cb30ff1][ledger]]
+- first account in the transaction
+- must be Read-Write ([[id:eda8bdc1-9c4b-4fb0-ab09-606b08727008][is_writable]]) in the transaction, since paying for the transation [[id:987777ee-a09f-4f2d-9039-92c10c0bf39d][debit]]s account balance
+*** program
+:PROPERTIES:
+:ID:       45334a04-2f62-42d9-967b-ed4643d09dd8
+:END:
+- [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][accounts]] marked as [[id:b9defbad-c518-4ecc-95bb-6a0169f1bee5][executable]]
+- Solana programs are stateless
+- In theory, programs have full autonomy over the accounts they own. It is up to the program's creator to limit this autonomy and up to the [[id:9c81fd95-663e-4317-8078-798ca3cb4ac8][user]]s of the program to verify the program's creator has really done so
+- program execution begins with [[id:dcf07431-0bcc-410f-bfb7-d1ecedf2ac96][transaction]] being submitted to the [[id:6589f7ef-7cbf-4cba-938d-54d42f7f05fc][cluster]]
+- solana [[id:a3043e53-f2d0-4bab-bff9-c0b8010df7e5][runtime]] will execute a program to process each of the [[id:d3997c61-05e4-47f0-8739-05f03996b62d][instruction]]s contained in the transaction (in order and atomically)
+**** cross-program invocations
+:PROPERTIES:
+:ID:       6062da80-f9c3-4d66-bdc3-eba7cbb61f9d
+:END:
+**** on-chain program
+:PROPERTIES:
+:ID:       aba0a6f5-f3d0-4288-bb5d-5214d321a4b1
+:END:
+**** instruction
+:PROPERTIES:
+:ID:       d3997c61-05e4-47f0-8739-05f03996b62d
+:END:
+- smallest contigous unit of execution logic in a [[id:45334a04-2f62-42d9-967b-ed4643d09dd8][program]]
+- specifies: which program is calling, which account it wants to read/modify, and additional data(?)
+- [[id:dffd394d-c94e-45f0-a513-7bb072d90e5f][client]] can include one or multiple [[id:d3997c61-05e4-47f0-8739-05f03996b62d][instruction]]s in [[id:dcf07431-0bcc-410f-bfb7-d1ecedf2ac96][transaction]]
+- instruction may contain one or more [[id:6062da80-f9c3-4d66-bdc3-eba7cbb61f9d][cross-program invocations]]
+**** program derived account (?addresses)
+:PROPERTIES:
+:ID:       81381a8c-fe17-4461-bdb8-cfc8f8992c3e
+:END:
+- not controlled by [[id:53001955-6905-46ba-958b-df2c42c104c4][private key]]
+**** program id
+:PROPERTIES:
+:ID:       4d6ceb8a-ec65-417b-9e73-3812d203c01d
+:END:
+[[id:44965eba-f994-45aa-9b3d-dcd3c4713451][public key]] of the [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][accounts]] containing the program
+**** native program
+:PROPERTIES:
+:ID:       70ad3eaa-2d10-4b8d-92d8-3dbf1ae67050
+:END:
+- can be upgraded as part of [[id:6589f7ef-7cbf-4cba-938d-54d42f7f05fc][cluster]] upgrades (unlike 3rd party [[id:45334a04-2f62-42d9-967b-ed4643d09dd8][program]]s)
+- Native Programs are handled differently in that they are built directly into the Solana [[id:a3043e53-f2d0-4bab-bff9-c0b8010df7e5][runtime]]
+***** system program
+:PROPERTIES:
+:ID:       cc03f247-4dbc-4050-ad78-efafb22e6fdf
+:END:
+- creates new [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][accounts]]
+- allocates [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][accounts]] [[id:d724eb79-1639-47de-86cb-674852d80cbf][data]]
+- assigns [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][accounts]] to owning [[id:45334a04-2f62-42d9-967b-ed4643d09dd8][program]]
+- transfer [[id:d9cb33b7-61fb-4898-81d7-aeab966d4199][lamports]] from system program owned accounts and pay transaction fees
+
+****** loader
+:PROPERTIES:
+:ID:       497ee56a-2c18-44e8-8305-cc74259c7893
+:END:
+- a [[id:45334a04-2f62-42d9-967b-ed4643d09dd8][program]] with the ability to interpret the binary encoding of other [[id:aba0a6f5-f3d0-4288-bb5d-5214d321a4b1][on-chain program]]s
+***** BPF Loader
+:PROPERTIES:
+:ID:       6312339d-2db3-4792-be9a-c5b43e6c0e4c
+:END:
+- deploys, upgrades and executes [[id:aba0a6f5-f3d0-4288-bb5d-5214d321a4b1][on-chain program]]s
+- marks itself as "[[id:f8df458e-2bd6-4d6f-8c24-211dba215ae0][owner]]" of the executable and program-data [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][accounts]] it creates to store your [[id:45334a04-2f62-42d9-967b-ed4643d09dd8][program]]s ([[id:fd09c34c-6490-4c72-9c9c-96d313fea826][smart contract]]?)
+- when [[id:9c81fd95-663e-4317-8078-798ca3cb4ac8][user]] invokes [[id:d3997c61-05e4-47f0-8739-05f03996b62d][instruction]] via [[id:4d6ceb8a-ec65-417b-9e73-3812d203c01d][program id]], solana's [[id:a3043e53-f2d0-4bab-bff9-c0b8010df7e5][runtime]] will load both your program and its owner - [[id:6312339d-2db3-4792-be9a-c5b43e6c0e4c][BPF Loader]]
+- [[id:a3043e53-f2d0-4bab-bff9-c0b8010df7e5][runtime]] then passes your program to the [[id:6312339d-2db3-4792-be9a-c5b43e6c0e4c][BPF Loader]] to process [[id:d3997c61-05e4-47f0-8739-05f03996b62d][instruction]]
+***** config program
+:PROPERTIES:
+:ID:       2c28154c-ac9f-4b58-adcb-de0dcf34d305
+:END:
+- adds configuration data to the chain and the list of [[id:44965eba-f994-45aa-9b3d-dcd3c4713451][public key]] that are permitted to modify it
+***** stake program
+:PROPERTIES:
+:ID:       0463cd02-03d0-4dc4-8b0e-54f5f6e64a94
+:END:
+- create and manage [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][accounts]] representing [[id:a03d1c68-7520-4792-a4f9-62fb4ce5fe11][stake]] and  [[roam:rewards]] for delegations to [[id:00ddb2e1-9804-49af-bd23-9762abc0dcf7][validator]]
+***** vote program
+:PROPERTIES:
+:ID:       df4177fe-3a98-4284-8372-c794e086e997
+:END:
+- create and manage accounts that track voting state and [[roam:rewards]]
+***** ed25519 program
+- [[roam:verify]] ed25519 signature [[id:45334a04-2f62-42d9-967b-ed4643d09dd8][program]]
+- this program takes an ed25519 signature, public key, and message
+- multiple signatures can be verified. If any of the signatures fail to verify, an error is returned.
+***** secp256k1 program
+- The Secp256k1Program is used to verify Secp256k1 signatures, which are used by both [[roam:Bitcoin]] and [[roam:Ethereum]].
+
+** cluster
+:PROPERTIES:
+:ID:       6589f7ef-7cbf-4cba-938d-54d42f7f05fc
+:END:
+- set of [[id:00ddb2e1-9804-49af-bd23-9762abc0dcf7][validator]] mantaining a single ledger
+*** network
+:PROPERTIES:
+:ID:       c50edb4f-537d-48d2-ba0d-ec7184e3ff65
+:END:
+**** validator
+:PROPERTIES:
+:ID:       00ddb2e1-9804-49af-bd23-9762abc0dcf7
+:END:
+- produces new [[id:015dcfd6-c111-4678-885c-3e5017e31414][blocks]]
+- full participant in a solana network [[id:6589f7ef-7cbf-4cba-938d-54d42f7f05fc][cluster]]
+- validates [[id:dcf07431-0bcc-410f-bfb7-d1ecedf2ac96][transactions]] added to [[id:5845b2a7-1732-4fc5-bf52-b0209cb30ff1][ledger]]
+***** runtime
+:PROPERTIES:
+:ID:       a3043e53-f2d0-4bab-bff9-c0b8010df7e5
+:END:
+- component of [[id:00ddb2e1-9804-49af-bd23-9762abc0dcf7][validator]]
+- responsible for [[id:45334a04-2f62-42d9-967b-ed4643d09dd8][program]] execution
+***** leader
+:PROPERTIES:
+:ID:       d5d590d9-2a95-43a3-b4e9-e4920b20c88d
+:ANKI_NOTE_TYPE: Cloze
+:ANKI_TAGS: blockchain solana
+:ANKI_NOTE_ID: 1636841286074
+:END:
+****** Text
+- role of [[id:00ddb2e1-9804-49af-bd23-9762abc0dcf7][validator]] whin it is appending [[id:cb23dad5-1070-47da-a379-6de0cd13bd50][entr]]ies to the [[id:5845b2a7-1732-4fc5-bf52-b0209cb30ff1][ledger]]
+****** leader schedule
+:PROPERTIES:
+:ID:       fe7327ae-9b2b-4ff8-9b51-c016b8e3dcfd
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: blockchain solana
+:ANKI_NOTE_ID: 1636841286178
+:END:
+******* Front
+what is leader schedule?
+******* Back
+- a sequence of [[id:00ddb2e1-9804-49af-bd23-9762abc0dcf7][validator]] [[id:44965eba-f994-45aa-9b3d-dcd3c4713451][public key]] mapped to [[id:cc7b3415-def0-4710-b548-6b7c51073a06][slot]]s
+- cluster uses the leader schedule to determine which [[id:00ddb2e1-9804-49af-bd23-9762abc0dcf7][validator]] is the [[id:d5d590d9-2a95-43a3-b4e9-e4920b20c88d][leader]] at any moment in time
+***** lockout
+:PROPERTIES:
+:ID:       9c265fc0-6a0e-4412-b076-4bfb4a010745
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: blockchain solana
+:ANKI_NOTE_ID: 1636824254029
+:ANKI_FAILURE_REASON: Note was not found: 1636824254029
+:END:
+****** Front
+what is lockout?
+****** Back
+duration of time for which a [[id:00ddb2e1-9804-49af-bd23-9762abc0dcf7][validator]] is unable to [[id:3765ff35-5d7c-42ae-a58f-6e002d7d970a][ledger vote]] on another [[id:f7f22848-a5ee-472e-b100-5fb1afc4571f][fork]]
+*** node
+:PROPERTIES:
+:ID:       0c5f19e0-5378-4a81-b9b3-77b6f07d05df
+:END:
+- computer participating in the cluster
+**** node count
+:PROPERTIES:
+:ID:       22fb217a-f44d-4b67-95c1-62c90f3ce1f8
+:END:
+number of [[id:00ddb2e1-9804-49af-bd23-9762abc0dcf7][validator]]s participating in a [[id:6589f7ef-7cbf-4cba-938d-54d42f7f05fc][cluster]]
+
+** cryptography
+:PROPERTIES:
+:ID:       fc5a9afb-b4ff-4356-bf22-898ea32529cd
+:END:
+*** key pair
+:PROPERTIES:
+:ID:       e86fabf3-a8b5-42ac-9350-b4ea5bf2e49e
+:END:
+- [[id:44965eba-f994-45aa-9b3d-dcd3c4713451][public key]] + [[id:53001955-6905-46ba-958b-df2c42c104c4][private key]] for accessing an account
+**** private key
+:PROPERTIES:
+:ID:       53001955-6905-46ba-958b-df2c42c104c4
+:END:
+**** public key
+:PROPERTIES:
+:ID:       44965eba-f994-45aa-9b3d-dcd3c4713451
+:END:
+*** ed25519
+:PROPERTIES:
+:ID:       02eaf917-74ee-49f9-822c-4794867c955e
+:END:
+*** signature
+:PROPERTIES:
+:ID:       fd8b66ed-8283-450d-ac55-b91c9b65574c
+:END:
+- 64-byte ed25519 signature
+- ensures no [[id:fd8b66ed-8283-450d-ac55-b91c9b65574c][signature]] mellability
+- each [[id:dcf07431-0bcc-410f-bfb7-d1ecedf2ac96][transaction]] must have at leas one [[id:fd8b66ed-8283-450d-ac55-b91c9b65574c][signature]] for [[id:6ce0371e-632d-4b52-be0e-0100237bf00b][fee account]]
+- the first [[id:fd8b66ed-8283-450d-ac55-b91c9b65574c][signature]] in [[id:dcf07431-0bcc-410f-bfb7-d1ecedf2ac96][transaction]] can be traeted as [[id:29e84a9a-305c-428d-9d12-b42582ebf19e][transaction id]]
+** ledger
+:PROPERTIES:
+:ID:       5845b2a7-1732-4fc5-bf52-b0209cb30ff1
+:END:
+*** block
+:PROPERTIES:
+:ID:       015dcfd6-c111-4678-885c-3e5017e31414
+:END:
+- continous set of [[id:cb23dad5-1070-47da-a379-6de0cd13bd50][entries]] on the [[id:5845b2a7-1732-4fc5-bf52-b0209cb30ff1][ledger]] covered by [[id:3765ff35-5d7c-42ae-a58f-6e002d7d970a][ledger vote]]
+- [[id:5845b2a7-1732-4fc5-bf52-b0209cb30ff1][ledger]] produces at most one block per [[id:cc7b3415-def0-4710-b548-6b7c51073a06][slot]]
+**** block height
+- number of [[id:015dcfd6-c111-4678-885c-3e5017e31414][block]]s benethe the current block
+- first block after [[id:e637101b-6821-4935-8c2a-67976f4af86e][genesis block]] has height one
+**** blockhash
+:PROPERTIES:
+:ID:       74d90b19-ac8f-40e8-9b4c-4b010581261f
+:END:
+- [[roam:hash]] identifying a record (block)
+- computed from last [[id:5c8b62f3-0399-40a1-bcfb-edf6bd8d94d3][entry id]]
+**** entry
+:PROPERTIES:
+:ID:       cb23dad5-1070-47da-a379-6de0cd13bd50
+:END:
+- either a [[id:41775ead-444c-40d3-b81d-d65b5492fcfe][tick]] or [[id:2e43ced2-0ba8-4e17-8050-d0534b7ce4ec][transactions entry]]
+***** transaction
+:PROPERTIES:
+:ID:       dcf07431-0bcc-410f-bfb7-d1ecedf2ac96
+:END:
+- one or more [[id:d3997c61-05e4-47f0-8739-05f03996b62d][instruction]] signed by a [[id:dffd394d-c94e-45f0-a513-7bb072d90e5f][client]] using one or more [[id:e86fabf3-a8b5-42ac-9350-b4ea5bf2e49e][key pair]]s
+- execution can be either successuful or fail
+****** transaction format
+:PROPERTIES:
+:ID:       49fdb74d-9fff-4b04-a92f-89d002bc0fd8
+:END:
+- contains [[id:d128ed9a-7563-480e-b50b-025eab3fa573][compact-array]] of [[id:e20c0ab5-167b-4494-80a9-2ddf4302dafe][signatures]] followed by [[id:ebd653c9-66eb-4084-b92e-5be0f3ebe649][message]]
+******* signatures
+:PROPERTIES:
+:ID:       e20c0ab5-167b-4494-80a9-2ddf4302dafe
+:END:
+- each [[id:dcf07431-0bcc-410f-bfb7-d1ecedf2ac96][transaction]] explicitly lists all [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][account]] [[id:44965eba-f994-45aa-9b3d-dcd3c4713451][public key]]s referencd by [[id:dcf07431-0bcc-410f-bfb7-d1ecedf2ac96][transaction]] [[id:d3997c61-05e4-47f0-8739-05f03996b62d][instruction]]
+- each [[id:fd8b66ed-8283-450d-ac55-b91c9b65574c][signature]] is in the [[id:02eaf917-74ee-49f9-822c-4794867c955e][ed25519]] format and consumes 64 bytese
+******* message
+:PROPERTIES:
+:ID:       ebd653c9-66eb-4084-b92e-5be0f3ebe649
+:END:
+
+******** message header
+:PROPERTIES:
+:ID:       c9b8ad37-10b7-406c-8899-d53236f024d2
+:END:
+- three unsigned 8 bit values
+  1) number of required [[id:fd8b66ed-8283-450d-ac55-b91c9b65574c][signature]] in the containing [[id:dcf07431-0bcc-410f-bfb7-d1ecedf2ac96][transaction]]
+  2) number of read-only [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][account]] addresses that are read-only
+  3) number of read-only [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][account]] addresses not requiring signatures
+******** account addresses
+:PROPERTIES:
+:ID:       fe42729f-b01f-41cb-b5c2-879f5cf27069
+:END:
+ordered:
+- addresses that require [[id:e20c0ab5-167b-4494-80a9-2ddf4302dafe][signatures]] and write access
+- addresses that require [[id:e20c0ab5-167b-4494-80a9-2ddf4302dafe][signatures]] and read-only access
+- addresses that don't require [[id:e20c0ab5-167b-4494-80a9-2ddf4302dafe][signatures]] and write access
+- addresses that don't require [[id:e20c0ab5-167b-4494-80a9-2ddf4302dafe][signatures]] and read-only access
+******** transaction blockhash
+:PROPERTIES:
+:ID:       aecc51f3-a163-44bc-a905-ad95c0404849
+:END:
+- [[id:74d90b19-ac8f-40e8-9b4c-4b010581261f][blockhash]] contains 32-byte [[roam:SHA-256]]
+- indicates when a client last observed the ledger - validators will reject transactions when the blockhash is too old (how old??)
+******** instructions
+:PROPERTIES:
+:ID:       d7dee617-a527-438a-98be-13900319cfd1
+:END:
+********* program id index
+- [[id:d3997c61-05e4-47f0-8739-05f03996b62d][instruction]]'s [[id:4d6ceb8a-ec65-417b-9e73-3812d203c01d][program id]]
+- specifies which program will process instruction
+- program's [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][account]] [[id:f8df458e-2bd6-4d6f-8c24-211dba215ae0][owner]] specifies which [[id:497ee56a-2c18-44e8-8305-cc74259c7893][loader]] should be used
+- [[id:d724eb79-1639-47de-86cb-674852d80cbf][data]] contains info about how the [[id:a3043e53-f2d0-4bab-bff9-c0b8010df7e5][runtime]] should execute the program
+- [[id:a3043e53-f2d0-4bab-bff9-c0b8010df7e5][runtime]] will reject transctions that are not marked as [[id:b9defbad-c518-4ecc-95bb-6a0169f1bee5][execuable]]
+- [[id:45334a04-2f62-42d9-967b-ed4643d09dd8][program]] [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][accounts]] are marked as [[id:b9defbad-c518-4ecc-95bb-6a0169f1bee5][execuable]] by the loader once they are successufuly deployed
+********* compact-array of account address indexes
+********* compact-array ofr3rr3 opaque 8-bit data
+
+******* compact-array
+:PROPERTIES:
+:ID:       d128ed9a-7563-480e-b50b-025eab3fa573
+:END:
+- serialized as the array legth, followed by each array item
+- array length is specia multi-byte encoding called compact-u16
+  + 16 bits =0000 0000 0000 0000=
+  + first byte contains the lower 7 bits of the value in its lower 7 bits
+  + if values is above =0x7f= the high bit is set and the next 7 bits of the value are place into the next 7 bits of the value are place into the lower 7 bits of a second byte
+    =111 1111             0x7f=
+  + if the value is above =0x3fff=, the hight bit is set and the remaining 2 bits of the value are place into the lowr 2 bit of a third byte
+    =1111 1111 1111 11    0x3fff=
+****** credit
+:PROPERTIES:
+:ID:       39a3f7aa-8118-4be2-bdd5-25d2ab3b7746
+:END:
+crediting [[id:ca5ff6b8-1cfd-424e-b6cd-c06f565d5e2f][account]] means receiving [[id:436b10ee-f274-4c2a-9274-e9900bbeee11][token]]s
+****** debit
+:PROPERTIES:
+:ID:       987777ee-a09f-4f2d-9039-92c10c0bf39d
+:END:
+debiting [[id:ca5ff6b8-1cfd-424e-b6cd-c06f565d5e2f][account]] means reducing amount of [[id:436b10ee-f274-4c2a-9274-e9900bbeee11][token]]s
+
+****** transaction confirmation
+:PROPERTIES:
+:ID:       88a0dd4b-2da2-4a49-8b2b-afbd37bb2f11
+:END:
+the number of
+****** transactions entry
+:PROPERTIES:
+:ID:       2e43ced2-0ba8-4e17-8050-d0534b7ce4ec
+:END:
+- set of transations that may be executed in parallel
+****** transaction id
+:PROPERTIES:
+:ID:       29e84a9a-305c-428d-9d12-b42582ebf19e
+:END:
+- first [[id:fd8b66ed-8283-450d-ac55-b91c9b65574c][signature]] in a transaction
+- can be used to uniquely identify the transaction across the complete [[id:5845b2a7-1732-4fc5-bf52-b0209cb30ff1][ledger]]
+***** tick
+:PROPERTIES:
+:ID:       41775ead-444c-40d3-b81d-d65b5492fcfe
+:END:
+- [[id:5845b2a7-1732-4fc5-bf52-b0209cb30ff1][ledger]] [[id:cb23dad5-1070-47da-a379-6de0cd13bd50][entry]] that esimates wallclock duration
+****** tick height
+:PROPERTIES:
+:ID:       7f211e57-673f-4d95-8199-70154f31a184
+:END:
+- the nth [[id:41775ead-444c-40d3-b81d-d65b5492fcfe][tick]] in the [[id:5845b2a7-1732-4fc5-bf52-b0209cb30ff1][ledger]]
+***** entry id
+:PROPERTIES:
+:ID:       5c8b62f3-0399-40a1-bcfb-edf6bd8d94d3
+:END:
+- a preimage resistant(?) [[roam:hash]] over the filna content of an entry
+- acts as the [[id:cb23dad5-1070-47da-a379-6de0cd13bd50][entry]]'s global unique identifier
+- evidence for [[id:cb23dad5-1070-47da-a379-6de0cd13bd50][entry]] being generated after a duration of [[roam:time]]
+- evidence for specifed [[id:dcf07431-0bcc-410f-bfb7-d1ecedf2ac96][transaction]] being included in the [[id:cb23dad5-1070-47da-a379-6de0cd13bd50][entry]]
+- evidence for entry's position with respect to other entries in [[id:5845b2a7-1732-4fc5-bf52-b0209cb30ff1][ledger]]
+**** shred
+:PROPERTIES:
+:ID:       329752a9-f1b0-41c1-9f07-5810a841accf
+:END:
+- a fraction of a [[id:015dcfd6-c111-4678-885c-3e5017e31414][block]]
+- smallest unit sent between [[id:00ddb2e1-9804-49af-bd23-9762abc0dcf7][validator]]
+**** genesis block
+:PROPERTIES:
+:ID:       e637101b-6821-4935-8c2a-67976f4af86e
+:END:
+- first [[id:015dcfd6-c111-4678-885c-3e5017e31414][block]] in the chain
+***** genesis config
+- config file that prepares the [[id:5845b2a7-1732-4fc5-bf52-b0209cb30ff1][ledger]] for the [[id:e637101b-6821-4935-8c2a-67976f4af86e][genesis block]]
+**** confirmed block
+:PROPERTIES:
+:ID:       dc7cdce6-b4e8-4103-9e72-d43449055e76
+:END:
+- block thta has received a [[roam:supermajority]] of [[id:5845b2a7-1732-4fc5-bf52-b0209cb30ff1][ledger]]
+**** conflicting block
+:PROPERTIES:
+:ID:       9d53f7ec-cfd0-4735-b2c1-a5cfcd2fa142
+:END:
+?
+*** root
+:PROPERTIES:
+:ID:       7456e28f-2e84-4d92-a087-750d2fe4ba42
+:END:
+- a [[id:015dcfd6-c111-4678-885c-3e5017e31414][block]] or [[id:cc7b3415-def0-4710-b548-6b7c51073a06][slot]], tha has readed maximum [[id:9c265fc0-6a0e-4412-b076-4bfb4a010745][lockout]] on a [[id:00ddb2e1-9804-49af-bd23-9762abc0dcf7][validator]]
+- the heighes block that is an ancestor of all active forks on a validator
+- all ancestor blocks of a root are also transitively a root ??
+- blocks that are not an ancestor and not a descendant of the root are extluded from consideration for consensus and can be discarded
+
+*** slot
+:PROPERTIES:
+:ID:       cc7b3415-def0-4710-b548-6b7c51073a06
+:END:
+- period of [[roam:time]] for which each [[id:5845b2a7-1732-4fc5-bf52-b0209cb30ff1][ledger]] ingests [[id:dcf07431-0bcc-410f-bfb7-d1ecedf2ac96][transaction]]s and producs a [[id:015dcfd6-c111-4678-885c-3e5017e31414][block]]
+- collectively, slots create logical clock
+- slots are ordered sequentially and non-overlapping, comprising roughly equal real-world time as per [[roam:Proof of History]]
+**** skipped slot
+:PROPERTIES:
+:ID:       242e584b-ea65-4193-818a-0627ad328708
+:END:
+- past [[id:cc7b3415-def0-4710-b548-6b7c51073a06][slot]] tht did not producs a [[id:015dcfd6-c111-4678-885c-3e5017e31414][block]], because the leader was offline or [[id:f7f22848-a5ee-472e-b100-5fb1afc4571f][fork]] containing the slow was abandoned for better alternative by [[id:6589f7ef-7cbf-4cba-938d-54d42f7f05fc][cluster]] consensus
+- will not appear as an ancestor for blocks at subsequent [[id:cc7b3415-def0-4710-b548-6b7c51073a06][slot]]s, nor increment the [[roam:block height]], nor expire the oldest =recent_hash=
+- wheter a slot has been skipped can only be determined when it becoms older than the latest [[id:7456e28f-2e84-4d92-a087-750d2fe4ba42][root]]ed (thus not skipped) slot
+*** fork
+:PROPERTIES:
+:ID:       f7f22848-a5ee-472e-b100-5fb1afc4571f
+:END:
+- a [[id:5845b2a7-1732-4fc5-bf52-b0209cb30ff1][ledger]] derived from common entries but then diverged
+*** ledger vote
+:PROPERTIES:
+:ID:       3765ff35-5d7c-42ae-a58f-6e002d7d970a
+:END:
+- hash of validator's [[id:c76ebe34-2a6d-4145-9b14-c45de7ec4ac5][bank state]] at a given [[id:7f211e57-673f-4d95-8199-70154f31a184][tick height]]
+- comprises a [[id:00ddb2e1-9804-49af-bd23-9762abc0dcf7][validator]]'s affirmation that a [[id:015dcfd6-c111-4678-885c-3e5017e31414][block]] is has received has been verified, as well aspromis not to vote for a conflicting [[id:015dcfd6-c111-4678-885c-3e5017e31414][block]] (i.e. [[id:f7f22848-a5ee-472e-b100-5fb1afc4571f][fork]]) for [[id:9c265fc0-6a0e-4412-b076-4bfb4a010745][lockout]] period
+**** vote credit
+:PROPERTIES:
+:ID:       5b194b9d-46b1-4eeb-8ba1-366c24ea79db
+:END:
+- reward [[id:39a3f7aa-8118-4be2-bdd5-25d2ab3b7746][credit]]ed to [[id:00ddb2e1-9804-49af-bd23-9762abc0dcf7][validator]]s for [[id:3765ff35-5d7c-42ae-a58f-6e002d7d970a][ledger vote]]
+- awarded to validator's vote [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][accounts]] when the validator reaches a [[id:7456e28f-2e84-4d92-a087-750d2fe4ba42][root]]
+*** epoch
+:PROPERTIES:
+:ID:       db1a354f-e160-4f84-9e8c-462132b24cb3
+:END:
+- time (number of [[id:cc7b3415-def0-4710-b548-6b7c51073a06][slot]]s) for which [[id:fe7327ae-9b2b-4ff8-9b51-c016b8e3dcfd][leader schedule]] is valid
+** client
+:PROPERTIES:
+:ID:       dffd394d-c94e-45f0-a513-7bb072d90e5f
+:END:
+*** thin client
+:PROPERTIES:
+:ID:       afd2088f-38ec-4869-8c7c-b4d167989bf7
+:END:
+type of client that trusts it is communicating with a valid [[id:6589f7ef-7cbf-4cba-938d-54d42f7f05fc][cluster]]
+*** light client
+:PROPERTIES:
+:ID:       8e2be9b4-3495-4b0d-b1de-f2ad383fa1a5
+:END:
+- [[id:dffd394d-c94e-45f0-a513-7bb072d90e5f][client]] that can verify it's pointing to a valid cluster
+- performs more [[id:5845b2a7-1732-4fc5-bf52-b0209cb30ff1][ledger]] verification than a [[id:afd2088f-38ec-4869-8c7c-b4d167989bf7][thin client]], and less than a validator
+
+*** app
+:PROPERTIES:
+:ID:       ba3b2205-f74b-4017-9308-c3f8573dbc80
+:END:
+- interacts with [[id:6589f7ef-7cbf-4cba-938d-54d42f7f05fc][cluster]] by sending [[id:dcf07431-0bcc-410f-bfb7-d1ecedf2ac96][transactions]] with one or more [[id:d3997c61-05e4-47f0-8739-05f03996b62d][instruction]]
+** token
+:PROPERTIES:
+:ID:       436b10ee-f274-4c2a-9274-e9900bbeee11
+:END:
+- digitally transferable asset
+*** SOL
+:PROPERTIES:
+:ID:       b1062f1f-bfd8-492e-b914-4c61ac72d7b1
+:END:
+- [[id:3c473b69-2788-4222-8917-629a933e215a][native token]] of solana [[id:6589f7ef-7cbf-4cba-938d-54d42f7f05fc][cluster]]
+*** native token
+:PROPERTIES:
+:ID:       3c473b69-2788-4222-8917-629a933e215a
+:END:
+- [[id:436b10ee-f274-4c2a-9274-e9900bbeee11][token]] used to track work done by [[id:0c5f19e0-5378-4a81-b9b3-77b6f07d05df][node]]s in a [[id:6589f7ef-7cbf-4cba-938d-54d42f7f05fc][cluster]]
+*** SPL
+:PROPERTIES:
+:ID:       e9323799-5dcf-4aaf-a74e-d2f9cee21feb
+:END:
+*** Lamport
+:PROPERTIES:
+:ID:       e84d7158-bf2a-4e63-b207-755794a185aa
+:END:
+- fractional [[id:3c473b69-2788-4222-8917-629a933e215a][native token]]
+- value of 0.000000001 [[id:b1062f1f-bfd8-492e-b914-4c61ac72d7b1][SOL]]
+*** mint
+:PROPERTIES:
+:ID:       22360ace-f221-4c70-8da0-50761094ffe5
+:END:
+
+** tools
+*** anchor
+:PROPERTIES:
+:ID:       02704ad8-7fb5-4ac9-b5b6-aec9fd474de6
+:END:
+*** phantom
+:PROPERTIES:
+:ID:       942cc3da-0059-4189-994f-d8f2c81c2fb0
+:END:
+solana's [[id:80e9aba7-3b38-4307-9b1a-13c8dcbf9a40][wallet]]
+** bank state
+:PROPERTIES:
+:ID:       c76ebe34-2a6d-4145-9b14-c45de7ec4ac5
+:END:
+- result of interpreting all [[id:45334a04-2f62-42d9-967b-ed4643d09dd8][program]]s on the ledger at a given [[id:7f211e57-673f-4d95-8199-70154f31a184][tick height]]???
+- includes at least the set of all [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][accounts]] holding nonzero native tokens
+** entrypoint
+:PROPERTIES:
+:ID:       ea371141-a7a2-40a7-a90e-ee669cf83e1e
+:END:
+- =entrypoints!= are the only way to call a program; all calls go through the function declared as the entrypoint.
+- When called, a program is passed to its [[id:6312339d-2db3-4792-be9a-c5b43e6c0e4c][BPF Loader]] (opens new window) which processes the call. Different BPF loaders may require different entrypoints.
+- All [[id:ca5ff6b8-1cfd-424e-b6cd-c06f565d5e2f][accounts]] to be read or written to must be passed into the entrypoint function
+** point
+:PROPERTIES:
+:ID:       9f0b6628-d6b0-48d2-88ae-c83aff4b1cea
+:END:
+- weighted [[id:39a3f7aa-8118-4be2-bdd5-25d2ab3b7746][credit]] in [[id:00ddb2e1-9804-49af-bd23-9762abc0dcf7][validator]] [[id:1afb724d-cbbd-40c2-b761-5e192f57b137][reward regime]]
+- the Umber of point owed to [[id:a03d1c68-7520-4792-a4f9-62fb4ce5fe11][stake]] during redemption is the product of the [[id:5b194b9d-46b1-4eeb-8ba1-366c24ea79db][vote credit]] earned and the number of [[id:d9cb33b7-61fb-4898-81d7-aeab966d4199][lamports]] [[id:a03d1c68-7520-4792-a4f9-62fb4ce5fe11][stake]]ed
+** finality
+:PROPERTIES:
+:ID:       d9f00084-79ef-468e-a896-d9ae34cff574
+:END:
+- when [[id:0c5f19e0-5378-4a81-b9b3-77b6f07d05df][node]]s representing 2/3rd of the [[id:a03d1c68-7520-4792-a4f9-62fb4ce5fe11][stake]] have common [[id:7456e28f-2e84-4d92-a087-750d2fe4ba42][root]]
+** stake
+:PROPERTIES:
+:ID:       a03d1c68-7520-4792-a4f9-62fb4ce5fe11
+:END:
+- [[id:436b10ee-f274-4c2a-9274-e9900bbeee11][token]]s forfeit to the [[id:6589f7ef-7cbf-4cba-938d-54d42f7f05fc][cluster]] if malicious [[id:00ddb2e1-9804-49af-bd23-9762abc0dcf7][validator]] behavior can be proven
+** drone
+:PROPERTIES:
+:ID:       7a1e7b1c-39ba-4204-b271-e9d1e00ed29e
+:END:
+- [[id:209abdde-73a5-4cfc-ad42-90900a26feef][off-chain]] service that acts as a [[roam:custodian]] for a [[id:9c81fd95-663e-4317-8078-798ca3cb4ac8][user]]'s [[id:53001955-6905-46ba-958b-df2c42c104c4][private key]]
+- typically serves to [[roam:validate]] and [[roam:sign]] [[id:dcf07431-0bcc-410f-bfb7-d1ecedf2ac96][transaction]]
+** data plane
+:PROPERTIES:
+:ID:       eaab1c19-05e0-42b5-88c0-9b1ae887ef38
+:END:
+- [[id:16d66c0c-062a-4b4b-8783-c41a5dd44a96][multicast network]]
+- used to validate [[id:cb23dad5-1070-47da-a379-6de0cd13bd50][entry]] and gain [[roam:consensus]]
+** cooldown period
+:PROPERTIES:
+:ID:       e52a6855-213c-4716-b91b-9c7be0936728
+:END:
+- [[roam:gossip network]] connectng all [[id:0c5f19e0-5378-4a81-b9b3-77b6f07d05df][node]]s of a [[id:6589f7ef-7cbf-4cba-938d-54d42f7f05fc][cluster]]
+** control plane
+:PROPERTIES:
+:ID:       892f15f4-2cef-46fc-bb6d-5b7c354e401f
+:END:
+- [[roam:gossip network]] connecting all [[id:0c5f19e0-5378-4a81-b9b3-77b6f07d05df][node]]s of a [[id:6589f7ef-7cbf-4cba-938d-54d42f7f05fc][cluster]]
+** sealevel
+:PROPERTIES:
+:ID:       ac6bf75b-c203-472a-affe-6919c4553ff4
+:END:
+- solana's parallel [[id:fd09c34c-6490-4c72-9c9c-96d313fea826][smart contract]] [[id:a3043e53-f2d0-4bab-bff9-c0b8010df7e5][runtime]]
+** sysvar
+:PROPERTIES:
+:ID:       077c5444-3e8f-4212-8e18-89147731c9f3
+:END:
+- system [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][accounts]]
+- provide cluster state information such as current [[id:7f211e57-673f-4d95-8199-70154f31a184][tick height]], reward [[id:9f0b6628-d6b0-48d2-88ae-c83aff4b1cea][point]]s values, etc
+- [[id:45334a04-2f62-42d9-967b-ed4643d09dd8][program]]s can access sysvars via sysvar account ([[id:44965eba-f994-45aa-9b3d-dcd3c4713451][public key]]) or by querying via syscall
+** verifiable delay function
+:PROPERTIES:
+:ID:       214d7e3e-9686-4040-b76f-ec260ff76e02
+:END:
+- function, that takes a fixed amount of time to execute
+- produces a [[roam:proof]] that in ran, which can be verified in less time than it took to producs
+** smart contract
+:PROPERTIES:
+:ID:       fd09c34c-6490-4c72-9c9c-96d313fea826
+:END:
+- [[id:45334a04-2f62-42d9-967b-ed4643d09dd8][program]] on a blockchain that can read and modify [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][accounts]] over which it has control
+- synonymous with [[id:aba0a6f5-f3d0-4288-bb5d-5214d321a4b1][on-chain program]]
+** warmup period
+:PROPERTIES:
+:ID:       84c9c1b1-0dcd-471a-af27-b315041813f0
+:END:
+- number of [[id:db1a354f-e160-4f84-9e8c-462132b24cb3][epoch]]s after [[id:a03d1c68-7520-4792-a4f9-62fb4ce5fe11][stake]] has been delegated, while it progressively becomes effective
+- during this period, the [[id:a03d1c68-7520-4792-a4f9-62fb4ce5fe11][stake]] is considered to be "activating"
+** inflation
+:PROPERTIES:
+:ID:       d06b13c8-cc2b-4402-b2fa-11000a2e0eda
+:END:
+- increase in [[id:436b10ee-f274-4c2a-9274-e9900bbeee11][token]] supply over [[roam:time]]
+- used to fund [[roam:rewards]] for [[roam:validation]] and to fund continued development of solana
+** confirmation time
+:PROPERTIES:
+:ID:       ca2057ef-f982-438e-a6a4-409753ebb802
+:END:
+- [[roam:wallclock]] duration between a [[id:d5d590d9-2a95-43a3-b4e9-e4920b20c88d][leader]] creating a [[id:41775ead-444c-40d3-b81d-d65b5492fcfe][tick]] entry, and creating [[id:dc7cdce6-b4e8-4103-9e72-d43449055e76][confirmed block]]
+** user
+:PROPERTIES:
+:ID:       9c81fd95-663e-4317-8078-798ca3cb4ac8
+:END:
+** asset
+:PROPERTIES:
+:ID:       d6f8c0ae-0862-43f5-b329-6e327d3dc88f
+:END:
+** wallet
+:PROPERTIES:
+:ID:       80e9aba7-3b38-4307-9b1a-13c8dcbf9a40
+:END:
+- [[id:e86fabf3-a8b5-42ac-9350-b4ea5bf2e49e][key pair]] that allows [[id:9c81fd95-663e-4317-8078-798ca3cb4ac8][user]]s to manage their [[id:d6f8c0ae-0862-43f5-b329-6e327d3dc88f][asset]]s in [[id:2a9ba801-e7d7-4ce9-9c4f-145b59900b40][accounts]]
+** TODO reward regime
+:PROPERTIES:
+:ID:       1afb724d-cbbd-40c2-b761-5e192f57b137
+:END:
+
+** TODO multicast network
+:PROPERTIES:
+:ID:       16d66c0c-062a-4b4b-8783-c41a5dd44a96
+:END:
+** TODO off-chain
+:PROPERTIES:
+:ID:       209abdde-73a5-4cfc-ad42-90900a26feef
+:END:
+
+* references
+** templates
+- https://github.com/mvines/solana-bpf-program-template

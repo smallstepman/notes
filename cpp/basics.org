@@ -1,0 +1,399 @@
+ES:
+:ID:       3f32bcb9-2443-4cb6-ba2a-5f7bfbb0e935
+:END:
+#+title: C++ basics
+#+roam_tags: Technology
+
+* Comments
+#+begin_src C++
+/* multiline
+   comment */
+
+/* or
+ * nicer
+ * multiline
+ */
+
+// single line comment
+#+end_src
+* Program structure
+** program starts it's execution at =main()= function
+#+begin_src C++
+int main(int argc, char **argv) { return 0; }
+#+end_src
+** hello world
+#+begin_src C++ :exports both
+#include <ostream>
+#include <iostream>
+
+int main(int argc, char **argv) { std::cout << "Hi" << std::endl; }
+#+end_src
+
+#+RESULTS:
+: Hi
+or prittier
+#+begin_src C++ :exports both
+#include <iostream>
+#include <ostream>
+
+using namespace std;
+
+int main(int argc, char **argv) { cout << "Hi" << endl; }
+#+end_src
+
+#+RESULTS:
+: Hi
+* Operators
+** variable names
+
+** stream insertion =<<=
+**
+
+* Imported by default
+
+* Imports and standard library
+#+begin_src C++
+#include <cstdlib>    // functions for converting datatypes from one to another,
+                      // random number generation,
+                      // memory management,
+                      // searching,
+                      // sorting,
+#include <iostream>   // read and write data
+#include <string>     // strings
+#include <limits>     // min max values for datatypes
+#include <vectors>    // vectors
+#include <sstream>    // string stream
+#include <numeric>    // sequences of values
+#include <ctime>      // time
+#include <cmath>      // math
+#+end_src
+these are all imported for the code below, without any extra notice needed (thanks =org-babel=!)
+* Variables declaration
+** global variables
+scope: available to use anywhere within file where global was declared
+#+begin_src C++
+int imGlobal = 0;
+char myGrade = 'A';
+int main(int argc, char **argv) { return 0; }
+#+end_src
+
+#+RESULTS:
+
+** const variables
+scope: availabe to use anywhere ???
+#+begin_src C++
+const double PI = 3.14;
+int main(int argc, char **argv) { return 0; }
+#+end_src
+
+#+RESULTS:
+** Let compilier guess the datatype (type inference)
+https://stackoverflow.com/questions/1986418/typeid-versus-typeof-in-c
+#+BEGIN_SRC C++ :exports both :includes <iostream> <cstdlib> <iostream> <string> <limits> <vector> <sstream> <numeric> <ctime> <cmath> :namespaces std
+auto whatAmIb = true;
+auto whatAmIi = 1;
+cout << whatAmIb << typeid(whatAmIb).name() << endl;
+cout << whatAmIi << typeid(whatAmIi).name();
+#+END_SRC
+
+#+RESULTS:
+| 1b |
+| 1i |
+** built-in datatypes
+* Numerical limits
+#+BEGIN_SRC C++ :colnames '("min" "max" "type" "extra" "signed") :exports both :includes <iostream> <cstdlib> <iostream> <string> <limits> <vector> <sstream> <numeric> <ctime> <cmath> :namespaces std
+unsigned short int test = 65535;
+cout << numeric_limits<unsigned short int>::min() << " ";
+cout << numeric_limits<unsigned short int>::max();
+cout << " int short unsigned" << endl;
+cout << numeric_limits<short int>::min() << " ";
+cout << numeric_limits<short int>::max();
+cout << " int short signed" << endl;
+cout << numeric_limits<int>::min() << " ";
+cout << numeric_limits<int>::max();
+cout << " int" << endl;
+cout << numeric_limits<long>::min() << " ";
+cout << numeric_limits<long>::max();
+cout << " long" << endl;
+cout << numeric_limits<float>::min() << " ";
+cout << numeric_limits<float>::max();
+cout << " float" << endl;
+cout << numeric_limits<double>::min() << " ";
+cout << numeric_limits<double>::max();
+cout << " double" << endl;
+cout << numeric_limits<long double>::min() << " ";
+cout << numeric_limits<long double>::max();
+cout << " long double" << endl;
+#+END_SRC
+
+#+RESULTS:
+|                  min |                 max | type   | extra  | signed   |
+|----------------------+---------------------+--------+--------+----------|
+|                    0 |               65535 | int    | short  | unsigned |
+|               -32768 |               32767 | int    | short  | signed   |
+|          -2147483648 |          2147483647 | int    |        |          |
+| -9223372036854775808 | 9223372036854775807 | long   |        |          |
+|          1.17549e-38 |         3.40282e+38 | float  |        |          |
+|         2.22507e-308 |        1.79769e+308 | double |        |          |
+|                  0.0 |            1.0e+INF | long   | double |          |
+
+** Precision loss
+#+begin_src C++ :exports both :includes <cstdlib> <iostream> :namespaces std
+float f1 = 1.1111111;
+float f2 = 1.1111111;
+double d1 = 1.1111111111111111;
+double d2 = 1.1111111111111111;
+printf("f1+f2 = %.7f\n", f1 + f2);
+printf("d1+d2 = %.16f\n", d1 + d2);
+#+end_src
+
+#+RESULTS:
+| f1+f2 | = |          2.2222221 |
+| d1+d2 | = | 2.2222222222222223 |
+- [[id:c5caaf64-134a-481b-aadb-23af7ca289ce][Question]] what occurs at memory level?
+
+
+* Get byte size
+#+BEGIN_SRC C++ :exports both :includes <iostream> <cstdlib> <iostream> <string> <limits> <vector> <sstream> <numeric> <ctime> <cmath> :namespaces std
+cout << "int size: " << sizeof(int) << " bytes";
+#+END_SRC
+
+#+RESULTS:
+: int size: 4 bytes
+
+* Print formatting
+#+BEGIN_SRC C++ :exports both :includes <iostream> <cstdlib>
+printf("%c \n", 'A');
+printf("%d \n", 1.11111111);
+printf("%5d \n", 1.11111111);
+printf("%.3f \n", 1.11111111);
+printf("%s \n", "helllooo");
+#+END_SRC
+
+#+RESULTS:
+|        A |
+|     2592 |
+|     2592 |
+|    1.111 |
+| helllooo |
+
+#+BEGIN_SRC C++ :exports both :includes <iostream> <cstdlib>
+printf("%c %d %5d %.3f %s\n", 'A', 10, 5, 3.1234);
+#+END_SRC
+#+RESULTS:
+: A 10     5 3.123 (null)
+
+* Strings
+#+BEGIN_SRC C++ :exports both :includes <iostream> <cstdlib> <iostream> <string> <limits> <vector> <sstream> <numeric> <ctime> <cmath> :namespaces std
+string q1 = "Enter a Number : ";
+string num1 = "3";
+string num2 = "4";
+//cout << q1;
+//cin >> num1;
+//cout << "enter another number";
+//cin >> num2;
+int nNum1 = stoi(num1);
+int nNum2 = stoi(num2);
+printf("%d + %d = %d\n", nNum1, nNum2, nNum1+nNum2);
+float f1 = stof("3.15");
+cout << f1;
+#+END_SRC
+
+#+RESULTS:
+|    3 | + | 4 | = | 7 |
+| 3.15 |   |   |   |   |
+
+* Arithmetic operations
+#+BEGIN_SRC C++ :exports both :includes <iostream> <cstdlib> <iostream> <string> <limits> <vector> <sstream> <numeric> <ctime> <cmath> :namespaces std
+float nNum1 = 0.12; float nNum2 = 12.22;
+printf("%f + %f = %f\n", nNum1, nNum2, nNum1+nNum2);
+printf("%f - %f = %f\n", nNum1, nNum2, nNum1-nNum2);
+printf("%f * %f = %f\n", nNum1, nNum2, nNum1*nNum2);
+printf("%f / %f = %f\n", nNum1, nNum2, nNum1/nNum2);
+printf("%d %% %d = %d\n", int(nNum1)+22, int(nNum2), int(nNum1)+22%int(nNum2));
+#+END_SRC
+
+#+RESULTS:
+| 0.12 | + | 12.22 | = |   12.34 |
+| 0.12 | - | 12.22 | = |   -12.1 |
+| 0.12 | * | 12.22 | = |  1.4664 |
+| 0.12 | / | 12.22 | = | 0.00982 |
+|   22 | % |    12 | = |      10 |
+
+* Conditional and logical operators < <= > > == != && || ! and ternary
+#+BEGIN_SRC C++ :exports both :includes <iostream> <cstdlib> <iostream> <string> <limits> <vector> <sstream> <numeric> <ctime> <cmath> :namespaces std
+int age = 26;
+if ((age >= 1) && (age <= 18)){
+    cout << "nieletni" << endl;
+} else if ((age >= 21) || (age <= 27)) {
+    cout << "student" << endl;
+} else {
+    cout << "zyciowiec" << endl;
+}
+
+bool canIVote = (age >= 18) ? true : false;
+cout.setf(ios::boolalpha);
+cout << canIVote;
+#+END_SRC
+
+#+RESULTS:
+| student |
+| true    |
+
+* Arrays
+#+BEGIN_SRC C++ :exports both :includes <iostream> <cstdlib> <iostream> <string> <limits> <vector> <sstream> <numeric> <ctime> <cmath> :namespaces std
+int arrNums[10] = {1};
+int arrNumsAuto[] = {1, 2, 3};
+int arrNums2[5] = {8, 9};
+cout << "1st val : " << arrNums2[0] << endl;
+arrNums2[0] = 7;
+cout << "1st val : " << arrNums2[0] << endl;
+
+// 3D arrays
+int arrNums3d[2][2][2] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}};
+cout << "1st val : " << arrNums3d[0][0][0] << endl;
+#+END_SRC
+
+#+RESULTS:
+| 1st | val | : | 8 |
+| 1st | val | : | 7 |
+| 1st | val | : | 1 |
+
+* Vectors
+#+BEGIN_SRC C++ :exports both :includes <iostream> <cstdlib> <iostream> <string> <limits> <vector> <sstream> <numeric> <ctime> <cmath> :namespaces std
+vector<int> vNums(3);
+vNums[0] = 1;
+vNums[1] = 2;
+vNums.push_back(3);
+vNums.push_back(3);
+vNums.push_back(3);
+vNums.push_back(3);
+cout << "vector size " << vNums.size() << endl << endl;
+for (int i = 0; i <= vNums.size(); i++){
+    cout << vNums[i] << " ";
+}
+#+END_SRC
+
+#+RESULTS:
+| vector | size | 7 |   |   |   |   |   |
+|        |      |   |   |   |   |   |   |
+|      1 |    2 | 0 | 3 | 3 | 3 | 3 | 0 |
+#+BEGIN_SRC C++ :exports both :includes <iostream> <cstdlib> <iostream> <string> <limits> <vector> <sstream> <numeric> <ctime> <cmath> :namespaces std :results raw
+#include <iostream>
+#include <vector>
+
+using std::cout; using std::cin;
+using std::endl; using std::string;
+using std::vector;
+
+template<typename T>
+void printVectorElements(vector<T> &vec)
+{
+    for (auto i = 0; i < vec.size(); ++i) {
+        cout << vec.at(i) << "; ";
+    }
+    cout << endl;
+}
+
+int main() {
+    vector<int> i_vec1 = {12, 32, 43, 53, 23, 65, 84};
+    vector<int> i_vec2 = {121, 321, 431, 531, 231, 651, 841};
+
+    cout << "i_vec1           : ";
+    printVectorElements(i_vec1);
+    i_vec1.insert(i_vec1.end(), i_vec2.begin(), i_vec2.end());
+    cout << "i_vec1 (inserted): ";
+    printVectorElements(i_vec1);
+    cout << endl;
+
+    return EXIT_SUCCESS;
+}
+#+end_src
+
+#+RESULTS:
+i_vec1           : 12; 32; 43; 53; 23; 65; 84;
+i_vec1 (inserted): 12; 32; 43; 53; 23; 65; 84; 121; 321; 431; 531; 231; 651; 841;
+
+#+BEGIN_SRC C++ :exports both :includes <iostream> <cstdlib> <iostream> <string> <limits> <vector> <sstream> <numeric> <ctime> <cmath> :namespaces std :results raw
+#include <iostream>
+#include <vector>
+
+using std::cout; using std::cin;
+using std::endl; using std::string;
+using std::vector;
+
+template<typename T>
+void printVectorElements(vector<T> &vec)
+{
+    for (auto i = 0; i < vec.size(); ++i) {
+        cout << vec.at(i) << "; ";
+    }
+    cout << endl;
+}
+
+int main() {
+    vector<int> i_vec1 = {12, 32, 43, 53, 23, 65, 84};
+
+    cout << "i_vec1           : ";
+    printVectorElements(i_vec1);
+    // i_vec1.insert(i_vec1.end(), i_vec2.begin(), i_vec2.end());
+    i_vec1.insert(i_vec1.end(), 1, 3 );
+    cout << "i_vec1 (inserted): ";
+    printVectorElements(i_vec1);
+    cout << endl;
+
+    return EXIT_SUCCESS;
+}
+#+end_src
+
+#+RESULTS:
+i_vec1           : 12; 32; 43; 53; 23; 65; 84;
+i_vec1 (inserted): 12; 32; 43; 53; 23; 65; 84; 3;
+
+
+* Loops
+#+BEGIN_SRC C++ :exports both :includes <iostream> <cstdlib> <iostream> <string> <limits> <vector> <sstream> <numeric> <ctime> <cmath> :namespaces std
+int i = 1;
+while (i <= 20) {
+    if((i % 2) == 0) {
+        i++;
+        continue;
+    }
+    if(i == 15) break;
+    cout << i << " ";
+    i++;
+}
+cout << endl;
+
+vector<string> words;
+stringstream ss("Some random words");
+string word;
+while(getline(ss, word, ' ')){
+    words.push_back(word);
+}
+for(int i = 0; i < words.size(); ++i){
+    cout << words[i] << " ";
+}
+cout << endl;
+
+int arrNums[] = {1,2,3};
+for(auto x: arrNums) cout << x << " ";
+cout << endl;
+
+#+END_SRC
+
+#+RESULTS:
+|    1 |      3 |     5 | 7 | 9 | 11 | 13 |
+| Some | random | words |   |   |    |    |
+|    1 |      2 |     3 |   |   |    |    |
+
+*
+#+BEGIN_SRC C++ :exports both :includes <iostream> <cstdlib> <iostream> <string> <limits> <vector> <sstream> <numeric> <ctime> <cmath> :namespaces std
+printf("%d + %d = %d\n", nNum1, nNum2, nNum1+nNum2);
+#+END_SRC
+
+
+
+
+
+
