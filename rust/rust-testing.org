@@ -1,0 +1,408 @@
+:PROPERTIES:
+:ID:       ceda7bd6-04cf-4ce3-b3f8-c030b9ff9f5a
+:END:
+#+title: Rust testing
+
+- unit tests: =#[test]=
+- integration tests: tests in =tests/= directory
+- https://github.com/dtolnay/trybuild
+- https://doc.rust-lang.org/nightly/unstable-book/compiler-flags/sanitizer.html
+- https://github.com/rust-lang/miri
+* rust testing mechanisms
+1. cargo test --lib, passes the --test flag to rustc
+2. --test flag tells rustc to produce a test binary that runs all the unit tests (rather than just compiling the crate’s library or binary)
+3. --test has two primary effects
+   a. it enables cfg (test) so that you can conditionally include testing code
+   b. makes the compiler generate a test harness: a carefully generated main function that invokes each #[test] function in your program when it’s run
+
+* the test harness
+- test harness iterates over the tests in the crate, runs them, captures their results, and prints the results
+  - also includes:
+    - logic to parse command line arguments (for things like --test-threads=1)
+    - capture test output
+    - run the listed tests in parallel
+    - and collect test results
+- the harness transforms every function annotated by #[test] into a test descripton (the procedural macro)
+  - it then exposes the path of each of the descriptors to the generated main function
+  - descriptor includes information like the test’s name, any additional options it has set (like #[should_panic]), and so on
+- integration tests follow the same process as unit tests, with the one exception that they are each compiled as their own separate crate,
+  - they can access only the main crate’s public interface
+  - are run against the main crate compiled without #[cfg (test)]
+  - test harness is generated for each file in tests/
+  - test harnesses are not generated for files in subdirectories under tests/ to allow to have shared submodules for tests
+  - if you explicitly want a test harness for a file in a subdirectory, you can opt in to that by calling the file main.rs
+
+- using test harness is not required
+  - =#[test]= attribute doesn't work without the test harness
+    - instead, write =main= function to run the testing code, and compile as binary
+    - run by cargo test
+    - that binary is responsible for handling all the things that the default harness normally does, such as command line flags
+    - the harness property is set separately for each integration test
+      - allows to have one test file that uses the standard harness and one that does not
+  - integration tests without a harness are primarily useful
+    - for benchmarks
+    - also come in handy when you want to run tests that don’t fit the standard “one function, one test” model
+    - harnessless tests used with fuzzers, model checkers, and tests that require a custom global setup (like under WebAssembly or when working with custom targets)
+  - to opt out from default: implement main method that represents the test runner by setting harness = false for a given integration test in Cargo.toml
+    #+begin_src toml
+    [[test]]
+    name = "custom"
+    path = "tests/custom.rs"
+    harness = false
+    #+end_src
+
+** arguments to the default test harness
+- command line arguments to configure how the tests are run
+  - these aren’t passed to cargo test directly but rather to the test binary that Cargo compiles and runs for you when you run cargo test
+  - implemented by the default test harness (implement your own for =harness = false=)
+- to access that set of flags, pass -- to cargo test, followed by the arguments to the test binary
+- run =cargo test -- --help= to see the help text for the test binary
+- run =cargo test -- --nocapture= to disable the output capturing that normally happens when Rust runs tests
+  - useful in order to observe a test’s output in real time rather than all at once after the test has failed
+- run =cargo test -- --test-threads= to limit how many tests run concurrently
+  - allows to run the tests sequentially which helpful when a test hangs or segfaults
+- run =cargo test -- --skip= option for skipping tests that match a certain pattern
+- run =cargo test -- --ignored= to run tests that would normally be ignored (such as those that require an external program to be running)
+- run =cargo test -- --list= to list all the available tests
+
+* #[cfg(test)]
+- compiler conditional compilation flag for test configuration q
+  - lets, which you can then use with conditional compilation to have code that is compiled out unless it is specifically being tested. On the surface, this may seem odd: don’t you want to test exactly the same code that’s going into production? You do, but having code exclusively available when testing allows you to write better, more thorough tests, in a few ways.
+
+** mocking
+- =mockall= crate
+- a key feature of any extensive unit test suite
+- tight control over the tested code, as well as any other types that the code may interact with
+- examples:
+  - testing a network client
+    - running unit tests over a real network is undesired
+    - instead, mocking allows to directly control what bytes are emitted by the “network” and when
+  - testing a data structure
+    - test should use types that allow for control what each method returns on each invocation ??
+    - gather metrics such as how often a given method was called or whether a given byte sequence was emitted
+- mocking library will have facilities for
+  - generating types (including functions) with particular properties or signatures
+  - well as mechanisms to control and introspect those generated items during a test execution
+- use a mocking library to generate conforming types that will instantiate generic parameters
+  - as long as the program, data structure, framework, or tool is generic over anything you might want to mock (or takes a trait object)
+- write unit tests by instantiating generic constructs with the generated mock types
+- in situations where generics are inconvenient or inappropriate...
+  - such as avoiding making a particular aspect of your type generic to users
+  - instead of using generics, encapsulate the state and behavior to mock in a dedicated struct
+  - then generate a mocked version of that struct and its methods and use conditional compilation to use either the real or mocked implementation depending on cfg(test) or a test-only feature like cfg(feature = "test_mock_foo")
+** test-only APIs
+- check not only that the public API behaves correctly but also that the internal state is correct
+- having test-only code allows to expose additional methods, fields, and types to unit tests so the tests can
+*** COMMENT example
+- this code will not compile as written, because while the test code can access the private table field of HashMap, it cannot access the also private buckets field of RawTable, as RawTable lives in a different module
+- we could fix this by making the buckets field visibility pub(crate), but we really don’t want HashMap to be able to touch buckets in general, as it could accidentally corrupt the internal state of the RawTable
+- even making buckets available as read-only could be problematic, as new code in HashMap may then start depending on the internal state of RawTable, making future modifications more difficult
+#+begin_src rust
+#[test]
+fn insert_just_one() {
+  let mut m = HashMap::new();
+  m.insert(42, ());
+  let full = m.table.buckets.iter().filter(Bucket::is_full).count();
+  assert_eq!(full, 1);
+}
+#+end_src
+
+- the solution is to use #[cfg(test)]
+- we can add a method to RawTable that allows access to buckets only while testing
+- and thereby avoid adding footguns for the rest of the code. The code from Listing 6-2 can then be updated to call buckets() instead of accessing the private buckets field.
+#+begin_src rust
+impl RawTable {
+  #[cfg(test)]
+  pub(crate) fn buckets(&self) -> &[Bucket] {
+    &self.buckets
+  }
+}
+#+end_src
+
+** COMMENT bookkeeping for test assertions
+- another benefit of having code that exists only during testing is that you can augment the program to perform additional runtime bookkeeping that can then be inspected by tests
+- Keep in mind that test is set only for the crate that is being compiled as a test. For unit tests, this is the crate being tested, as you would expect. For integration tests, however, it is the integration test binary being compiled as a test—the crate you are testing is just compiled as a library and so will not have test set.
+*** COMMENT example
+- imagine you’re writing your own version of the BufWriter type from the standard library. When testing it, you want to make sure that BufWriter does not issue system calls  unnecessarily. The most obvious way to do so is to have the BufWriter keep track of how many times it has invoked write on the underlying Write. However, in production this information isn’t important, and keeping track of it introduces (marginal) performance and memory overhead. With #[cfg(test)], you can have the bookkeeping happen only when testing, as shown in Listing 6-4.
+#+begin_src rust
+struct BufWriter<T> {
+  #[cfg(test)]
+  write_through: usize,
+  // other fields...
+}
+
+impl<T: Write> Write for BufWriter<T> {
+  fn write(&mut self, buf: &[u8]) -> Result<usize> {
+    // ...
+    if self.full() {
+      #[cfg(test)]
+      self.write_through += 1;
+      let n = self.inner.write(&self.buffer[..])?;
+    // ...
+  }
+}
+#+end_src
+* doctests
+- Rust code snippets in documentation comments are automatically run as test cases
+- because doctests appear in the public documentation of your crate, and users are likely to mimic what they contain, they are run as integration tests
+  - this means that the doctests don’t have access to private fields and methods, and test is not set on the main crate’s code
+  - each doctest is compiled as its own dedicated crate and is run in isolation, just as if the user had copy-pasted the doctest into their own program
+- behind the scenes, the compiler performs some preprocessing on doctests to make them more concise
+  - it automatically adds an fn main around your code
+  - this allows doctests to focus only on the important bits that the user is likely to care about, like the parts that actually use types and methods from your library, without including unnecessary boilerplate
+  - you can opt out of this auto-wrapping by defining your own fn main in the doctest
+    - usecases:
+      - writing an  asynchronous main function using something like #[tokio::main] async fn main
+      - adding additional modules to the doctest
+- no additional effort is required to use the ? operator in doctest
+  - rustdoc includes some heuristics to set the return type to Result<(), impl Debug> if your code looks like it makes use of ? (for example, if it ends with Ok(()))
+  - if type inference gives you a hard time about the error type for the function, you can disambiguate it by changing the last line of the doctest to be explicitly typed, like this: Ok::<(), T>(())
+- prefix a line of a doctest with a # - that line is included when the doctest is compiled and run, but it is not included in the code snippet generated in the documentation
+  - useful:
+    - easily hide details that are not important to the current example, such as implementing traits for dummy types or generating values
+    - it is also useful if you wish to present a sequence of examples without showing the same leading code each time
+- doctests also support attributes that modify how the doctest is run
+  - these attributes go immediately after the triple-backtick used to denote a code block, and multiple attributes can be separated by commas
+  - =should_panic= - indicate that the code in a particular doctest should panic when run, or ignore to check the code segment only if cargo test is run with the --ignored flag
+  - =no_run= - indicate that a given doctest should compile but should not be run
+  - compile_fail - tells rustdoc that the code in the documentation example should not compile
+    - indicates to the user that a particular use is not possible and serves as a useful test to remind you to update the documentation should the relevant aspect of your library change
+    - use this attribute to check that certain static properties hold for your types
+    - check that a given type does not implement Send, which may be necessary to uphold safety guarantees in unsafe code
+    - gives no indication of *why* the code does not compile
+      - add the attribute only after being sure that the test indeed fails to compile with the expected error
+** COMMENT example
+#+begin_src rust
+/// Completely frobnifies a number through I/O.
+///
+/// In this first example we hide the value generation.
+/// ```
+/// # let unfrobnified_number = 0;
+/// # let already_frobnified = 1;
+/// assert!(frobnify(unfrobnified_number).is_ok());
+/// assert!(frobnify(already_frobnified).is_err());
+/// ```
+///
+/// Here's an example that uses ? on multiple types
+/// and thus needs to declare the concrete error type,
+/// but we don't want to distract the user with that.
+/// We also hide the use that brings the function into scope.
+/// ```
+/// # use mylib::frobnify;
+/// frobnify("0".parse()?)?;
+/// # Ok::<(), anyhow::Error>(())
+/// ```
+///
+/// You could even replace an entire block of code completely,
+/// though use this _very_ sparingly:
+/// ```
+/// # /*
+/// let i = ...;
+/// # */
+/// # let i = 42;
+/// frobnify(i)?;
+/// ```
+fn frobnify(i: usize) -> std::io::Result<()> {
+#+end_src
+with custom attribute
+#+begin_src rust
+```compile_fail
+# struct MyNonSendType(std::rc::Rc<()>);
+fn is_send<T: Send>() {}
+is_send::<MyNonSendType>();
+```
+#+end_src
+
+* linting
+- lints catch code patterns that compile but are almost certainly bugs
+  - examples:
+    - =a = b; b = a= - fails to swap a and b
+    - =std::mem::forget(t)= - where t is a reference
+    - =for x in y.next()= - will iterate only over the first element in y
+- Rust linter =clippy= categorizes a number of its lints as correctness lints
+  - the type_complexity lint - on by default - issues a warning if you use a particularly involved type in your program, like Rc<Vec<Vec<Box< (u32, u32, u32, u32)>>>>. While that warning encourages you to write code that is easier to read, you may find it too pedantic to be broadly useful
+  - =#[allow(clippy::name_of_lint)]= to opt out of the lint just for a piece of code
+- the compiler also comes with its own set of lints in the form of warnings
+  - these are usually more directed toward writing idiomatic code than checking for correctness
+  - correctness lints in the compiler are simply treated as errors (take a look at rustc -W help for a list)
+  - not all compiler warnings are enabled by default
+    - #![warn(rust_2018_idioms)] (when enabled, the compiler will tell  if you’re failing to take advantage of changes brought by the Rust 2018 edition)
+    - =missing_docs= and =missing_debug_implementations= (when enabled warn if you’ve forgotten to document any public items in your crate or add Debug implementations for any public types)
+* test generation
+- automatically generate input to use to check your application’s correctness
+- most testers have support for minimizing inputs, so they will search for the smallest sequence of operations that still violates a property if a property-violating input is found
+- fuzzers and property testers allow you to generate arbitrary Rust types
+- https://github.com/altsysrq/proptest
+- https://github.com/BurntSushi/quickcheck
+- https://rust-fuzz.github.io/book/cargo-fuzz/tutorial.html
+- https://github.com/rust-fuzz/arbitrary/
+- https://altsysrq.github.io/proptest-book/intro.html
+** fuzzing
+- cargo-fuzz
+- generate random inputs to your program and see if it crashes
+- great at finding strange corner cases that your code doesn’t handle correctly
+- example: for URL parsing library, fuzz-test your program by systematically generating random strings and throwing them at the parsing function until it panics
+- modern fuzzers use code coverage metrics to explore different paths in the code (lets them reach higher degrees of coverage faster than if the inputs were truly chosen at random)
+- they require little setup
+- keeps running until manually terminated it
+  - most fuzzing tools come with a built-in mechanism to stop after a certain number of test cases have been explored
+- use a crate like =arbitrary= to turn the byte string that the fuzzer generates into a more complex Rust type
+  - useful when if the input isn’t a trivially fuzzable type (something like a hash table)
+  - the crate defines an Arbitrary trait with a single method, arbitrary, that constructs the implementing type from a source of random bytes
+  - primitive types like u32 or bool read the necessary number of bytes from that input to construct a valid instance of themselves, whereas more complex types like HashMap or BTreeSet produce one number from the input to dictate their length and then call Arbitrary that number of times on their inner types
+  - an attribute =#[derive(Arbitrary)]= that implements Arbitrary by just calling arbitrary on each contained type
+*** COMMENT example
+#+begin_src rust
+libfuzzer_sys::fuzz_target!(|data: &[u8]| {
+  if let Ok(s) = std::str::from_utf8(data) {
+      let _ = url::Url::parse(s);
+  }
+});
+#+end_src
+- fuzzer will generate semi-random inputs to the closure, and any that form valid UTF-8 strings will be passed to the parser
+- notice that the code here doesn’t check whether the parsing succeeds or fails, instead, it’s looking for cases where the parser panics or otherwise crashes due to internal invariants that are violated
+** property-based testing
+- =proptest= crate
+- describe a number of properties your code should uphold, and then the property testing framework generates inputs and checks that those properties indeed hold
+- checking not only if program doesn’t crash but also that it does what it’s expected to do
+- use property-based testing to check for properties not directly related to correctness, such as whether operations take strictly less time for one implementation than another
+- steps
+  1. first write a simple but naive version of the code you want to test that you are confident is correct
+  2. for a given input, you give that input to both the code you want to test and the simplified but naive version
+  3. if the result or output of the two implementations is the same
+- any difference in outcome between the real and test versions should be informative and actionable so that every failure allows to make improvements
+- downside of property-based testing is that it relies more heavily on the provided descriptions of the inputs
+- property testing tends to be guided by developer annotations like “a number between 0 and 64” or “a string that contains three commas.”
+  - this allows property testing to more quickly reach cases that fuzzers may take a long time to encounter randomly, but it does require manual work and may miss important but niche buggy inputs
+*** testing sequences of operations
+- test that some type Foo behaves correctly if particular sequence of operations is performed on it
+- steps
+  1. define an enum Operation that lists operations, and make your test function take a Vec<Operation>
+  2. instantiate a Foo and perform each operation on that Foo, one after the other
+
+* test augmentation
+- if tests inexplicably fails or crashes with a segmentation fault, it might be cuz of:
+  - race conditions (two operations occur on different threads)
+  - undefined behavior in unsafe code (e.g. some unsafe code reads a particular value out of uninitialized memory)
+- catching these kinds of bugs with normal tests can be difficult—often you don’t have sufficient low-level control over thread scheduling, memory layout and content, or other random-ish system factors to write a reliable test
+** Miri
+- an interpreter for Rust’s mid-level intermediate representation (MIR)
+  - MIR is an internal, simplified representation of Rust that helps the compiler find optimizations and check properties without having to consider all of the syntax sugar of Rust itself
+- Miri interprets the code rather than compiling and running it like a normal binary
+- Miri can keep track of the entire program state as each line of your code executes
+  - allows Miri to detect and report if the program ever exhibits certain types of undefined behavior, such as:
+    - uninitialized memory reads
+    - uses of values after they’ve been dropped
+    - or out-of-bounds pointer accesses
+  - rather than having these operations yield strange program behaviors that may only sometimes result in observable test failures (like crashes), Miri detects them when they happen and tells you immediately
+- makes the tests run a decent amount slower
+- =cargo miri test=
+** Loom
+- tries to ensure your tests are run with every relevant interleaving of concurrent operations
+- if a test fails, Loom can give an exact rundown of which threads executed in what order so you can determine how the crash happened
+- keeps track of all cross-thread synchronization points and runs your tests over and over, adjusting the order in which threads proceed from those synchronization points each time
+  - if thread A and thread B both take the same Mutex, Loom will ensure that the test runs once with A taking it first and once with B taking it first
+- Loom also keeps track of:
+  - atomic accesses
+  - memory orderings
+  - accesses to UnsafeCell and checks that threads do not access them inappropriately
+*** COMMENT example
+#+begin_src rust
+let mut x = 42;
+let x: *mut i32 = &mut x;
+let (x1, x2) = unsafe { (&mut *x, &mut *x) };
+println!("{} {}", x1, x2);
+#+end_src
+
+#+begin_example
+error: Undefined Behavior: trying to reborrow for Unique at alloc1383, but parent tag <2772> does not have an appropriate item in the borrow stack
+ --> src/main.rs:4:6
+  |
+4 | let (x1, x2) = unsafe { (&mut *x, &mut *x) };
+  |      ^^ trying to reborrow for Unique at alloc1383, but parent tag <2772> does not have an appropriate item in the borrow stack
+#+end_example
+
+* performance testing
+- it is often hard to accurately model a workload that reflects real-world usage of your crate
+- having performance tests is important
+  - if the code suddenly runs 100 times slower, that really should be considered a bug
+  - yet without a performance test you may not spot the regression
+  - both of these are good reasons to have automated performance tests as part of your CI
+  - if performance changes drastically in either direction, you should know about it
+- unlike with functional testing, performance tests do not have a common, well-defined output
+  - a functional test will either succeed or fail, whereas a performance test may output:
+    - a throughput number
+    - a latency profile
+    - a number of processed samples
+    - or any other metric that might be relevant to the application
+- performance test may:
+  - require running a function in a loop a few hundred thousand times
+  - take hours running across a distributed network of multicore boxes
+  - cuz of above, it is difficult to speak about how to write performance tests in a general sense
+
+instead, in this section, we’ll look at some of the issues you may encounter when writing performance tests in Rust and how to mitigate them. Three particularly common pitfalls that are often overlooked are performance variance, compiler optimizations, and I/O overhead. Let’s explore each of these in turn.
+** performance variance
+- performance can vary for a huge variety of reasons
+  - many factors affect how fast a particular sequence of machine instructions run
+    - CPU and memory clock speed
+    - how loaded the machine is
+    - kernel version may change paging performance
+    - the length of your username might change the  layout of memory
+    - the temperature in the room might cause the CPU to clock down
+- it is highly unlikely to get same result after running a benchmark twice
+- you may observe significant variance, even if you are using the same hardware
+- there are no perfect ways to eliminate all variance in your performance results, unless you happen to be able to run benchmarks repeatedly on a highly diverse fleet of machines
+- it’s important to try to handle this measurement variance as best as possible, to extract a signal from the noisy measurements benchmarks give
+  - to combat variance it is best to run each benchmark many times and then look at the distribution of measurements rather than just a single one
+  - =hdrhistogram= crate enables to look at statistics like “What range of runtime covers 95% of the samples we observed?”
+    - which is significant improvement over “How long did this function take to run on average?”
+  - with =criterion= crate its easy use techniques like null hypothesis testing from statistics to build some confidence that a measured difference indeed corresponds to a true change and is not just noise
+    - give it a function that it can call to run one iteration of your benchmark, and it will run it the appropriate number of times to be fairly sure that the result is reliable
+    - it then produces a benchmark report, which includes:
+      - a summary of the results
+      - analysis of outliers
+      - graphical representations of trends over time
+      - categorization of the noises that is measurable across executions
+** compiler optimizations
+- compilers these days are really clever
+  - they:
+    - eliminate dead code
+    - compute complex expressions at compile tim
+    - unroll loops
+  - normally this is great, but when we’re trying to measure how fast a particular piece of code is, the compiler’s smartness can give invalid results
+- the standard library provides =std::hint::black_box= to avoid these kinds of optimizations (when benchmarking)
+  - at its core, it’s simply an identity function (one that takes x and returns x) that tells the compiler to assume that the argument to the function is used in arbitrary (legal) ways
+  - it does not prevent the compiler from applying optimizations to the input argument, nor does it prevent the compiler from optimizing how the return value is used
+  - instead, it encourages the compiler to actually compute the argument to the function (under the assumption that it will be used) and to store that result somewhere accessible to the CPU such that black_box could be called with the computed value
+  - the compiler is free to, say, compute the input argument at compile time, but it should still inject the result into the program
+  - this function is all we need for many (not all) benchmarking needs
+*** COMMENT example
+#+begin_src rust
+let mut vs = Vec::with_capacity(4);
+let start = std::time::Instant::now();
+for i in 0..4 {
+  black_box(vs.as_ptr());
+  vs.push(i);
+  black_box(vs.as_ptr());
+}
+println!("took {:?}", start.elapsed());
+#+end_src
+- compiler will assume that =vs= is used in arbitrary ways on each iteration of the loop, both before and after the calls to push
+- this forces the compiler to perform each push in order, without merging or otherwise optimizing consecutive calls, since it has to assume that “arbitrary stuff that cannot be optimized out” (that’s the black_box part) may happen to =vs= between each call
+- note that we used =vs.as_ptr()= and not, say, &vs
+  - that’s because of the caveat that the compiler should assume black_box can perform any legal operation on its argument
+  - it is not legal to mutate the Vec through a shared reference, so if we used black_box(&vs), the compiler might notice that =vs= will not change between iterations of the loop and implement optimizations based on that observation
+** i/o overhead measurement
+- when writing benchmarks, it’s easy to:
+  - accidentally measure the wrong thing
+  - end up overshadowing the time you actually wanted to measure
+  - examples:
+    - running a benchmark with println
+    - benchmark uses random numbers
+    - getting the current time
+    - reading a configuration file
+    - starting a new thread—these things all take a long time, relatively speaking
+- make sure that the body of benchmarking loop contains almost nothing but the particular code you want to measure
+- all other code should run either before the benchmark begins or outside of the measured part of the benchmark
+- ?if you’re using criterion, take a look at the different timing loops it provides
+  - they’re all there to cater to benchmarking cases that require different measurement strategies

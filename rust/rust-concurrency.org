@@ -1,0 +1,224 @@
+:PROPERTIES:
+:ID:       c74347b9-1b18-4941-8f45-1969a494f238
+:END:
+#+title: Rust concurrency
+* Threads
+- Return value of =thread::spawn= is a =JoinHandle= type variable.
+- =JoinHandle= is owned value, that when called =.join().unwrap()/match= method on it, will wait for its thread to finish. In other words, it blocks the thread until it terminates.
+- Blocking a thread means that thread is prevented from performing work or exiting.
+#+begin_src rust
+use std::thread;
+use std::time::Duration;
+
+fn main() {
+    let handle = thread::spawn(|| {
+        for i in 1..10 {
+            println!("hi number {} from the spawned thread!", i);
+            thread::sleep(Duration::from_millis(1));
+        }
+    });
+
+    for i in 1..5 {
+        println!("hi number {} from the main thread!", i);
+        thread::sleep(Duration::from_millis(1));
+    }
+
+    handle.join().unwrap();
+}
+#+end_src
+
+- adding the =move= keyword before closure (=thread::spawn(move || {...}=) will force the closure to take ownership if the values it's using, rather than allowing Rust to infer that it should borrow the values.
+#+begin_src rust
+use std::thread;
+
+fn main() {
+    let v = vec![1, 2, 3];
+
+    let handle = thread::spawn(move || {
+        println!("Here's a vector: {:?}", v);
+    });
+
+    handle.join().unwrap();
+}
+#+end_src
+
+* Transferring data between threads using message passing
+- =channel= is one tool in Rust to pass data between threads
+- Create a new channel using the =mpsc::channel= function
+- =mpsc= stands for multiple producer, single consumer.
+- In short, the way Rust's standard library implements channels means a
+  channel can have multiple sending ends that produce values but only
+  one receiving end that consumes those values.
+- =mpsc::channel= function returns a tuple, the first element of which
+  is the sending end and the second element is the receiving end.
+- The abbreviations:
+  - =tx= transmitter
+  - =rx= receiver
+
+- A channel is said to be closed if either the transmitter or receiver
+  half is dropped.
+- The receiving end of a channel has two useful methods:
+  - =recv= - short for receive, which will block the main thread's
+    execution and wait until a value is sent down the channel. Once a
+    value is sent, =recv= will return it in a =Result<T, E>=. When the
+    sending end of the channel closes, =recv= will return an error to
+    signal that no more values will be coming.
+  - =try_recv= - method which doesn't block, but will instead return a
+    =Result<T, E>= immediately: an =Ok= value holding a message if one
+    is available and an =Err= value if there aren't any messages this
+    time. Using =try_recv= is useful if this thread has other work to do
+    while waiting for messages: we could write a loop that calls
+    =try_recv= every so often, handles a message if one is available,
+    and otherwise does other work for a little while until checking
+    again.
+** Example
+#+begin_src rust
+use std::thread;
+use std::sync::mpsc;
+use std::time::Duration;
+
+fn main() {
+    let (tx, rx) = mpsc::channel();
+
+    let tx1 = mpsc::Sender::clone(&tx);
+    thread::spawn(move || {
+        let vals = vec![
+            String::from("hi"),
+            String::from("from"),
+            String::from("the"),
+            String::from("thread"),
+        ];
+
+        for val in vals {
+            tx1.send(val).unwrap();
+            thread::sleep(Duration::from_secs(1));
+        }
+    });
+
+    thread::spawn(move || {
+        let vals = vec![
+            String::from("more"),
+            String::from("messages"),
+            String::from("for"),
+            String::from("you"),
+        ];
+
+        for val in vals {
+            tx.send(val).unwrap();
+            thread::sleep(Duration::from_secs(1));
+        }
+    });
+
+    for received in rx {
+        println!("Got: {}", received);
+    }
+}
+#+end_src
+*** output
+#+begin_src rust
+Got: hi
+Got: more
+Got: from
+Got: messages
+Got: for
+Got: the
+Got: thread
+Got: you
+#+end_src
+
+* State-shared concurrency
+- =Mutex= is an abbreviation for mutual exclusion
+- *=Mutex= rules*
+  - attempt to acquire the lock before using the data.
+  - when with the data that the =mutex= guards, unlock the data so other
+    threads can acquire the lock.
+
+- =mutex= allows only one thread to access some data at any given time.
+  To access the data in a =mutex=, a thread must first signal that it
+  wants access by asking to acquire the =mutex='s lock. The lock is a
+  data structure that is part of the =mutex= that keeps track of who
+  currently has exclusive access to the data. Therefore, the =mutex= is
+  described as guarding the data it holds via the locking system.
+- =Mutex<T>= is a smart pointer. More accurately, the call to lock
+  returns a smart pointer called =MutexGuard=, wrapped in a =LockResult=
+  that we handled with the call to unwrap. The =MutexGuard= smart
+  pointer implements =Deref= to point at our inner data; the smart
+  pointer also has a =Drop= implementation that releases the lock
+  automatically when a =MutexGuard= goes out of scope
+
+#+begin_src rust
+  use std::sync::Mutex;
+
+  fn main() {
+      let m = Mutex::new(5);
+
+      {
+          match m.lock() {
+              Ok(mut num) => *num = 6,
+              Err(_er) => ()
+          }
+      }
+
+      println!("m = {:?}", m);
+  }
+#+end_src
+
+- *Sharing a =Mutex<T>= Between Multiple Threads* - =Arc<T>= is a type
+  like =Rc<T>= that is safe to use in concurrent situations. The a
+  stands for atomic, meaning it's an atomically reference counted type.
+  Not all primitive types are atomic, cause it comes with performance
+  penalty.
+
+  - =Mutex<T>= provides interior mutability, as the Cell family does. In
+    the same way we used =RefCell<T>= in Chapter 15 to allow us to
+    mutate contents inside an =Rc<T>=, we use =Mutex<T>= to mutate
+    contents inside an =Arc<T>=.
+  - =Mutex<T>= comes with the risk of creating deadlocks.
+
+  #+begin_src rust
+    use std::sync::{Mutex, Arc};
+    use std::thread;
+
+    fn main() {
+        let counter = Arc::new(Mutex::new(0));
+        let mut handles = vec![];
+
+        for _ in 0..10000 {
+            let counter = Arc::clone(&counter);
+            let handle = thread::spawn(move || {
+                let mut num = counter.lock().unwrap();
+
+                *num += 1;
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        println!("Result: {}", *counter.lock().unwrap());
+    }
+  #+end_src
+
+* =Sync= and =Send= traits
+   :PROPERTIES:
+   :CUSTOM_ID: sync-and-send-traits
+   :END:
+
+- =Send= allows transference of ownership between threads - The =Send=
+  marker trait indicates that ownership of the type implementing =Send=
+  can be transferred between threads. Almost every Rust type is =Send=,
+  but there are some exceptions, including =Rc<T>=: this cannot be
+  =Send= because if you cloned an =Rc<T>= value and tried to transfer
+  ownership of the clone to another thread, both threads might update
+  the reference count at the same time. For this reason, =Rc<T>= is
+  implemented for use in single-threaded situations where you don't want
+  to pay the thread-safe performance penalty.
+- =Sync= allows access from multiple threads - he =Sync= marker trait
+  indicates that it is safe for the type implementing =Sync= to be
+  referenced from multiple threads. In other words, any type =T= is
+  =Sync= if =&T= (a reference to =T=) is =Send=, meaning the reference
+  can be sent safely to another thread. Similar to =Send=, primitive
+  types are =Sync=, and types composed entirely of types that are =Sync=
+  are also =Sync=.

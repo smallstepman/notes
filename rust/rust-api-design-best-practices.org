@@ -1,0 +1,304 @@
+:PROPERTIES:
+:ID:       4479200f-621b-43d2-8512-318fe57bee3b
+:END:
+#+title: Rust API design best practices
+
+- interfaces should be intuitive enough that if the user has to guess, they usually guess correctly
+- by reusing common names for the same purpose, you make it easier for the user to guess what things do and allow them to more easily understand the things that are different about your interface
+- good rule of thumb is to avoid imposing unnecessary restrictions and to only make promises you can keep. Adding restrictions or removing promises usually requires a major semantic version change and is likely to break code elsewhere. Relaxing restrictions or giving additional promises, on the other hand, is usually backward compatible.
+- it’s critical to make it as easy as possible for users to understand your interface and as hard as possible for them to use it incorrectly. The two primary techniques at your disposal for this are your documentation and the type system
+* implementing common traits
+- users expect to be able to print any type with {:?} (=Debug=) and send anything and everything to another thread (=Send= and =Sync=), and they expect that every type is =Clone=. Its also great to implement: =Default=, =PartialEq=, =PartialOrd=, =Hash=, =Eq=, =Ord=, =serde::Serialize/Deserialize=
+  - because of type coherence, users aren’t allowed to implement a foreign trait (like Clone) for a foreign type like one from your interface
+** ergonomic trait implementations
+- Rust does not automatically implement traits for references to types that implement traits
+- you cannot call =fn foo<T: Trait>(t: T)= with a =&Bar=, even if =Bar: Trait=. This is because Trait may contain methods that take =&mut self= or =self=, which obviously cannot be called on &Bar
+- for this reason, when you define a new trait, you’ll usually want to provide blanket implementations as appropriate for that trait for
+  - =&T where T: Trait=
+  - =&mut T where T: Trait=
+  - =Box<T> where T: Trait=
+- for any type that can be iterated over, consider implementing =IntoIterator= for both =&MyType= and =&mut MyType= where applicable
+  - this makes for loops work with borrowed instances of your type as well out of the box
+** wrapper types
+  - =deref= trait and =AsRef= both provide something a little like oop inheritance, they allow to have a value of type T and call methods on some type U by calling them directly on the T-typed value if =T: Deref<Target = U>=
+    - implementing =Deref= will allow users to call methods on the inner type by just using the =.= operator
+    - if accessing the inner type does not require any complex or potentially slow logic, consider also implementing =AsRef=, which allows users to easily use a =&WrapperType= as an =&InnerType=
+      - For most wrapper types, you will also want to implement =From<InnerType>= and =Into<InnerType>= where possible so that your users can easily add or remove your wrapping
+  - =Borrow trait= allows the caller to supply any one of multiple essentially identical variants of the same type
+    - example:, for a HashSet<String>, Borrow allows the caller to supply either a &str or a &String. While the same could have been achieved with AsRef, that would not be safe without Borrow’s additional requirement that the target type implements Hash, Eq, and Ord exactly the same as the implementing type.
+    - Borrow also has a blanket implementation of Borrow<T> for T, &T, and &mut T, which makes it convenient to use in trait bounds to accept either owned or referenced values of a given type
+    - intended only for when your type is essentially equivalent to another type, whereas Deref and AsRef are intended to be implemented more widely for anything your type can “act as”
+
+*** COMMENT TODO Deref and Inherent Methods
+The magic around the dot operator and Deref can get confusing and surprising when there are methods on T that take self. For example, given a value t: T, it is not clear whether t.frobnicate() frobnicates the T or the underlying U!   For this reason, types that allow you to transparently call methods on some inner type that isn’t known in advance should avoid inherent methods. It’s fine for Vec to have a push method even though it dereferences to a slice, since you know that slices won’t get a push method any time soon. But if your type dereferences to a user-controlled type, any inherent method you add may also exist on that user-controlled type, and thus cause issues. In these cases, favor static methods of the form fn frobnicate (t: T). That way, t.frobnicate() always calls U::frobnicate, and T::frobnicate(t) can be used to frobnicate the T itself.
+* interface design decisions
+#+begin_src rust
+fn frobnicate1(s: String) -> String
+fn frobnicate2(s: &str) -> Cow<'_, str>
+fn frobnicate3(s: impl AsRef<str>) -> impl AsRef<str>
+#+end_src
+
+** generic arguments
+- A good rule of thumb is to make an argument generic if you can think of other types a user might reasonably and frequently want to use instead of the concrete type you started with.
+- making lots of arguments generic might make you worried about overly enlarging your binaries
+- for arguments that you take by reference anyway (recall that dyn Trait is not Sized, and that you need a wide pointer to use them), you can easily replace your generic argument with one that uses dynamic dispatch
+  - example: instead of =impl AsRef<str>=, take =&dyn AsRef<str>=
+  - this choice is made on behalf of your users, who cannot opt out of dynamic dispatch
+  - using dynamic dispatch will work only when you have a simple trait bound like T: AsRef<str> or impl AsRef<str>
+    - for more complex bounds, Rust does not know how to construct a dynamic dispatch vtable, so you cannot take, say, &dyn Hash + Eq
+  - with generics, the caller can always choose dynamic dispatch themselves by passing in a trait object. The reverse is not true
+*** steps
+1. start with the argument fully generic with no bounds, and then just
+2. follow the compiler errors to discover what bounds you need to add
+** object safety
+- object safety is a part of public interface
+- you should prefer your traits to be object-safe even if that comes at a slight cost to the ergonomics of using them (such as taking impl AsRef<str> over &str), since object safety enables new ways to use your traits
+  - if the trait is object-safe, users can treat different types that implement your trait as a single common type using dyn Trait
+  - if it isn’t, the compiler will disallow dyn Trait for that trait
+- if your trait must have a generic method, consider whether its generic parameters can be on the trait itself or if its generic arguments can also use dynamic dispatch to preserve the object safety of the trait.
+  - alternatively, add a =where Self: Sized= trait bound to that method, which makes it possible to call the method only with a concrete instance of the trait (and not through dyn Trait)
+  - examples of this pattern: =Iterator= / =Read= traits (which are object-safe but provide some additional convenience methods on concrete instances)
+** Borrowed vs. Owned
+- When your code must own data, it should generally also make the caller provide owned data, rather than taking values by reference and cloning them. This leaves the caller in control of allocation, and it is upfront about the cost of using the interface in question.
+- if users are struggling to get code to compile on top of your interface, that’s a sign that you may want to (even unnecessarily) take ownership of certain pieces of data
+  - start with data that is cheap to clone or is not part of anything performance-sensitive
+*** owned
+- if the code you write needs ownership of the data, such as to call methods that take self or to move the data to another thread
+*** borrowed
+- if your code doesn’t need to own the data, it should operate on references instead
+  - one common exception to this rule is with small types like i32, bool, or f64, which are just as cheap to store and copy directly as to store through references
+*** =cow=
+Cow type lets you operate on references if the data allows, and it lets you produce an owned value if necessary
+** COMMENT TODO fallible and blocking destructors
+#+begin_comment
+sth like `with` in python
+#+end_comment
+- types centered on I/O often need to perform cleanup when they’re dropped (writes to disk, closing files, or gracefully terminating connections to remote hostsa)
+- the natural place to perform this cleanup is in the type’s Drop implementation
+- make sure to highlight the explicit destructor in your documentation
+- the moment you add an explicit destructor, you will run into two issues
+  1. since your type implements Drop, you can no longer move out of any of that type’s fields in the destructor, because Drop::drop will still be called after your explicit destructor runs, and it takes &mut self, which requires that no part of self has been moved
+  2. drop takes &mut self, not self, so your Drop implementation cannot simply call your explicit destructor and ignore its result (because it doesn’t own self). There are a couple of ways around these problems, none of which are perfect.
+     a. make your top-level type a newtype wrapper around an Option, which in turn holds some inner type that holds all of the type’s fields.
+        - You can then use Option::take in both destructors, and call the inner type’s explicit destructor only if the inner type has not already been taken
+        - Since the inner type does not implement Drop, you can take ownership of all the fields there
+        - The downside of this approach is that all the methods you wish to provide on the top-level type must now include code to get through the Option (which you know is always Some since drop has not yet been called) to the fields on the inner type
+     b. make each of your fields takeable
+        - You can “take” an Option by replacing it with None (which is what Option::take does), but you can do this with many other types as well. For example, you can take a Vec or HashMap by simply replacing them with their cheap-to-construct default values—std::mem::take is your friend here. This approach works great if your types have sane “empty” values but gets tedious if you must wrap nearly every field in an Option and then modify every access of those fields with a matching unwrap.
+     c. The third option is to hold the data inside the ManuallyDrop type, which dereferences to the inner type, so there’s no need for unwraps. You can also use ManuallyDrop::take in drop to take ownership at destruction time. The primary downside of this approach is that ManuallyDrop::take is unsafe. There are no safety mechanisms in place to ensure that you don’t try to use the value inside the ManuallyDrop after you’ve called take or that you don’t call take multiple times. If you do, your program will silently exhibit undefined behavior, and bad things will happen.
+
+I would err on the side of going with the second option, and switching to the
+others only if you find yourself in a sea of Options. The ManuallyDrop solution is
+excellent if the code is simple enough that you can easily check the safety of your
+code, and you are confident in your ability to do so.
+* documentation
+- clearly document any cases where your code may do something unexpected, or where it relies on the user doing something beyond what’s dictated by the type signature
+  - if your code can panic, document that fact, along with the circumstances it might panic under
+  - if your code might return an error, document the cases in which it does
+  - for unsafe functions, document what the caller must guarantee in order for the call to be safe.
+- include end-to-end usage examples for your code on a crate and module level
+  - they give the user a feel for how everything fits together
+  - end-to-end examples also give the user a starting point for customizing their usage
+- organize the documentation
+  - take advantage of modules to group together semantically related items
+  - use intra-documentation links to interlink items - if it's easy for the user to explore your interface, they are less likely to miss important connections or dependencies
+  - consider marking parts of your interface with #[doc(hidden)]
+    - often used to expose methods and types that are needed by macros, but not by user code
+    - hidden inherent methods and hidden trait methods on sealed traits are not generally part of your interface contract, though you should make sure to state this clearly in the documentation for those methods, but yes - hidden items should still be documented
+  - use #[doc(cfg(..))] to highlight items that are available only under certain configurations so the user quickly realizes why some method that’s listed in the documentation isn’t available
+- enrich your documentation
+  - in the top-level documentation, point the user to commonly used modules, features, types, traits, and methods
+  - link to external resources that explain concepts, data structures, algorithms, or other aspects of your interface that may have good explanations elsewhere, RFCs, blog posts, and whitepapers
+  - use #[doc(alias = "...")] to make types and methods discoverable under other names that users may search for them by
+* type system guidance
+** semantic typing
+- adding types to represent the meaning of a value, not just its primitive type
+  - example: function which takes three bool arguments (using Enum insted)
+  - newtype around a numeric type may provide a unit for the contained value, or it could constrain raw pointer arguments to only those that have been returned by another method.
+** zero-sized types
+- indicate that a particular fact is true about an instance of a type ([[id:72caa898-b8a5-4045-8eea-c1a9656514a1][typestate]])
+*** COMMENT zero-sized types code example
+:PROPERTIES:
+:ID:       907a6bf6-cb91-49f2-bb80-8ee003b2317f
+:END:
+Consider, for instance, a type called Rocket that represents the state of a real rocket. Some operations (methods) on Rocket should be available no matter what state the rocket is in, but some make sense only in particular situations. It is, for example, impossible to launch a rocket if it has already been launched. Similarly, it should probably not be possible to separate the fuel tank if the rocket has not yet launched. We could model these as enum variants, but then all the methods would be available at every stage, and we’d need to introduce possible panics.
+#+begin_src rust :session xrf
+#[derive(Debug)]
+struct Grounded;
+#[derive(Debug)]
+struct Launched;
+#[derive(Debug)]
+struct Rocket<Stage = Grounded> {
+  stage: std::marker::PhantomData<Stage>,
+}
+
+impl Default for Rocket<Grounded> { fn default() -> Self { todo!() }}
+impl Rocket<Grounded> {
+  pub fn launch(self) -> Rocket<Launched> { Rocket { stage: std::marker::PhantomData::<Launched>} }
+}
+impl Rocket<Launched> {
+  pub fn accelerate(&mut self) { println!("accelerating"); }
+  pub fn decelerate(&mut self) { }
+}
+
+impl<Stage> Rocket<Stage> {
+  pub fn color(&self) -> String { String::new() }
+  pub fn weight(&self) -> String { String::new() }
+}
+let mut r = Rocket {stage: std::marker::PhantomData::<Grounded>};
+let mut rl = r.launch();
+// rl.launch()
+// : struct Rocket<Stage = Grounded> {
+// : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method `launch` not found for this
+// : rr.launch()
+// :    ^^^^^^ method not found in `Rocket<Launched>`
+// : no method named `launch` found for struct `Rocket<Launched>` in the current scope
+rl.accelerate()
+#+end_src
+
+#+RESULTS:
+:RESULTS:
+: accelerating
+
+:END:
+
+** enum variants
+if function ignores a pointer argument unless a given Boolean argument is true, it’s better to combine the two arguments instead
+- with an enum type with one variant for false (and no pointer) and one variant for true that holds a pointer, neither the caller nor the implementer can misunderstand the relationship between the two
+*** COMMENT example
+#+begin_src jupyter-rust :session xxxi
+#[derive(Debug)]
+enum S<'a> {
+    Nope,
+    Yup(&'a str)
+}
+fn pokayoke(v: S) {
+    println!("works: {:?}", v);
+}
+pokayoke(S::Nope);
+pokayoke(S::Yup("hello"));
+#+end_src
+
+#+RESULTS:
+: works: Nope
+: works: Yup("hello")
+
+** #[must_use] annotation
+- add it to any type, trait, or function, and the compiler will issue a warning if the user’s code receives an element of that type or trait, or calls that function, and does not explicitly handle it
+
+*** COMMENT TODO? example
+#+begin_src jupyter-rust :session xxxii
+#[derive(Debug)]
+#[must_use]
+struct MustUse {
+    // some fields
+}
+// impl MustUse { fn new() -> Self { MustUse {  } }}
+// Violates the `unused_must_use` lint.
+// MustUse::new();
+// MustUse {}
+let x = 5;
+#+end_src
+
+#+RESULTS:
+* stablizing library interface
+** type modifications
+- The #[non_exhaustive] attribute indicates that a type or variant may have more fields or variants added in the future. It can be applied to structs, enums, and enum variants.
+  - compiler will disallow the use of implicit constructors and nonexhaustive pattern matches (that is, patterns without a trailing , ..) on that type
+  - this is a great attribute to add if you suspect that you’re likely to modify a particular type in the future
+  - it constrains the user code, by taking away users’ ability to rely on exhaustive pattern matches
+** trait implementations
+- be careful about implementing any trait for an existing type, because coherence rules disallow multiple implementations of a given trait for a given type, therefore, generally, it is a breaking change to:
+  - add a blanket implementation of an existing trait
+  - implement a foreign trait for an existing type, or an existing trait for a foreign (owner of the foreign  trait or type may simultaneously add a conflicting implementation)
+  - remove a trait implementation
+- however, implementing traits for a new type is never a problem, since no crate can have implementations that conflict with that type
+*** COMMENT example
+i dont get it
+#+begin_src rust
+// crate1 1.0
+pub struct Unit;
+put trait Foo1 { fn foo(&self) }
+// note that Foo1 is not implemented for Unit
+
+// crate2; depends on crate1 1.0
+use crate1::{Unit, Foo1};
+trait Foo2 { fn foo(&self) }
+impl Foo2 for Unit { .. }
+fn main() {
+  Unit.foo();
+}
+#+end_src
+
+** trait modifications
+- most changes to existing traits are breaking changes:
+  - changing a method signature (breaks all implementations, and probably many uses, of the trait)
+  - adding a new method (“just” breaks all implementations)
+- adding a new method with a default implementation is fine (existing implementations will continue to apply)
+*** sealed trait
+- can only be used by other crates - cannot be implemented by other crates
+- most commonly used for derived traits (traits that provide blanket implementations for types that implement particular other traits)
+- makes a number of breaking changes non-breaking:
+  - adding a new method to a sealed trait (there are no implementations outside of the current crate to consider)
+  - implement a sealed trait for new foreign types (the foreign crate that defined that type cannot have added a conflicting implementation)
+- restricts:
+  - the usefulness of the trait (downstream crates will no longer be able to implement it for  their own types)
+  - which types can be used as type arguments (such as restricting the Stage type in the [[id:907a6bf6-cb91-49f2-bb80-8ee003b2317f][rocket example]])
+- seal a trait only if it does not make sense for a foreign crate to implement your trait
+- make sure you document that
+*** COMMENT example & how-to
+1. add a private, empty trait as a supertrait of the trait you wish to seal =1=.
+2. since the supertrait is in a private module, other crates cannot reach it and thus cannot implement it
+3. the sealed trait requires the underlying type to implement Sealed, so only the types that we explicitly allow =2= are able to ultimately implement the trait
+#+begin_src rust
+pub trait CanUseCannotImplement: sealed::Sealed /*1*/ { .. }
+mod sealed {
+      pub trait Sealed {}
+/*2*/ impl<T> Sealed for T where T: TraitBounds {}
+}
+impl<T> CanUseCannotImplement for T where T: TraitBounds {}
+#+end_src
+
+** hidden contracts
+*** re-exports
+- breaking change in your interface
+- if crate moves from itercrate 1.0 to itercrate 2.0 but otherwise does not change, the code in this listing will no longer compile
+  - even though no types have changed, the compiler believes (correctly) that itercrate1.0::Empty and itercrate2.0::Empty are different types
+- if any part of interface exposes foreign types, then any change to one of those foreign types is also a change to that interface
+  - consider what happens if you move to a new major version of a dependency and expose a type from that dependency as, say, an iterator type in your interface
+  - a user that depends on your interface may also depend directly on that dependency and expect that the type your interface provides is the same as the one by the same name in that dependency. If you change the major version of your dependency, that is no longer true even though the name of the type is the same
+- to mitigate this:
+  - wrap foreign types using the newtype pattern, and then expose only the parts of the foreign type that are useful
+  - using impl Trait to provide only the very minimal contract to the caller (avoids newtype wrapper)
+**** COMMENT code example
+crate: bestiter
+#+begin_src rust
+pub fn iter<T>() -> itercrate::Empty<T> { .. }
+#+end_src
+crate: their
+#+begin_src rust
+struct EmptyIterator { it: itercrate::Empty<()> }
+EmptyIterator { it: bestiter::iter() }
+
+*** semver trick
+- semantic versioning happens at the crate level, not the type level, so a breaking change anywhere is a breaking change everywhere
+- if some type T stays the same across a breaking change (from 1.0 to 2.0, say), then after releasing 2.0, you can release a new 1.0 minor version that depends on 2.0 and replaces T with a re-export of T from 2.0.
+  - this ensures that there is in fact only a single type T across both major versions
+  - this means that any crate that depends on 1.0 will be able to use a T from 2.0, and vice versa
+  - because this happens only for types you explicitly opt into with this trick, changes that were in fact breaking will continue to be
+*** auto-traits
+- These traits even propagate through otherwise type-erased types like impl Trait.
+- Implementations for these traits are (generally) automatically added by the compiler, but that also means that they are not automatically added if they no longer apply
+  1. public type A that contains a private type B
+  2. change B so that it is no longer =Send=,
+  3. A is now also not Send - a breaking change
+- include some simple tests in your test suite that check that all your types implement these traits the way you expect
+**** COMMENT example
+notice that this test does not run any code, but simply tests that the code compiles
+#+begin_src rust
+fn is_normal<T: Sized + Send + Sync + Unpin>() {}
+#[test]
+fn normal_types() {
+  is_normal::<MyType>();
+}
+#+end_src

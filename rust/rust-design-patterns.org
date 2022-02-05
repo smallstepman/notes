@@ -1,8 +1,19 @@
 :PROPERTIES:
-:ID:       9c7d3c71-5ca4-434f-9184-df486e4d3433
+:ID:       1711a3a7-9746-45c5-a1c6-928377bd7a21
 :END:
-#+TITLE: Design Patterns
+#+title: Rust design patterns
 
+* newtype
+- another useful representation is repr(transparent), which can be used only on types with a single field and which guarantees that the layout of the outer type is exactly the same as that of the inner type. This comes in handy in combination with the “newtype” pattern, where you may want to operate on the in-memory representations of some struct A and struct NewA(A) as if they were the same. Without repr(transparent), the Rust compiler does not guarantee that they will have the same layout.
+* typestate
+:PROPERTIES:
+:ID:       72caa898-b8a5-4045-8eea-c1a9656514a1
+:END:
+* co-inductive reasoning
+- http://rust-lang.github.io/chalk/book/recursive/coinduction.html
+- https://www.youtube.com/watch?v=nOqO5OlC920
+- https://github.com/rust-lang/rust/issues/26925
+* COMMENT old example
 #+begin_src rust
 use std::ops::Deref;
 

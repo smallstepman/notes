@@ -1,0 +1,109 @@
+:PROPERTIES:
+:ID:       2360e1b5-1742-43ff-b63b-d3b9d8cdafcf
+:END:
+#+title: Rust error handling
+
+* error representation via enumeration
+#+begin_src rust
+pub enum CopyError {
+  In(std::io::Error),
+  Out(std::io::Error),
+}
+#+end_src
+- each variant includes the error that was encountered to provide the caller with as much information about went wrong as possible
+- error type should be 'static
+  - it allows the caller to more easily propagate the error up the call stack without running into lifetime issues
+  - it enables the error type to be used more easily with type-erased error types
+- error type should implement
+  - =std::error::Error trait=, which provides callers with common methods for introspecting error types
+    - the main method of interest is Error::source, which provides a mechanism to find the underlying cause of an error (most commonly used to print a backtrace that displays a trace all the way back to the error’s root cause)
+  - =Display= and =Debug= traits, so that callers can meaningfully print error (required if Error trait is implemented)
+    - =Display= implementation should give a one-line description of what went wrong that can easily be folded into other error messages (the display format should be lowercase and without trailing punctuation so that it fits nicely into other, larger error reports)
+    - =Debug= implementation should provide a more descriptive error including auxiliary information that may be useful in tracking down the cause of the error (include stuff like port numbers, request identifiers, filepaths)
+  - =Send= and =Sync= traits, so that users are able to share the error across thread boundaries
+    - it’s almost impossible to use a crate in a multithreaded context, if error type is not thread-safe
+    - not all error types can reasonably be Send and Sync, such as if they’re tied to particular thread-local resources (it’s something to be aware of before you go placing Rc<String> and RefCell<bool> types in your errors)
+
+* error representation via opaque errors
+- only one error type to use everywhere
+- type-erased errors often compose nicely, and allow you to express an open-ended set of errors
+- useful when the application can’t meaningfully recover from error, even if it knows the exact cause
+- this error type should implement Send, Debug, Display, and Error (including the source method where appropriate)
+- you might internally represent more fine-grained error states, but there is no need to expose those to the users of the library
+- deciding how opaque to make your error types is mostly a matter of whether there is anything interesting about the error beyond its description
+- the community consensus is that errors should be rare and therefore should not add much cost to the “happy path.”
+  - for that reason, errors are often placed behind a pointer type, such as a Box or Arc, this way, they’re unlikely to add much to the size of the overall Result type they’re contained within.
+- benefit of using type-erased errors:
+  - it allows to easily combine errors from different sources without having to introduce additional error types
+  - if you write a function whose return type is Box<dyn Error + ...>, then you can use ? across different error types inside that function, on all sorts of different errors, and they will all be turned into that one common error type
+- the 'static bound on Box<dyn Error + Send + Sync + 'static> is worth spending a bit more time on in the context of erasure
+  - letting the caller propagate the error without worrying about the lifetime bounds of the method that failed
+  - access to downcasting - downcasting allows a user to turn a dyn Error into a concrete underlying error type when that dyn Error was originally of that type
+    - downcast_ref works only if the argument is 'static
+    - if the user gets a dyn Error, they can use Error::downcast_ref to try to downcast the error into a std::io::Error
+    - the downcast_ref method returns an Option, which tells the user whether or not the downcast succeeded
+    - downcast_ref calls self.type_id, which forwards through the vtable for dynamically sized types to the implementation for the underlying type and compares that to the type identifier of the provided downcast type
+      - if they match, then the type behind the dyn Error or dyn Any really is T, and it is safe to cast from a reference to one to a reference to the other
+- Box<dyn Error + ...> does not itself implement Error, therefore, consider adding BoxError type for type erasure in libraries that does implement Error
+* special error cases
+- some functions are fallible but cannot return any meaningful error if they fail
+  - =None= conveys only that the function has nothing to return; it is usually not considered an exceptional case or something that should be handled
+  - =Err(())= indicates that an operation failed and should be retried, reported, or otherwise handled exceptionally
+    - =()= does not implement the Error trait, this means that it cannot be type-erased into Box<dyn Error> and can be a bit of a pain to use with ?
+    - it is often better to define your own unit struct type, implement Error for it, and use that as the error instead of ()
+  - see this in the #[must_use] annotation
+
+- never type =!=
+  - represents a value that can never be generated
+  - its not possible to construct an instance of this type yourself
+  - the only way to make one is by entering an infinite loop or panicking, or through a handful of other special operations that the compiler knows never return
+  - with Result, when you have an Ok or Err that you know will never be used, you can set it to the ! type
+    - if you write a function that returns Result<T, !>, you will be unable to ever return Err, since the only way to do so is to enter code that will never retur
+    - because the compiler knows that any variant with a ! will never be produced, it can also optimize your code with that in mind, such as by not generating the panic code for an unwrap on Result<T, !>
+    - when you pattern match, the compiler knows that any variant that contains a ! does not even need to be listed
+  - usecases:
+    - functions which only ever return errors; unless an error occurs, they run forever (e.g. continuously running server loop)
+    - functions which never error but need to return a Result nonetheless (e.g. to match a trait signature)
+
+
+- =type Result<T> = Result<T, Box<dyn Any + Send + 'static>>;=
+  - definition of std::thread::Result
+    - error variant of std::thread::Result is produced only in response to a panic; specifically, if you try to join a thread that has panicked. In that case, it’s not clear that there’s much the joining thread can do other than either ignore the error or panic itself using unwrap
+
+  - the error type is type-erased, but it’s not erased into a dyn Error, instead, it is a dyn Any, which guarantees only that the error is some type, and nothing more
+  - in essence, the error type is “a panic” and the value is “whatever argument was passed to panic!,” which can truly be any type (even though it’s usually a formatted string)
+
+* propagating errors
+** =?= operator
+- ? operator at the time of writing uses From, not Into
+- syntax sugar for a =Try= trait
+  - At its heart, Try defines a wrapper type whose state is either one where further computation is useful (the happy path), or one where it is not (monad)
+  - in the case of Result<T, E>
+    - if you have an Ok(t), you can continue on the happy path by unwrapping the t
+    - if you have an Err(e), you want to stop executing and produce the error value immediately, since further computation is not possible as you don’t have the t
+- acts as a shorthand for unwrap or return early, for working easily with errors
+- ? performs type conversion through the From trait
+  - in a function that returns Result<T, E>, you can use ? on any Result<T, X> where E: From<X>
+    - you can just use ? everywhere and not worry about the particular error type
+    - this is the feature that makes error erasure through Box<dyn Error> so appealing;
+
+*** COMMENT example
+#+begin_src rust
+fn do_the_thing() -> Result<(), Error> {
+  let thing = Thing::setup()?;
+  // .. code that uses thing and ? ..
+  thing.cleanup();
+  Ok(())
+}
+#+end_src
+This won’t quite work as expected. Any ? between setup and cleanup will cause an early return from the entire function, which would skip the cleanup code! This is the problem try blocks are intended to solve. A try block acts pretty much like a single-iteration loop, where ? uses break instead of return, and the final expression of the block has an implicit break
+#+begin_src rust
+fn do_the_thing() -> Result<(), Error> {
+  let thing = Thing::setup()?;
+  let r = try {
+    // .. code that uses thing and ? ..
+  };
+  thing.cleanup();
+  r
+}
+#+end_src

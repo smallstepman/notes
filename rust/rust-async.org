@@ -1,0 +1,415 @@
+:PROPERTIES:
+:ID:       6153f08a-6e18-4bf7-b2c7-1b855b911ded
+:END:
+#+title: Rust async
+
+- an asynchronous interface is a method that returns a Poll
+#+begin_src rust
+let v: Vec<bool> = x.iter().filter(|v| match v { true => false, false => true} ).cloned().collect();
+let x: Vec<bool> = vec![true,false,false];
+println!("{:?}", v);
+enum Poll<T> {
+    Ready(T),
+    Pending
+}
+#+end_src
+- polling is standardized through the Future trait
+  - types that implement the Future trait are known as futures and represent values that may not be available yet
+  - =Future<Output = Foo>=: a type that will produce a Foo in the future
+  - when a future eventually returns Poll::Ready(T), we say that the future resolves into a T
+  - do not poll a future again after it has returned Poll::Ready, otherwise, the future is well within its rights to panic. A future that is safe to poll after it has returned Ready is sometimes referred to as a fused future.
+- Whenever the compiler encounters an async function, it generates a state machine under the hood
+- =async= transforms a block of code into a state machine that implements a trait called Future
+#+begin_src rust
+trait Future {
+    type Output;
+    fn poll(&mut self) -> Poll<Self::Output>;
+}
+#+end_src
+
+#+begin_quote
+Rust takes a unique approach. Primarily, Rust's async operations are lazy. This results in different runtime semantics than other languages.
+#+end_quote
+- An =async fn= is used as we want to enter an asynchronous context. However, asynchronous functions must be executed by a runtime. The runtime contains the asynchronous task scheduler, provides evented I/O, timers, etc. The runtime does not automatically start, so the =main= function needs to start it.
+
+** tokio
+- The =#[tokio::main]= function is a macro. It transforms the =async fn main()= into a synchronous =fn main()= that initializes a runtime instance and executes the async main function.For example, the following:
+#+begin_src rust
+#[tokio::main]
+async fn main() {
+    println!("hello");
+}
+#+end_src
+gets transformed into:
+#+begin_src rust
+fn main() {
+    let mut rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(async {
+        println!("hello");
+    })
+}
+#+end_src
+
+#+BEGIN_SRC rust :crates '((tokio . 1.5)) :features '((tokio . ("rt-multi-thread" "time" "macros")))
+async fn say_world() {
+    println!("world");
+}
+
+#[tokio::main]
+async fn main() {
+    // Calling `say_world()` does not execute the body of `say_world()`.
+    let op = say_world();
+
+    // This println! comes first
+    println!("hello");
+
+    // Calling `.await` on `op` starts executing `say_world`.
+    op.await;
+}
+#+end_src
+
+#+RESULTS:
+: hello
+: world
+#+begin_quote
+- use =tokio::join!= to run multiple futures concurrently. It will wait for all of the futures to complete and return the result of each in a tuple.
+- With =spawn_blocking=, you can get the Tokio runtime to run blocking code inside a dedicated thread pool, allowing other futures to continue making progress.
+#+end_quote
+
+#+BEGIN_SRC rust :crates '((tokio . 1.5)) :features '((tokio . ("rt-multi-thread" "time" "macros")))
+use std::time::Duration;
+use tokio::time::sleep;
+
+#[tokio::main]
+async fn main() {
+    let (v1, v2, v3, v4, v5) = tokio::join!(
+        async {
+            sleep(Duration::from_millis(1500)).await;
+            println!("Value 1 ready");
+            "Value 1"
+        },
+        async {
+            sleep(Duration::from_millis(2800)).await;
+            println!("Value 2 ready");
+            "Value 2"
+        },
+        async {
+            sleep(Duration::from_millis(600)).await;
+            println!("Value 3 ready");
+            "Value 3"
+        },
+        async {
+            std::thread::sleep(Duration::from_millis(1800));
+            println!("Value 4 ready");
+            "Value 4"
+        },
+        async {
+            tokio::task::spawn_blocking(|| {
+                std::thread::sleep(Duration::from_millis(1800));
+            })
+            .await
+            .unwrap();
+            println!("Value 5 ready");
+            "Value 5"
+        },
+    );
+
+    assert_eq!(v1, "Value 1");
+    assert_eq!(v2, "Value 2");
+    assert_eq!(v3, "Value 3");
+    assert_eq!(v4, "Value 4");
+    assert_eq!(v5, "Value 5");
+}
+#+end_src
+
+#+RESULTS:
+: Value 4 ready
+: Value 1 ready
+: Value 3 ready
+: Value 2 ready
+: Value 5 ready
+
+- =tokio::net::TcpListener= accept inbound TCP sockets
+- A Tokio task is an asynchronous green thread, and are created with =tokio::spawn=.
+- Tasks are the unit of execution managed by the scheduler.
+- =tokio::spawn= function returns a =JoinHandle=
+- =await= on =JoinHandle= returns a =Result= (or =Err= if task panics or forcefully cancelled by the runtime shuttind down)
+#+BEGIN_SRC rust :crates '((tokio . 1.5)) :features '((tokio . ("rt-multi-thread" "time" "macros")))
+#[tokio::main]
+async fn main() {
+    let handle = tokio::spawn(async {
+        "return value"
+    });
+
+    println!("{:?}", handle);
+    let out = handle.await.unwrap();
+    println!("GOT {}", out);
+}
+#+end_src
+- When you spawn a task on the Tokio runtime, its type must be 'static. This means that the spawned task must not contain any references to data owned outside the task. e.g. this will throw error
+#+BEGIN_SRC rust :crates '((tokio . 1.5)) :features '((tokio . ("rt-multi-thread" "time" "macros")))
+use tokio::task;
+
+#[tokio::main]
+async fn main() {
+    let v = vec![1, 2, 3];
+
+    task::spawn(async {
+        println!("Here's a vec: {:?}", v);
+    });
+}
+#+end_src
+but, moving v will fix it
+#+BEGIN_SRC rust :crates '((tokio . 1.5)) :features '((tokio . ("rt-multi-thread" "time" "macros")))
+use tokio::task;
+
+#[tokio::main]
+async fn main() {
+    let v = vec![1, 2, 3];
+
+    task::spawn(async move {
+        println!("Here's a vec: {:?}", v);
+    });
+}
+#+end_src
+
+#+RESULTS:
+: Here's a vec: [1, 2, 3]
+- Tasks spawned by tokio::spawn must implement Send (to move task betweet threads while suspended at an .await). Tasks are Send when all data that is held across .await calls is Send. e.g. this works
+#+BEGIN_SRC rust :crates '((tokio . 1.5)) :features '((tokio . ("rt-multi-thread" "time" "macros")))
+use tokio::task::yield_now;
+use std::rc::Rc;
+
+#[tokio::main]
+async fn main() {
+    tokio::spawn(async {
+        // The scope forces `rc` to drop before `.await`.
+        {
+            let rc = Rc::new("hello");
+            println!("{}", rc);
+        }
+
+        // `rc` is no longer used. It is **not** persisted when
+        // the task yields to the scheduler
+        yield_now().await;
+    });
+}
+#+end_src
+This does not:
+#+BEGIN_SRC rust :crates '((tokio . 1.5)) :features '((tokio . ("rt-multi-thread" "time" "macros")))
+use tokio::task::yield_now;
+use std::rc::Rc;
+
+#[tokio::main]
+async fn main() {
+    tokio::spawn(async {
+        let rc = Rc::new("hello");
+
+        // `rc` is used after `.await`. It must be persisted to
+        // the task's state.
+        yield_now().await;
+
+        println!("{}", rc);
+    });
+}
+#+end_src
+- tokio::sync::Mutex is a mutex that is locked across calls to .await.
+- By default, the Tokio runtime uses a multi-threaded scheduler
+- Tokio's channel primitives
+  - mpsc: multi-producer, single-consumer channel. Many values can be sent.
+  - oneshot: single-producer, single consumer channel. A single value can be sent.
+  - broadcast: multi-producer, multi-consumer. Many values can be sent. Each receiver sees every value.
+  - watch: single-producer, multi-consumer. Many values can be sent, but no history is kept. Receivers only see the most recent value.
+  - multi-producer multi-consumer channel where only one consumer sees each message, you can use the async-channel crate
+
+#+BEGIN_SRC rust :crates '((tokio . 1.5)) :features '((tokio . ("full")))
+use tokio::sync::mpsc;
+
+#[tokio::main]
+async fn main() {
+    let (tx, mut rx) = mpsc::channel(32);
+    let tx2 = tx.clone();
+
+    tokio::spawn(async move {
+        tx.send("sending from first handle").await;
+    });
+
+    tokio::spawn(async move {
+        tx2.send("sending from second handle").await;
+    });
+
+    while let Some(message) = rx.recv().await {
+        println!("GOT = {}", message);
+    }
+}
+#+end_src
+
+#+RESULTS:
+#+begin_example
+warning: unused `std::result::Result` that must be used
+  --> src/main.rs:11:9
+   |
+11 |         tx.send("sending from first handle").await;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_must_use)]` on by default
+   = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: unused `std::result::Result` that must be used
+  --> src/main.rs:15:9
+   |
+15 |         tx2.send("sending from second handle").await;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: 2 warnings emitted
+
+warning: unused `std::result::Result` that must be used
+  --> src/main.rs:11:9
+   |
+11 |         tx.send("sending from first handle").await;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_must_use)]` on by default
+   = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: unused `std::result::Result` that must be used
+  --> src/main.rs:15:9
+   |
+15 |         tx2.send("sending from second handle").await;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: 2 warnings emitted
+
+GOT = sending from second handle
+GOT = sending from first handle
+#+end_example
+*** I/O
+- =AsyncRead= - trait for reading
+- =AsyncWrite= - trait for writing
+- these traits are not called directly. Use their utility functions provided by =AsyncExt=
+- Specific types implement these traits as appropriate (TcpStream, File, Stdout).
+- AsyncRead and AsyncWrite are also implemented by a number of data structures, such as Vec<u8> and &[u8]. This allows using byte arrays where a reader or writer is expected.
+- AsyncReadExt::read provides an async method for reading data into a buffer, returning the number of bytes read. Note: when read() returns Ok(0), this signifies that the stream is closed. Any further calls to read() will complete immediately with Ok(0). With TcpStream instances, this signifies that the read half of the socket is closed.
+- AsyncReadExt::read_to_end reads all bytes from the stream until EOF.
+- AsyncWriteExt::write writes a buffer into the writer, returning how many bytes were written.
+- AsyncWriteExt::write_all writes the entire buffer into the writer.
+-  tokio::io::copy asynchronously copies the entire contents of a reader into a writer.
+- Any reader + writer type can be split using the io::split utility. This function takes a single value and returns separate reader and writer handles.
+- io::split uses an Arc and a Mutex. This overhead can be avoided with TcpStream. TcpStream offers two specialized split functions.
+- TcpStream::split takes a reference to the stream and returns a reader and writer handle. Because a reference is used, both handles must stay on the same task that split() was called from. This specialized split is zero-cost. There is no Arc or Mutex needed. TcpStream also provides into_split which supports handles that can move across tasks at the cost of only an Arc.
+- When reading from the stream, a return value of 0 indicates that no more data will be received from the peer.
+**** reading from file
+#+begin_src shell
+echo "arst\narst" >> /tmp/testfile.txt
+#+end_src
+
+#+RESULTS:
+#+BEGIN_SRC rust :crates '((tokio . 1.5)) :features '((tokio . ("full")))
+use tokio::fs::File;
+use tokio::io::{self, AsyncReadExt};
+
+#[tokio::main]
+async fn main() -> io::Result<()> {
+    let mut f = File::open("/tmp/testfile.txt").await?;
+    let mut buffer = [0; 8];
+
+    // read up to 10 bytes
+    let n = f.read(&mut buffer[..]).await?;
+
+    println!("The bytes: {:?}", &buffer[..n]);
+
+    let mut buffer = Vec::new();
+    f.read_to_end(&mut buffer).await?;
+    println!("The bytes: {:?}", buffer   );
+
+    Ok(())
+}
+#+end_src
+
+#+RESULTS:
+: The bytes: [97, 114, 115, 116, 92, 110, 97, 114]
+: The bytes: [115, 116, 10]
+**** writing to file
+#+BEGIN_SRC rust :crates '((tokio . 1.5)) :features '((tokio . ("full")))
+use tokio::io::{self, AsyncWriteExt};
+use tokio::fs::File;
+
+#[tokio::main]
+async fn main() -> io::Result<()> {
+    let mut file = File::create("/tmp/foo.txt").await?;
+
+    // Writes some prefix of the byte string, but not necessarily all of it.
+    let n = file.write(b"some bytes").await?;
+
+    println!("Wrote the first {} bytes of 'some bytes'.", n);
+
+    file.write_all(b"some bytes").await?;
+
+    Ok(())
+}
+#+end_src
+
+#+RESULTS:
+: Wrote the first 10 bytes of 'some bytes'.
+#+begin_src shell
+cat /tmp/foo.txt
+#+end_src
+
+#+RESULTS:
+: some bytessome bytes
+**** network
+#+BEGIN_SRC rust :crates '((tokio . 1.5)) :features '((tokio . ("full")))
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
+
+#[tokio::main]
+async fn main() -> io::Result<()> {
+    let socket = TcpStream::connect("127.0.0.1:6141").await?;
+    let (mut rd, mut wr) = io::split(socket);
+
+    // Write data in the background
+    let write_task = tokio::spawn(async move {
+        wr.write_all(b"hello\r\n").await?;
+        wr.write_all(b"world\r\n").await?;
+
+        // Sometimes, the rust type inferencer needs
+        // a little help
+        Ok::<_, io::Error>(())
+    });
+
+    let mut buf = vec![0; 128];
+
+    let mut count = 0;
+    loop {
+        let n = rd.read(&mut buf).await?;
+
+        if n == 0 {
+            break;
+        }
+        count = count + 1;
+        println!("GOT {:?}", &buf[..n]);
+        if count == 1000 { break; }
+    }
+
+    Ok(())
+}
+#+end_src
+
+#+RESULTS:
+: cargolFURVh
+**** framing
+- A frame is a unit of data transmitted between two peers.
+- Framing is the process of taking a byte stream and converting it to a stream of frames.
+
+** generator
+a resumable function via =yield= mechnics
+- It saves the state through an associated data structure that’s generated by the compiler
+- A method on that data structure (also generated) then allows the generator to resume from its current state, stored in &mut self, and updates the state again when the generator again cannot make progress.
+- to yield = to return but allow to resume later
+
+** pin and unpin
+- a Pin<P> ensures that the pointee of any pointer type P has a stable location in memory, meaning it cannot be moved elsewhere and its memory cannot be deallocated until it gets dropped

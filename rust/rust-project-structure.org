@@ -1,0 +1,361 @@
+:PROPERTIES:
+:ID:       c9ebcba0-fb4d-48a6-8b9f-1e6fde0e4645
+:END:
+#+title: Rust project structure
+
+- reasons:
+  - improve compilation time
+  - conditional dependencies
+  - better strategy for continuous integration
+|-----------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------|
+| crate                                                                                   | package                                                                                                   |
+|-----------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------|
+| module hierarchy starting at a root .rs file — usually something like lib.rs or main.rs | collection of crates and metadata, so essentially all that’s described by a Cargo.toml file.              |
+| (one where you can use crate-level attributes like =#![feature])                        | may include a library crate, multiple binary crates, integration test crates,  multiple workspace members |
+|-----------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------|
+| Crates play many roles in Rust—they are the vertices in the dependency graph,           |                                                                                                           |
+| the boundaries for trait coherence, and the scopes for compilation features             |                                                                                                           |
+|-----------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------|
+| each crate is managed as a single compilation  unit                                     |                                                                                                           |
+- the compiler treats a crate more or less as one big source file compiled as one chunk that is ultimately turned into a single binary output (either a binary or a library), if you change a unit test, a comment, or a type in one part of your application, the compiler must re-evaluate the entire crate to determine what, if anything, changed.
+* features
+- reasons to use: (note that all of these uses are additive)
+  - to enable optional dependencies
+  - to conditionally include additional components of a crate
+  - to augment the behavior of the code
+- primary tool for customizing projects
+- are defined in =Cargo.toml=
+- a feature is just a build flag that crates can pass to their dependencies in order to add optional functionality
+- features carry no semantic meaning in and of themselves
+- features can add to the functionality of the crate, but they shouldn’t generally do things like remove modules or replace types or function signatures
+  - enabling a feature shouldn’t make crate stop compiling
+- it’s generally hard to add mutually exclusive features to Rust crates; chances are that some two dependents will depend on the crate with different features, and if those features are mutually exclusive, the downstream crate will fail to build.
+- Cargo allows to define a set of default features for a crate
+  - it allows to opt out of the default features of a dependency
+- when using features, make sure the code uses a dependency only if it's available
+- if feature enables a particular component, make sure that if the feature isn’t enabled, the component is not included
+- larger components (usually modules) should be guarded by features if large crate expects users will need only a subset of the functionality
+** COMMENT examples
+#+begin_src toml
+[package]
+name = "foo"
+
+[features]
+derive = ["syn"]
+
+[dependencies]
+syn = { version = "1", optional = true }
+#+end_src
+
+#+begin_src toml
+[package]
+name = "bar"
+...
+ [dependencies]
+foo = { version = "1", features = ["derive"] }
+#+end_src
+
+Here, if a crate depends on foo and does not explicitly opt out of the default features, it will also compile foo’s syn dependency. In turn, syn will be built with only the three listed features, and no others.
+#+begin_src toml
+[package]
+name = "foo"
+...
+[features]
+derive = ["syn"]
+default = ["derive"]
+
+[dependencies.syn]
+version = "1"
+default-features = false
+features = ["derive", "parsing", "printing"]
+optional = true
+#+end_src
+
+
+** COMMENT optional dependencies as features
+- when you define a feature, the list that follows the equal sign is itself a list of features
+- Cargo makes every optional dependency a feature with the same name as the dependency
+- you’ll see this if you try to add a feature with the same name as an optional dependency; Cargo won’t allow it
+- support for a different namespace for features and dependencies is in the works in Cargo, but has not been stabilized at the time of writing
+- in the meantime, if you want to have a feature named after a dependency, you can rename the dependency using package = "" to avoid the name collision
+- the list of features that a feature enables can also include features of dependencies
+- for example, you can write derive = ["syn/derive"] to have your derive feature enable the derive feature of the syn dependency
+- you achieve this using conditional compilation, which lets you use annotations to give conditions under which a particular piece of code should or should not be compiled
+- conditional compilation is primarily expressed using the #[cfg] attribute
+- there is also the closely related cfg! macro, which lets you change runtime behavior based on similar conditions
+- you can do all sorts of neat things with conditional compilation, as we’ll see later in this chapter, but the most basic form is #[cfg(feature = "some-feature")], which makes it so that the next “thing” in the source code is compiled only if the some-feature feature is enabled
+- similarly, if cfg!(feature = "some-feature") is equivalent to if true only if the derive feature is enabled (and if false otherwise)
+- the #[cfg] attribute is used more often than the cfg! macro, because the macro modifies runtime behavior based on the feature, which can make it difficult to ensure that features are additive
+- you can place #[cfg] in front of certain Rust items—such as functions and type definitions, impl blocks, modules, and use statements—as well as on certain other constructs like struct fields, function arguments, and statements
+- the #[cfg] attribute can’t go just anywhere, though; where it can appear is carefully restricted by the Rust language team so that conditional compilation can’t cause situations that are too strange and hard to debug
+- remember that modifying certain public parts of your API may inadvertently make a feature nonadditive, which in turn may make it impossible for some users to compile your crate
+- you can often use the rules for backward compatible changes as a rule of thumb here—for example, if you make an enum variant or a public struct field conditional upon a feature, then that type must also be annotated with # [non_exhaustive]
+- otherwise, a dependent crate that does not have the feature enabled may no longer compile if the feature is added due to some second crate in the dependency tree
+
+* workspaces
+- allow to split the project into multiple crates that internally depend on one another
+- workspace is a collection of crates (often called subcrates) that are tied together by a top-level Cargo.toml file
+- large crates can be painful to work with
+** members
+# /
+#+begin_src toml
+[workspace]
+members = [
+  "foo",
+  "bar/one",
+  "bar/two",
+]
+#+end_src
+#+begin_src toml
+ # bar/two/Cargo.toml
+[dependencies]
+one = { path = "../one" }
+#+end_src
+# bar/one/Cargo.toml
+#+begin_src toml
+[dependencies]
+foo = { path = "../../foo" }
+#+end_src
+- the members array is a list of directories that each contain a crate in the workspace
+- those crates all have their own Cargo.toml files in their own subdirectories, but they share a single Cargo.lock file and a single output directory
+- the crate names don’t need to match the entry in members
+- it is common, but not required, that crates in a workspace share a name prefix, usually chosen as the name of the “main” crate
+  - in the tokio crate, the members are called tokio, tokio-test, tokio-macros, ...
+- interact with all of the workspace’s members by invoking cargo in the root of the workspace (cargo run/check all)
+- not as convenient as having everything in one crate
+- compiler will recompile only members which code was updated (not whole workspace)
+- if you ever need to disambiguate
+  - use flag -p (for package) if two workspace crates both have a binary by the same name
+  - use flag --workspace to perform the command for the entire workspace instead, if you are in the subdirectory for a particular workspace crate
+** intra-workspace dependencies
+to specify dependencies between subcrates in a workspace:
+  - use path dependencies (only when they depend on unpublished changes)
+  - use version specifiers (if individual subcrates are intended for public consumption)
+* project configuration
+** crate metadata
+- https://doc.rust-lang.org/cargo/reference/manifest.html
+- description
+- homepage
+- path to a README for the crate (readme)
+- the default binary to run with cargo run (default-run)
+- keywords and categories to help crates.io categorize your crate
+- include and exclude fields - dictate which files should be included and published in your package (Cargo includes all files in a crate’s directory except any listed in your .gitignore file)
+- publish directive
+  - set to false if you have a crate that should never be published
+  - set to a list of allowed registries, will make the crate be published only to certain alternative registries (that is, not to crates.io)
+** build configuration
+- Cargo.toml can also give you control over how Cargo builds your crate.
+- build parameter allows to write a completely custom build program for the crate
+*** [patch]
+- allows to specify a different source for a dependency that you can use temporarily, no matter where in your dependencies the patched dependency appears
+- invaluable when you need to compile your crate against a modified version of some transitive dependency to test a bug fix, a performance improvement, or a new minor release you’re about to publish
+- patches are not taken into account in the package that’s uploaded when you publish a crate
+**** COMMENT example
+#+begin_src toml
+[patch.crates-io]
+# use a local (presumably modified) source
+regex = { path = "/home/jon/regex" }
+# use a modification on a git branch
+serde = { git = "https://github.com/serde-rs/serde.git", branch = "faster" }
+# patch a git dependency
+[patch.'https://github.com/jonhoo/project.git']
+project = { path = "/home/jon/project" }
+#+end_src
+If you for some reason transitively depend on multiple major versions of the same crate, you can patch each one by giving them distinct identifiers
+#+begin_src toml
+[patch.crates-io]
+nom4 = { path = "/home/jon/nom4", package = "nom" }
+nom5 = { path = "/home/jon/nom5", package = "nom" }
+#+end_src
+You can use package this way in your regular dependencies as well to rename a dependency
+*** [profile]
+- change the way the crate is compiled
+- change code behavior in user-defined ways
+- they all have different defaults depending on whether you are compiling in debug mode or in release mode (other modes also exist)
+**** performance options
+- opt-level - runtime performance
+  - telling the compiler how aggressively to optimize your program
+  - 0 is “not at all,” 3 is “as much as you can”.
+  - the higher the setting, the more optimized your code will be, which may make it run faster
+  - extra optimization comes at the cost of higher compile times
+  - optimizations are generally enabled only for release builds
+  - can also set opt-level to "s" to optimize for binary size, which may be important on embedded platforms.
+**** codegen-units - compile-time performance options
+- tells the compiler how many independent compilation tasks (code generation units) it is allowed to split the compilation of a single crate into
+- the more pieces a large crate’s compilation is split into, the faster it will compile, since more threads can help compile the crate in parallel
+- to achieve this speedup, the threads need to work more or less independently, which means code optimization suffers - a trade-off between compile-time performance and runtime performance
+- by default, Rust uses an effectively unbounded number of codegen units in debug mode (basically, “compile as fast as you can”) and a smaller number (16 at the time of writing) in release mode.
+**** lto - link-time optimization options
+- enables the compiler (or the linker, if you want to get technical about it) to jointly optimize bits of your program, known as compilation units, that were originally compiled separately.
+  - the output from each compilation unit includes information about the code that went into that unit
+  - after all the units have been compiled, the linker makes another pass over all of the units and uses that additional information to optimize the combined compiled code
+  - this extra pass adds to the compile time but recovers most of the runtime performance that may have been lost due to splitting the compilation into smaller parts
+  - in particular, LTO can offer significant performance boosts to performance-sensitive programs that might benefit from cross-crate optimization
+- cross-crate LTO can add a lot to your compile time
+- rust performs LTO across all the codegen units within each crate by default in an attempt to make up for the lost optimizations caused by using many codegen units
+- since the LTO is performed only within each crate (rather than across crates), this extra pass isn’t too onerous, and the added compile time should be lower than the amount of time saved by using a lot of codegen units
+- Rust also offers a technique known as thin LTO, which allows the LTO pass to be mostly parallelized, at the cost of missing some optimizations a “full” LTO pass would have found
+- can be used to optimize across foreign function interface boundaries (see the linker-plugin-lto rustc flag for details)
+****  debugging options
+- by default, these are all enabled in debug mode and disabled in release mode
+- =debug= flag tells the compiler to include debug symbols in the compiled binary
+  - increases the binary size
+  - allows to get function and variable names and such, rather than just instruction addresses, in backtraces and profiles
+- =debug-assertions= flag enables the debug_assert! macro and other related debug code that isn’t compiled otherwise (through cfg (debug_assertions))
+  - may make your program run slower
+  - makes it easier to catch questionable behavior at runtime
+- =overflow-checks= flag enables overflow checks on integer operations
+  - this slows down execution
+  - can help you catch tricky bugs early on
+**** panic handling options
+- [profile.*.panic]
+- this option dictates what happens when code in your program calls panic!, either directly or indirectly through something like unwrap
+- you can set panic to either unwind (the default on most platforms) or abort
+  - abort ensures the whole program simply exits immediately when a panic occurs - in this mode, no threads get to do any cleanup
+    - it ensures that the program is never running in a half-working state and that errors are made visible immediately
+    - all dependencies are also compiled with abort
+    - to print backtraces even with panic=abort, pass Cforce-unwind-tables to rustc, which makes rustc include the information necessary to walk back up the stack while still terminating the program on a panic
+  - unwinding is~ forcibly returning recursively from the current function all the way to the bottom of that thread’s stack
+    - the bookkeeping needed to support unwinding is not free, and it often requires special support by the compiler and the target platform
+    - many embedded platforms cannot unwind the stack efficiently at all
+    - if main called foo, foo called bar, and bar called baz, a panic in baz would forcibly return from baz, then bar, then foo, and finally from main, resulting in the program exiting
+    - a thread that unwinds will drop all values on the stack normally, which gives the values a chance to clean up resources, report errors, and so on
+    - this gives the running system a chance to exit gracefully even in the case of a panic
+    - when a thread panics and unwinds, other threads continue running unaffected
+      - only when (and if) the thread that ran main exits does the program terminate
+      - the panic is generally isolated to the thread in which the panic occurred
+        - this means unwinding is a double-edged sword; the program is limping along with some failed components, which may cause all sorts of strange behaviors
+          - a thread that panics halfway through updating the state in a Mutex
+          - any thread that subsequently acquires that Mutex must now be prepared to handle the fact that the state may be in a partially updated, (inconsistent state).
+          - for this reason, some synchronization primitives (like Mutex) will remember if a panic occurred when they were last accessed and communicate that to any thread that tries to access the primitive subsequently
+          - if a thread encounters such a state, it will normally also panic, which leads to a cascade that eventually terminates the entire program (better than continuing to run with corrupted state)
+**** Profile Overrides
+- options for just a particular dependency, or a particular profile
+- handy if some dependency would be prohibitively slow in debug mode (such as decompression or video encoding), and you need it optimized so that your test suite won’t take several days to complete
+- you can also specify global profile defaults using a [profile.dev] (or similar) section in the Cargo configuration file in ~/.cargo/config.
+- when you set optimization parameters for a specific dependency, keep in mind that the parameters apply only to the code compiled as part of that crate
+***** COMMENT example
+how to enable aggressive optimizations for the serde crate and moderate optimizations for all other crates in debug mode, using the [profile.<profile-name>.package.<crate-name>] syntax.
+#+begin_src toml
+[profile.dev.package.serde]
+opt-level = 3
+[profile.dev.package."*"]
+opt-level = 2
+#+end_src
+if serde in this example has a generic method or type that you use in your crate, the code of that method or type will be monomorphized and optimized in your crate, and your crate’s profile settings will apply, not those in the profile override for serde
+
+*** conditional compilation
+- particular segment of code is compiled only if certain conditions are true of the compilation environment
+- denote conditional compilation with the #[cfg (condition)] attribute, which says to compile the next item only if condition is true
+- there is also #[cfg_attr(condition, attribute)], which is compiled as # [attribute] if condition holds and is a no-op otherwise.
+- its also possible evaluate a cfg condition as a Boolean expression using the cfg!(condition) macro
+- Every cfg construct takes a single condition made up of options, like feature = "some-feature", and the combinators all, any, and not, which do what you would probably expect.
+- option are either simple names, or key/value pairs
+- while cfg conditions are usually used to customize code, some can also be used to customize dependencies
+- [dependencies] section is evaluated very early in the build process, when only certain cfg options are available
+  - feature and context options are not yet available at this point
+  - its incorret to use this syntax to pull in dependencies based on features and contexts
+  - its ok to use any =cfg= that depends only on the target specification or architecture
+  - its ok to use any options explicitly set by tools that call into rustc (like cfg(miri))
+**** COMMENT example of customizing dependencies
+#+begin_src toml
+[target.'cfg(windows)'.dependencies]
+winrt = "0.7"
+[target.'cfg(unix)'.dependencies]
+nix = "0.17"
+#+end_src
+**** feature options
+- Feature options take the form =feature = "name-of-feature"=
+- are considered true if the named feature is enabled
+- you can check for multiple features in a single condition using the combinators,
+  - =any(feature = "f1", feature = "f2")= is true if either feature f1 or feature f2 is enabled
+**** operating system options
+- these use key/value syntax with the key target_os and values like windows, macos, and linux
+- can also specify a family of operating systems using target_family, which takes the value windows or unix
+  - shorthands: =cfg(windows)= / =cfg(unix)=
+- =#[cfg(any(windows, target_os = "macos"))]=
+**** context options
+- tailor code to a particular compilation context
+- common usecase: test option, which is true only when the crate is being compiled under the test profile
+- keep in mind that test is set only for the crate that is being tested, not for any of its dependencies. This also means that test is not set in  your crate when running integration tests; it’s the integration tests that are  compiled under the test profile, whereas your actual crate is compiled normally  (that is, without test set). The same applies to the doc and doctest options,  which are set only when building documentation or compiling doctests,  respectively. There’s also the debug_assertions option, which is set in debug  mode by default.
+**** tool options
+- tools like clippy and Miri, set custom options that let user customize compilation when run under these tools
+  - these options are named after the tool in question
+  - for a particular compute-intensive test not to run under Miri, give it the attribute =#[cfg_attr(miri, ignore)]=
+**** architecture options
+- compile based on the CPU instruction set the compiler is targeting
+- specify a particular architecture with =target_arch=, which takes values like x86, mips, and aarch64, or you can
+- specify a particular platform feature with =target_feature=, which takes values like avx or sse2.
+- for low-level code, check =target_endian= and =target_pointer_width= options
+**** compiler options
+- adapt your code to the platform ABI it is compiled against and are available through target_env with values like gnu, msvc, and musl
+- this value is often empty, especially on GNU platforms
+- useful when interfacing directly with the environment ABI
+  - e.g. linking against an ABI-specific symbol name using #[link]
+**** custom options
+- make sure that --cfg=myoption is passed to rustc when rustc compiles your crate
+- the easiest way to do this is to add your --cfg to the RUSTFLAGS environment variable
+- options set this way are also available in Cargo.toml dependencies.
+- add --cfg=ci to RUSTFLAGS in your CI setup, and then use cfg(ci) and cfg(not(ci)) in your code
+- this can come in handy in [[id:32639ce4-25ea-41ef-9018-caa0bd47623e][CI]], where you may want to customize your test suite depending on whether it’s being run on CI or on a dev machine
+
+** versioning
+
+All Rust crates are versioned and are expected to follow Cargo’s implementation of semantic versioning. Semantic versioning dictates the rules for what kinds of changes require what kinds of version increases and for which versions are considered compatible, and in what ways. The RFC 1105 standard itself is well worth reading (it’s not horribly technical), but to summarize, it differentiates between three kinds of changes: breaking changes, which require a major version change; additions, which require a minor version change; and bug fixes, which require only a patch version change. RFC 1105 does a decent job of outlining what constitutes a breaking change in Rust, and we’ve touched on some aspects of it elsewhere in this book.  I won’t go into detail here about the exact semantics of the different types of changes. Instead, I want to highlight some less straightforward ways version numbers come up in the Rust ecosystem, which you need to keep in mind when deciding how to version your own crates.
+
+*** minimum supported rust version
+- some enterprise Rust users are limited to using older versions of Rust, those users will not be able to compile the latest versions of our crates and will be left behind (cuz of crates utilizing freshly stabilized api)
+- options: (none are without drawbacks)
+  1. establish an MSRV policy promising that new versions of a crate will always compile with any stable release from the last X months, the exact number varies, but 6 or 12 months is common (four, eight stable releases)
+     - any new code introduced to the project must compile with the MSRV compiler (usually checked by CI) or be held until the MSRV policy allows it to be merged as is
+  2. make sure to increase the minor version number of your crate any time that the MSRV changes
+     - if you release version 2.7.0 of your crate and that increases your MSRV from Rust 1.44 to Rust 1.45, then a project that is stuck on 1.44 and that depends on your crate can use the dependency version specifier version = "2, <2.7" to keep the project working until it can move on to Rust 1.45
+     - it’s important that you increment the minor version, not just the patch version, so that you can still issue critical security fixes for the previous MSRV release by doing another patch release if necessary
+*** Minimal Dependency Versions
+- right strategy is to list the earliest version that has all the things your crate depends on and to make sure that this remains the case even as you add new code to your crate
+  - Cargo's Zminimal-versions =-Z= flag (unstable) makes the crate use the minimum acceptable version for all dependencies
+- two common (and probably wrong) default choice for picking version for dependency
+  - the latest version, an example:
+    1. add a dependency on hugs = "1.7.3" (the latest published version) to crate X
+    2. a developer somewhere depends on crate X, but they also depend on some other crate, foo, that itself depends on hugs
+    3. the author of foo is really careful about their MSRV policy, so they depend on hugs = "1, <1.6"
+    4. trouble
+  - the current major version, an example:
+    1. Is the solution to use hugs = "1" instead, then? No, that’s not quite right either
+    2. It could be that your code truly does depend on something that was added only in hugs 1.6, so while 1.6.2 would be fine, 1.5.6 would not be
+    3. You wouldn’t notice this if you were only ever compiling your crate in situations where a newer version ends up getting used, but if some crate in the dependency graph specifies hugs = "1, <1.5", your crate would not compile!
+
+- In practice, there are a number of reasons why a crate may explicitly not want a newer version of a dependency
+  - The most common ones are to enforce MSRV, to meet enterprise auditing requirements (the newer version will contain code that hasn’t been audited), and to ensure reproducible builds where only the exact listed version is used
+
+** changelogs
+- simple and good format: https://keepachangelog.com/
+- keep a changelog for all but the most trivial crates
+** COMMENT unreleased versions
+- Rust considers version numbers even when the source of a dependency is a directory or a Git repository
+- This means that semantic versioning is important even when you have not yet published a release to crates.io; it matters what version is listed in your Cargo.toml between releases
+- The semantic versioning standard does not dictate how to handle this case, but I’ll provide a workflow that works decently well without being too onerous
+- After you’ve published a release, immediately update the version number in your Cargo.toml to the next patch version with a suffix like -alpha.1
+- If you just released 2.0.3, make the new version 2.0.4-alpha.1
+- If you just released an alpha, increment the alpha number instead
+- As you make changes to the code between releases, keep an eye out for additive or breaking changes
+- If one happens, and the corresponding version number has not changed since the last release, increment it
+- For example, if the last released version is 2.0.3, the current version is 2.0.4-alpha.2, and you make an additive change, make the version with the change 2.1.0-alpha.1
+- If you made a breaking change, it becomes 3.0.0-alpha.1 instead
+- If the corresponding version increase has already been made, just increment the alpha number
+- When you make a release, remove the suffix (unless you want to do a prerelease), then publish, and start from the top
+- This process is effective because it makes two common workflows work much better
+- First, imagine that a developer depends on major version 2 of your crate, but they need a feature that’s currently available only in Git
+- Then you commit a breaking change
+- If you don’t increase the major version at the same time, their code will suddenly fail in unexpected ways,  either by failing to compile or as a result of weird runtime issues
+- If you follow the procedure laid out here, they’ll instead be notified by Cargo that a breaking change has occurred, and they’ll have to either resolve that or pin a specific commit
+- Next, imagine that a developer needs a feature they just contributed to your crate, but which isn’t part of any released version of your crate yet
+- They’ve used your crate behind a Git dependency for a while, so other developers on their project already have older checkouts of your crate’s repository
+- If you do not increment the major version number in Git, this developer has no way to communicate that their project now relies on the feature that was just merged
+- If they push their change, their fellow developers will find that the project no longer compiles, since Cargo will reuse the old checkout
+- If, on the other hand, the developer can increment the minor version number for the Git dependency, then Cargo will realize that the old checkout is outdated
+- This workflow is by no means perfect
+- It doesn’t provide a good way to communicate multiple minor or major changes between releases, and you still need to do a bit of work to keep track of the versions
+- However, it does address two of the most common issues Rust developers run into when they work against Git dependencies, and even if you make multiple such changes between releases, this workflow will still catch many of the issues
+- If you’re not too worried about small or consecutive version numbers in releases, you can improve this suggested workflow by simply always incrementing the appropriate part of the version number
+- Be aware, though, that depending on how frequently you make such changes, this may make your version numbers quite large!
