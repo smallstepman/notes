@@ -1,3 +1,7 @@
 [submodule "rust/proc-macro-workshop"]
 	path = rust/proc-macro-workshop
 	url = git@github.com:smallstepman/proc-macro-workshop.git
+
+[submodule "rust/concurrency-workshop"]
+	path = rust/concurrency-workshop
+	url = git@github.com:smallstepman/concurrency-workshop.git
