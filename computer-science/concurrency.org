@@ -1,7 +1,9 @@
 :PROPERTIES:
 :ID:       4bb652c2-af98-47fa-a2fa-ab035921e62d
+:ROAM_REFS: https://eklitzke.org/blocking-io-nonblocking-io-and-epoll https://en.wikipedia.org/wiki/Epoll
 :END:
-#+TITLE: Concurrency
+:ROAM_REFS: https://cfsamsonbooks.gitbook.io/epoll-kqueue-iocp-explained/part-1-an-express-explanation https://rust-for-rustaceans.com/
+#+TITLE: concurrency
 #+created_at: <2021-03-28 Sun 03:57>
 #+roam_tags:
 
@@ -12,3 +14,78 @@ multiple logical threads of execution with unknown inter-task dependencies
 :ID:       cee62cc9-b3fc-4625-89af-15ffa8e037a7
 :END:
 - no matter what threads do, within some constrains, they have to make a progress, the program has to complete
+* concurrency models
+:PROPERTIES:
+:ID:       3b0e018c-b337-47c8-8a08-474d26ae4f0d
+:ROAM_REFS: https://eklitzke.org/blocking-io-nonblocking-io-and-epoll
+:END:
+| model                    | benefits                                                                                                                                                                   | drawback                                                                                                                                                        |
+|--------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| OS threads               | easy to express because they don't require any changes to the programming model.                                                                                           | synchronizing between threads can be difficult                                                                                                                  |
+|                          |                                                                                                                                                                            | performance overhead is large - thread pools can mitigate some of these costs, but not enough to support massive IO-bound workloads.                            |
+|--------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Event-driven programming | in conjunction with callbacks, can be very performant,                                                                                                                     | tends to result in a verbose, "non-linear" control flow.                                                                                                        |
+|                          |                                                                                                                                                                            | Data flow and error propagation is often hard to follow.                                                                                                        |
+|--------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Coroutines               | don't require changes to the programming model, which makes them easy to use                                                                                               | they abstract away low-level details that are important for systems programming and custom runtime implementors                                                 |
+|                          | can also support a large number of tasks                                                                                                                                   |                                                                                                                                                                 |
+|--------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| The actor model          | divides all concurrent computation into units called actors, which communicate through fallible message passing                                                            | leaves many practical issues unanswered, such as flow control and retry logic                                                                                   |
+|                          | can be efficiently implemented                                                                                                                                             |                                                                                                                                                                 |
+|--------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| async                    | sync provides significantly reduced CPU and memory overhead, especially for workloads with a large amount of IO-bound tasks, such as servers and databases.                | However, async Rust results in larger binary blobs due to the state machines generated from async functions and since each executable bundles an async runtime. |
+|                          | you can have orders of magnitude more tasks than OS threads, because an async runtime uses a small amount of (expensive) threads to handle a large amount of (cheap) tasks | If we poll too often, like in a loop, we will occupy a lot of CPU-time which is wasteful                                                                        |
+|--------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| thread-pool              |                                                                                                                                                                            |                                                                                                                                                                 |
+
+* blocking I/O
+:PROPERTIES:
+:ID:       83b7b799-fd93-4285-a79c-7898cbdc5469
+:ROAM_REFS: https://eklitzke.org/blocking-io-nonblocking-io-and-epoll
+:END:
+- when OS is being asked to perform a blocking operation, it will suspend the thread that makes the call
+  - it will stop executing code, store the CPU state (and go on to do other things)
+- when data arrives through the network, OS will wake up our thread again and resume operation
+- by default, all file descriptors on Unix systems start out in "blocking mode"
+* non-blocking I/O
+:PROPERTIES:
+:ID:       443f0a91-1de0-4296-8a10-537bd040d31d
+:END:
+- OS will not suspend the thread that made an I/O request
+  - instead, OS will return handle
+  - the thread can use the handle to ask the operating system if the event is ready or not
+  - "Polling" is using our handle to call OS asking for status
+- drawbacks
+  - when data is coming in very slowly the program will wake up frequently and unnecessarily, which wastes CPU resources
+  - when data does come in, the program may not read it immediately if it's sleeping, so the latency of the program will be poor
+  - handling a large number of file descriptors with this pattern would become cumbersome
+* I/O multiplexing
+- "asynchronous I/O"
+- achived via select (POSIX), epoll (Linux), kqueue (BSD), IOCP (Windows)
+  - they let the kernel know what events (typically read events and write events) are of interest on a set of file descriptors, and then they block until something of interest happens
+- these methods let us hook into the OS in a way in which we can wait for many events
+  - one thread is waiting for many tasks
+  - instead of being limited to waiting on one event per thread, we can wait for many events on one thread
+  - avoids one of the biggest drawbacks of using one thread per event:
+    - wasteful memory occupation
+    - the overhead of continuously spawning new threads
+- if we only register one event to the epoll/kqueue/iocp event queue and wait for it, it will be no different from using blocking I/O
+  - the advantage comes we can have a queue that waits for hundreds of thousands of events with very little wasted resources.
+- I/O multiplexing system calls typically do not care if the file descriptors are in blocking mode or nonblocking mode
+  - the blocking or nonblocking status of a file descriptor is significant for edge-triggered polling
+** epoll
+- Linux kernel system call for a scalable I/O event notification mechanism
+- its function is to monitor multiple file descriptors to see whether I/O is possible on any of them
+- operates in $0(1)$ time
+** readiness based model
+:PROPERTIES:
+:ID:       fe7fd1d1-6d09-434d-bac2-2cb2e0f7b6ce
+:ROAM_REFS: https://cfsamsonbooks.gitbook.io/epoll-kqueue-iocp-explained/part-1-an-express-explanation
+:END:
+- Epoll and Kqueue are "readiness based"
+- thread receives a *notification* when an operation is ready to be performed
+  - (e.g. when data is ready to be read into a buffer)
+** completion based models
+- IOCP (abbrev of Input/Output Completion Ports), is a completion-based model
+- thread receives a notification when an operation has happened.
+  - e.g. when data has been read into a buffer
