@@ -1,0 +1,19 @@
+:PROPERTIES:
+:ID:       29db3eaa-4232-48bd-8577-96f8eb39c0f9
+:ROAM_REFS: https://prog.world/building-and-using-dynamic-link-libraries-in-rust/
+:END:
+#+title: Rust foreign function interface
+#+filetags: rust
+
+* dynamic libraries
+:PROPERTIES:
+:ID:       a1dfe175-ae31-409a-b344-7e8c8f54afc1
+:END:
+#+begin_src
+[lib]
+crate-type = ["cdylib"]
+#+end_src
+- to connect a dynamic library and import symbols from it, the functions of the operating system are used
+- to achieve cross-platform, you can use abstractions built on top of system calls
+- crate =libloading= helps with loading libraries and symbols from them, and also helps to avoid silly mistakes, like, use the loaded symbol after the library has been unloaded
+- loading and deinitializing a library are [[id:4e633256-379e-4988-a12a-299e57cf128a][unsafe]] operations

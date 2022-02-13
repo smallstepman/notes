@@ -1,0 +1,298 @@
+:PROPERTIES:
+:ID:       62380240-2804-497b-b806-8a849dbdecd0
+:END:
+#+title: Rust type system
+#+filetags: rust
+
+- one of their most fundamental roles of types is to hint how to interpret bits of memory
+* COMMENT [[id:2b5f2b28-4a45-42e4-b009-9ca295f726c4][Rust data types]]
+* COMMENT [[id:a2eba9ac-e161-47b2-8231-ea8d277f4c85][Rust traits]]
+* COMMENT [[id:5ed193f5-02ca-43d4-9ce9-5a6e65bd99c0][Rust type alignment]]
+* dynamically sized types
+:PROPERTIES:
+:ID:       c3b2d4fe-1fae-48c9-8f8d-dba505e5a8c7
+:ROAM_ALIASES: DST "unsized type"
+:END:
+- types which don't implement Sized trait automatically
+- their size depends on some information that is known only when the program runs and not at compile time, which is why they are called dynamically sized types
+- the compiler requires types to be Sized nearly everywhere (variables, struct fields, function arguments, return values, variable types, const items, static items, and array types must all be Sized)
+  - explicitly opt out with =T: ?Sized= (the ? means “may not be”)
+  - =Self: ?Sized= is the default in trait definitions
+** examples
+- =dyn Iterator=
+- =[u8]=
+* local type
+:PROPERTIES:
+:ROAM_REFS: https://doc.rust-lang.org/reference/glossary.html#local-type
+:ID:       6ab10964-c2ec-43b2-a4f7-7a3eb6c9933e
+:END:
+- a struct, enum, or union which was defined in the current *crate*
+- struct Foo and Foo<Vec> are considered local, but Vec<Foo> is not
+- type aliases do not affect locality
+* uncovered type
+:PROPERTIES:
+:ROAM_REFS: https://doc.rust-lang.org/reference/glossary.html#uncovered-type
+:ID:       0fc8f6c5-8131-4bbd-841b-b0f12b9eb6b5
+:END:
+- a type which does not appear as an argument to another type
+- only relevant for type arguments
+- for example, =T= is uncovered, but the =T= in =Vec<T>= is covered
+* orphan rule
+:PROPERTIES:
+:ROAM_REFS: https://doc.rust-lang.org/reference/items/implementations.html?highlight=orphan#orphan-rules
+:ID:       d9843871-b4ac-46fd-8b16-337f1cbc087b
+:END:
+you can implement a trait for a type only if at least one is true:
+- the trait or the type is local to your crate
+- given =impl<P1..=Pn> Trait<T1..=Tn> for T0=: at least one of the types T0..=Tn must be a local type. Let Ti be the first such type, and, no uncovered type parameters P1..=Pn may appear in T0..Ti (excluding Ti)
+
+** example
+- valid
+#+begin_src rust
+impl<T> From<T> for MyType
+impl<T> From<T> for MyType<T>
+impl<T> From<MyType> for Vec<T>
+impl<T> ForeignTrait<MyType, T> for Vec<T>
+impl<T> ForeignTrait<LocalType, T> for ForeignType
+#+end_src
+- invalid
+#+begin_src rust
+impl<T> ForeignTrait for T
+impl<T> From<T> for T
+impl<T> From<Vec<T>> for T
+impl<T> From<MyType<T>> for T
+impl<T> From<T> for Vec<T>
+impl<T> ForeignTrait<T, MyType> for Vec<T>
+impl<T> ForeignTrait<T, LocalType> for ForeignType
+#+end_src
+** blanket implementations
+:PROPERTIES:
+:ID:       cc7f3bf1-6d3c-4330-9a11-ead88cba22fc
+:END:
+- allows to implement traits over a range of types with code like impl<T> MyTrait for T where T: and so on
+- not limited to just one particular type but instead applies to a wide range of types
+- only the crate that defines a trait is allowed to write a blanket implementation - adding a blanket implementation to an existing trait is considered a breaking change
+
+** fundamental types
+:PROPERTIES:
+:ID:       28806d06-ec04-4366-ae6e-f9f2b2dbb1a0
+:END:
+- types marked with the =#[fundamental]= attribute (=&=, =&mut=, =Box=, =Pin=)
+- some types are so essential that it’s necessary to allow anyone to implement traits on them, even if this seemingly violates the orphan rule
+- adding a blanket implementation over a fundamental type is also considered a breaking change
+
+** covered implementations
+:PROPERTIES:
+:ID:       ef1d36e2-6638-4d81-bdd6-bbefd2c35743
+:END:
+- there are some limited cases where we want to allow implementing a foreign trait for a foreign type, which the orphan rule does not normally allow
+*** example
+=impl From<MyType> for Vec<i32>=
+- the From trait is foreign, as is the Vec type, yet there is no danger of violating coherence, because a conflicting implementation could be added only through a blanket implementation in the standard library (the standard library cannot otherwise name MyType), which is a breaking change anyway.
+
+
+* marker traits
+:PROPERTIES:
+:ID:       92df4c58-a5ea-4902-a201-132a5dc9941f
+:END:
+- https://doc.rust-lang.org/std/marker/index.html
+- indicate a property of the implementing type
+- they have no methods or associated types and serve just to tell that a particular type can or cannot be used in a certain way
+- example: =Send= - safe to send across thread boundaries
+  - There is no call to send in code that requires that a type is Send. Instead, the code assumes that the given type is fine to use in a separate thread, and without marker traits the compiler would have no way of checking that assumption
+- purpose: they allow you to write bounds that capture semantic requirements not directly expressed in the code.
+* auto-traits
+:PROPERTIES:
+:ID:       14ca7110-b8b6-4546-9d88-9fb46bf51218
+:END:
+- the compiler automatically implements them for types unless the type contains something that does not implement the marker trait
+- [[https://doc.rust-lang.org/reference/special-types-and-traits.html#auto-traits][reference]] [[https://doc.rust-lang.org/nightly/unstable-book/language-features/auto-traits.html][nightly]]
+* marker types
+:PROPERTIES:
+:ID:       9f27ef8c-2f84-407d-94e2-4067cddb7d4d
+:END:
+- unit types (like =struct MyMarker;=) that hold no data and have no methods.
+- useful for marking a type as being in a particular state ([[id:72caa898-b8a5-4045-8eea-c1a9656514a1][typestate]])
+- useful when you want to make it impossible for a user to misuse an API
+* existential types
+:PROPERTIES:
+:ID:       d121255b-6a04-47cc-9515-027c3f11301e
+:END:
+- type inference is much easier when you have at least some known points to start the inference from
+- all functions marked as async fn or with a return type of impl Trait have an existential return type: the signature does not give the true type of the return value, just a hint that the function returns some type that implements some set of traits that the caller can rely on
+- the caller can only rely on the return type implementing those traits, and nothing else
+  - it isn’t strictly true that the caller relies on the return type and nothing else.
+  - the compiler will also propagate auto-traits like Send and Sync through impl Trait in return position
+- name origin: we are asserting that there exists some concrete type that matches the signature, and we leave it up to the compiler to find what that type is
+- compiler will usually then go figure that out by applying type inference on the body of the function
+- not all instances of impl Trait use existential types
+  - if impl Trait is used in argument position for a function, it’s really just shorthand for an unnamed generic parameter to that function
+  - =fn foo(s: impl ToString)= is only syntax sugar for =fn foo<S: ToString>(s: S)=
+- useful when: implementing traits that have associated types
+  1. imagine you’re implementing the IntoIterator trait
+  2. it has an associated type IntoIter that holds the type of the iterator that the type in question can be turned into
+  3. with existential types, you do not need to define a separate iterator type to use for IntoIter
+  4. instead, you can give the associated type as impl =Iterator<Item = Self::Item>= and just write an expression inside the =fn into_iter(self)= that evaluates to an =Iterator=, such as by using maps and filters over some existing iterator type
+- allow to perform zero-cost type erasure
+  - instead of exporting helper types just because they appear in a public signature somewhere (iterators and futures are common examples of this) you can use existential types to hide the underlying concrete type
+  - users of your interface are shown only the traits that the relevant type implements, while the concrete type is left as an implementation detail
+  - not only does this simplify the interface, but it also enables you to change that implementation as you wish without breaking downstream code in the future
+
+* generic traits
+:PROPERTIES:
+:ID:       202d1288-725f-4556-9b8c-ca45e6e03016
+:END:
+#+begin_src rust
+trait Seq<T> {
+    fn len(&self) -> u32;
+    fn elt_at(&self, n: u32) -> T;
+    fn iter<F>(&self, f: F) where F: Fn(T);
+}
+#+end_src
+- the rule of thumb:
+  - use an associated type if only one implementation of the trait for a given type is expected
+  - use a generic type parameter otherwise
+
+** generic type parameters
+:PROPERTIES:
+:ID:       d79fc03d-7e9b-4071-836b-5a20350fd12f
+:END:
+- =trait Foo<T>=
+- users must always specify all the generic parameters and repeat any bounds on those parameters.
+  - This can quickly get messy and hard to maintain.
+  - If you add a generic parameter to a trait, all users of that trait must also be updated to reflect the change.
+  - And since multiple implementations of a trait may exist for a given type, the compiler may have a hard time deciding which instance of the trait you meant to use, leading to awful disambiguating function calls like FromIterator::<u32>::from_iter.
+- the upside is that you can implement the trait multiple times for the same type—for example, you can implement PartialEq against multiple right-hand side types for your type, or you can implement both FromIterator<T> and FromIterator<&T> where T: Clone, precisely because of the flexibility that generic traits provide.
+
+** associated types
+:PROPERTIES:
+:ID:       aac3c09f-ce05-45f1-9a61-feb465481a73
+:END:
+- =trait Foo { type Bar; }=
+- associated types are often significantly easier to work with,
+- won't allow multiple implementations
+- the compiler needs to know only the type that implements the trait, and all the associated types follow (since there is only one implementation).
+- This means the bounds can all live in the trait itself and do not need to be repeated on use.
+- In turn, this allows the trait to add further associated types without affecting its users.
+- And because the type dictates all the associated types of the trait, you never have to disambiguate with the unified function calling syntax shown in the previous paragraph.
+- However, you cannot implement Deref against multiple Target types, nor can you implement Iterator with multiple different Item types.
+*** example
+#+begin_src rust
+trait Foo { type Bar; }
+#[derive(Debug)]
+struct X ;
+impl Foo for X { type Bar = String; }
+fn main() {
+    let x = X {};
+    x
+}
+#+end_src
+
+* trait bounds
+:PROPERTIES:
+:ID:       ab6fe483-62f8-4920-b158-d372df9b6a62
+:END:
+- trait bounds do not have to be of the form T: Trait where T is some type your implementation or type is generic over. The bounds can be arbitrary type restrictions and do not even need to include generic parameters, types of arguments, or local types.
+- generic type parameters do not need to appear only on the left-hand side =io::Error: From<MyError<T>>=
+- if your method wants to construct a =HashMap<K, V, S>= whose keys are some generic type =T= and whose value is a =usize=, instead of writing the bounds out like
+  =where T: Hash + Eq, S: BuildHasher + Default=, you could write
+  =where HashMap<T, usize, S>: FromIterator=
+  - [[https://doc.rust-lang.org/std/iter/trait.FromIterator.html#impl-FromIterator%3C(K%2C%20V)%3E-1][reference]]
+** derive trait
+:PROPERTIES:
+:ID:       fe57cd7b-34f2-43fd-bac4-8fee83d1438b
+:END:
+- many =#[derive (Trait)]= expansions desugar into =impl Trait for Foo<T> where T: Trait=
+  - if we try to derive Clone this way for Foo<T> and Foo contains an Arc<T>. Arc implements Clone regardless of whether T implements Clone, but due to the derived bounds, Foo will implement Clone only if T does
+** bounds on associated types of types generic over
+:PROPERTIES:
+:ID:       c630920b-e7f6-4b40-84f4-a279d616ea7c
+:END:
+  - If a type Item has an associated type Assoc from a trait Trait, then <Item as Trait>::Assoc is a type that is an alias of the type specified in the associated type definition. Furthermore, if Item is a type parameter, then Item::Assoc can be used in type parameters.
+*** examples
+#+begin_src rust
+trait AssociatedType {
+    type Assoc;
+    type Aff;
+}
+
+struct Struct;
+
+#[derive(Debug)]
+struct OtherStruct;
+
+impl AssociatedType for Struct {
+    type Assoc = OtherStruct;
+    type Aff = String;
+}
+
+impl OtherStruct {
+    fn new() -> OtherStruct { OtherStruct }
+}
+
+fn main () {
+    println!("{:?}\n{:?}",
+         <Struct as AssociatedType>::Assoc::new(),
+         <Struct as AssociatedType>::Aff::new());
+}
+#+end_src
+
+#+RESULTS:
+: OtherStruct
+: ""
+
+* generics
+:PROPERTIES:
+:ID:       384a9d41-ea02-4718-852d-c192efcf23aa
+:END:
+abstract stand-ins for concrete types or other properties
+
+* type aliases
+:PROPERTIES:
+:ID:       e6a57de7-59cf-4512-b355-311a69cd70e7
+:END:
+#+begin_src rust
+type Kilometers = i32;
+let x: i32 = 5;
+let y: Kilometers = 5;
+#+end_src
+
+#+begin_src rust
+type Thunk = Box<dyn Fn() + Send + 'static>;
+
+let f: Thunk = Box::new(|| println!("hi"));
+
+fn takes_long_type(f: Thunk) {
+    // --snip--
+}
+
+fn returns_long_type() -> Thunk {
+    // --snip--
+}
+#+end_src
+
+#+begin_src rust
+use std::io::Error;
+use std::fmt;
+
+pub trait Write {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Error>;
+    fn flush(&mut self) -> Result<(), Error>;
+    fn write_all(&mut self, buf: &[u8]) -> Result<(), Error>;
+    fn write_fmt(&mut self, fmt: fmt::Arguments) -> Result<(), Error>;
+}
+
+// VS
+
+type Result<T> = std::result::Result<T, std::io::Error>;
+pub trait Write {
+    fn write(&mut self, buf: &[u8]) -> Result<usize>;
+    fn flush(&mut self) -> Result<()>;
+    fn write_all(&mut self, buf: &[u8]) -> Result<()>;
+    fn write_fmt(&mut self, fmt: Arguments) -> Result<()>;
+}
+#+end_src
+
+
+** =type X = impl Trait;=
+[[https://github.com/rust-lang/rfcs/blob/master/text/2515-type_alias_impl_trait.md][RFC]]

@@ -2,11 +2,15 @@
 :ID:       c9ebcba0-fb4d-48a6-8b9f-1e6fde0e4645
 :END:
 #+title: Rust project structure
+#+filetags: rust
 
-- reasons:
-  - improve compilation time
-  - conditional dependencies
-  - better strategy for continuous integration
+* reasons to consider project structure
+- improve compilation time
+- conditional dependencies
+- better strategy for continuous integration
+* difference between crate and package
+- the compiler treats a crate more or less as one big source file compiled as one chunk that is ultimately turned into a single binary output (either a binary or a library)
+  - if you change a unit test, a comment, or a type in one part of your application, the compiler must re-evaluate the entire crate to determine what, if anything, changed.
 |-----------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------|
 | crate                                                                                   | package                                                                                                   |
 |-----------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------|
@@ -17,7 +21,6 @@
 | the boundaries for trait coherence, and the scopes for compilation features             |                                                                                                           |
 |-----------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------|
 | each crate is managed as a single compilation  unit                                     |                                                                                                           |
-- the compiler treats a crate more or less as one big source file compiled as one chunk that is ultimately turned into a single binary output (either a binary or a library), if you change a unit test, a comment, or a type in one part of your application, the compiler must re-evaluate the entire crate to determine what, if anything, changed.
 * features
 - reasons to use: (note that all of these uses are additive)
   - to enable optional dependencies

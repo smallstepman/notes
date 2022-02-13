@@ -1,0 +1,661 @@
+:PROPERTIES:
+:ID:       c083bf0c-9ded-4d2a-bfe0-0d7bd3134815
+:END:
+#+title: Rust pointers
+#+filetags: rust
+Pointer types to DSTs are sized but have twice the size of pointers to sized types
+Pointers to slices also store the number of elements of the slice.
+Pointers to trait objects also store a pointer to a vtable.
+* reference
+:PROPERTIES:
+:ID:       abc79c1b-3a00-44a9-a267-562c60a6ebee
+:END:
+- at any given time, you can have either one mutable reference or any number of immutable references.
+- references must always be valid
+- reference scope starts from where it is introduced and continues through the last time that reference is used
+#+begin_src rust
+fn main() {
+    // immutable
+    let s1 = String::from("hello");
+    let len = calc_len(&s1);
+    println!("len of {} is {}", s1, len);
+
+    // mutable
+    let mut s = String::from("hello");
+    change(&mut s);
+    println!("{}", s);
+
+    // error cannot 's' as mutable more than once
+    // let r1 = &mut s;
+    // let r2 = &mut s;
+    // println!("{} {}", r1, r2);
+
+    {
+        let r1 = &mut s;
+        println!("{}", r1);
+    } // r1 goes out of scope here, so we can make a new reference with no problems.
+    let r2 = &mut s;
+    println!("{}", r2);
+}
+
+fn calc_len(s: &String) -> usize {
+    s.len()
+}
+
+fn change(some_string: &mut String) {
+    some_string.push_str(", world");
+}
+#+end_src
+
+* slice
+- a contiguous sequence of elements in a collection
+#+begin_src rust
+let s = String::from("hello world");
+let hello = &s[0..5];
+let world = &s[6..11];
+let orld = &s[7..];
+let hell = &s[..4];
+let helloworld = &s[..];
+#+end_src
+
+* smart pointer
+:PROPERTIES:
+:ID:       d2130a4a-9479-45ed-8f9a-511746b79c62
+:END:
+A pointer is a general concept for a variable that contains an address
+in memory. Reference =&= is the most common pointer in Rust.
+
+*Smart pointers* are pointers with additional capabilities and metadata.
+
+- Smart pointers implements Deref and Drop traits. Deref trait allows an
+  instance of the smart pointer struct to behave like a reference. Drop
+  trait allows you to customize the code that is run when an instance of
+  the smart pointer goes out of scope.
+- Additional difference between references and smart pointers is that
+  references are pointers that only borrow data; in contrast, in many
+  cases, smart pointers own the data they point to.
+- String and Vec are both smart pointers because they own the data and
+  allow to modify it. They also hold metadata (e.g. vec length) and
+  guarantees (String being valid utf8)
+
+** Derefernce trait
+     :PROPERTIES:
+     :CUSTOM_ID: derefernce-trait
+     :END:
+
+- Rust converts =y*= to =*(y.deref())=
+- *[[dict:%22ukryty,domniemany%22][Implicit]] Deref
+  [[dict:%22przymus,wymuszenie%22][Coercions]] with Functions and
+  Methods.* Deref coercion works only on types that implement the Deref
+  trait. Deref coercion converts such a type into a reference to another
+  type. For example, deref coercion can convert &String to &str because
+  String implements the Deref trait such that it returns str. Deref
+  coercion happens automatically when we pass a reference to a
+  particular type's value as an argument to a function or method that
+  doesn't match the parameter type in the function or method definition.
+  A sequence of calls to the deref method converts the type we provided
+  into the type the parameter needs.
+
+#+begin_src rust
+  fn main() {
+      let z = MyBox::new(String::from("Lola"));
+      hello(&z);
+      hello(&(*z));
+      hello(&(*z)[..]);
+  }
+
+  fn hello(name: &str) {
+      println!("{}", name);
+  }
+#+end_src
+
+Above will print =Lola= three times, bacause rust is able to call Deref
+until it matches parameter's type. This is resolved during compliation.
+
+- How Deref Coercion Interacts with Mutability
+
+  - From =&T= to =&U= when =T=: =Deref<Target=U>=
+  - From =&mut= =T= to =&mut U= when =T=: =DerefMut<Target=U>=
+  - From =&mut= =T= to =&U= when =T=: =Deref<Target=U>=
+  - From =&mut= =T= to =&U= when =T=: =Deref<Target=U>=
+
+    - Conversion from mutable ref to immutable is possible, but that's
+      not true for the opposite as it will break borrowing rules.
+      Converting an immutable reference to a mutable reference would
+      require that initial immutable reference is the only immutable
+      reference to that data, but the borrowing rules don't guarantee
+      that.
+
+** Drop trait
+     :PROPERTIES:
+     :CUSTOM_ID: drop-trait
+     :END:
+#+begin_src rust
+struct CustomSmartPointer {
+    data: String,
+}
+
+impl Drop for CustomSmartPointer {
+    fn drop(&mut self) {
+        println!("Dropping CustomSmartPointer with data `{}`!", self.data);
+    }
+}
+
+fn main() {
+    let c = CustomSmartPointer {
+        data: String::from("my stuff"),
+    };
+    let d = CustomSmartPointer {
+        data: String::from("other stuff"),
+    };
+    println!("CustomSmartPointers created.");
+}
+#+end_src
+
+outputs:
+
+#+begin_src rust
+CustomSmartPointers created.
+Dropping CustomSmartPointer with data `other stuff`!
+Dropping CustomSmartPointer with data `my stuff`!
+#+end_src
+
+- =Drop= lets me customize what happens when a value is about to go out
+  of scope, to e.g. release resource like files or network connection.
+
+- Compiler will insert that code in a place where value is about to go
+  out of scope. *As a result, you don't need to be careful about placing
+  cleanup code everywhere in a program that an instance of a particular
+  type is finished with---you still won't leak resources!* 🙉💛
+
+- The =Drop= trait requires you to implement one method named =drop=
+  that takes a mutable reference to =self=
+
+- Variables are dropped in reverse order of their creation
+
+- =Drop= trait is in the prelude, so I don't need to bring it into scope
+
+- it's not straightforward to disable the automatic =drop= functionality
+
+- to manually drop a value, I need to call =std::mem::drop=, which is
+  already in the scope under =drop()=
+
+** Most common smart pointers in std:
+   :PROPERTIES:
+   :CUSTOM_ID: most-common-smart-pointers-in-std
+   :END:
+**** =Box<T>= for allocating values in the heap.
+     :PROPERTIES:
+     :CUSTOM_ID: boxt-for-allocating-values-in-the-heap.
+     :END:
+#+begin_src rust
+use crate::List::{Cons, Nil};
+
+#[derive(Debug)]
+enum List {
+    Cons(i32, Box<List>),
+    Nil
+}
+
+fn main() {
+    let b = Box::new(5);
+    let list = Cons(1, Box::new(Cons(2, Box::new(Cons(3, Box::new(Nil))))));
+
+    println!("b = {}", b);
+    println!("{:?}",list);
+}
+#+end_src
+
+--------------
+
+#+begin_src rust
+fn main() {
+  let x = 5;
+  let y = Box::new(x);
+
+  assert_eq!(5, x);
+  assert_eq!(5, *y);
+}
+#+end_src
+
+- Box points to a value on the heap.
+
+- Boxes don't have performance overhead other than storing their data on
+  the heap.
+
+  Usage examples:
+
+  - When I have a type whose size can't be known at compile time and I
+    want to use a value of that type in a context that requires an exact
+    size.
+  - When I have a large amount of data and I want to transfer ownership
+    but ensure the data won't be copied when coping
+  - When I want to own a value and I care only that it's a type that
+    implements a particular trait rather than being specific type
+
+**** =Rc<T>= a reference counting type that enables multiple ownership
+     :PROPERTIES:
+     :CUSTOM_ID: rct-a-reference-counting-type-that-enables-multiple-ownership
+     :END:
+#+begin_src rust
+  enum List {
+      Cons(i32, Rc<List>),
+      Nil,
+  }
+
+  use crate::List::{Cons, Nil};
+  use std::rc::Rc;
+
+  fn main() {
+      let a = Rc::new(Cons(5, Rc::new(Cons(10, Rc::new(Nil)))));
+      let b = Cons(3, Rc::clone(&a));
+      let c = Cons(4, Rc::clone(&a));
+  }
+#+end_src
+** Smartpointer Reference Count
+[[notes_assets/smartpointer_referencecount.svg]]
+#+begin_src rust
+fn main() {
+    let a = Rc::new(Cons(5, Rc::new(Cons(10, Rc::new(Nil)))));
+    println!("count after creating a = {}", Rc::strong_count(&a));
+    let b = Cons(3, Rc::clone(&a));
+    println!("count after creating b = {}", Rc::strong_count(&a));
+    {
+        let c = Cons(4, Rc::clone(&a));
+        println!("count after creating c = {}", Rc::strong_count(&a));
+    }
+    println!("count after c goes out of scope = {}", Rc::strong_count(&a));
+}
+#+end_src
+
+output
+#+begin_src rust
+count after creating a = 1
+count after creating b = 2
+count after creating c = 3
+count after c goes out of scope = 2
+#+end_src
+
+- The =Rc<T>= type keeps track of the number of references to a value
+  which determines whether or not a value is still in use.
+- If there are zero references to a value, the value can be cleaned up
+  without any references becoming invalid.
+- Use the =Rc<T>= type when we want to allocate some data on the heap
+  for multiple parts of our program to read and we can't determine at
+  compile time which part will finish using the data last.
+- If I knew which part would finish last, we could just make that part
+  the data's owner, and the normal ownership rules enforced at compile
+  time would take effect.
+- =Rc<T>= is only for use in single-threaded scenarios.
+- Use =Rc::clone(&a)= instead of =a.clone()= because implementation of
+  =Rc::clone= doesn't make a deep copy of all the data like most types'
+  implementations of clone do. The call to =Rc::clone= only increments
+  the reference count, which doesn't take much time.
+- Via immutable references, =Rc<T>= allows me to share data between
+  multiple parts of your program for reading only. If =Rc<T>= allowed to
+  have multiple mutable references, it would violate one of the
+  borrowing rules discussed in Chapter 4: multiple mutable borrows to
+  the same place can cause data races and inconsistencies.
+- =strong_count=
+
+  - when count is 0, the value is cleaned up
+  - represents ownership relationship
+
+- =weak_count=
+
+  - can be created by calling =Rc:downgrade(&Rc<T>)=, it creates
+    instance of type =Weak<T>=
+  - they don't express ownership relationship
+  - =Rc<T>= type uses =weak_count= to keep track how many =Weak<T>=
+    references exist
+  - Doesn't have to be 0 for the =Rc<T>= to be cleaned up
+  - The value that =Weak<T>= references to might'ev been dropped,
+    therefore:
+
+    - To do anything with the referenced value I must make sure it's
+      valid
+    - To do this, I call =upgrade= method on =Weak<T>= instance, which
+      returns =Option<Rc<T>>= (=Some= if value hasn't been dropped,
+      =None= if it had been dropped). Rust will ensure =Some=/=None=
+      cases are handled, hence no invalid pointer.
+
+**** =Ref<T>= and =RefMut<T>=, accessed via =RefCell<T>=
+     :PROPERTIES:
+     :CUSTOM_ID: reft-and-refmutt-accessed-via-refcellt
+     :END:
+#+begin_src rust
+#[derive(Debug)]
+enum List {
+    Cons(Rc<RefCell<i32>>, Rc<List>),
+    Nil,
+}
+
+use crate::List::{Cons, Nil};
+use std::cell::RefCell;
+use std::rc::Rc;
+
+fn main() {
+    let value = Rc::new(RefCell::new(5));
+
+    let a = Rc::new(Cons(Rc::clone(&value), Rc::new(Nil)));
+    println!("a before = {:?}", a);
+
+    let b = Cons(Rc::new(RefCell::new(6)), Rc::clone(&a));
+    let c = Cons(Rc::new(RefCell::new(10)), Rc::clone(&a));
+
+    *value.borrow_mut() += 10;
+
+    println!("a after = {:?}", a);
+    println!("b after = {:?}", b);
+    println!("c after = {:?}", c);
+}
+#+end_src
+
+outputs
+
+#+begin_src rust
+a before = Cons(RefCell { value: 5 }, Nil)
+a after = Cons(RefCell { value: 15 }, Nil)
+b after = Cons(RefCell { value: 6 }, Cons(RefCell { value: 15 }, Nil))
+c after = Cons(RefCell { value: 10 }, Cons(RefCell { value: 15 }, Nil))
+#+end_src
+
+- Type that enforces the borrowing rules at runtime instead at compile
+  time.
+- Interior mutability is a design pattern that allows to mutate data
+  even when there are immutable references to that data (normally
+  disallowed by borrowing rules)
+- =RefCell<T>= represents single ownership over the data in holds.
+- The program will =panic= if I break borrowing rules (more than one
+  mutable reference, or invalid reference)
+- =RefCell<T>= is useful when I'm sure the code follows the borrowing
+  rules but the compiler is unable to understand and guarantee that
+- =RefCell<T>= is only for use in single-threaded scenarios, and will
+  give a compile-time error when used in in multithreaded context
+- Because =RefCell<T>= allows mutable borrows checked at runtime, I can
+  mutate the value inside the =RefCell<T>= even when the RefCell is
+  immutable.
+-
+
+**** =Cell<T>=
+** Memory leaks
+   :PROPERTIES:
+   :CUSTOM_ID: memory-leaks
+   :END:
+
+- Memory leak is created when e.g. reference count of each item in the
+  cycle will never reach 0, and the values will never be dropped, e.g.
+
+#+begin_src rust
+use std::rc::Rc;
+use std::cell::RefCell;
+use crate::List::{Cons, Nil};
+
+#[derive(Debug)]
+enum List {
+    Cons(i32, RefCell<Rc<List>>),
+    Nil,
+}
+
+impl List {
+    fn tail(&self) -> Option<&RefCell<Rc<List>>> {
+        match self {
+            Cons(_, item) => Some(item),
+            Nil => None,
+        }
+    }
+}
+#+end_src
+
+  #+caption: alt text
+  [[notes_assets/smartpointer_cyclereferencememoryleak.svg]]
+
+- Preventing memory leaks entirely is not one of Rust's guarantees
+
+- In *tree* data structure parent owns it's children (when we drop
+  parent, children are dropped with it), and the child is aware of it's
+  parent but doesn't own it. It would be easy to create reference cycle
+  if I were to use =parent: RefCell<Rc<Node>>=, but thanks to =Weak<T>=
+  I'm able to solve this issue in a safe manner.
+
+#+begin_src rust
+use std::rc::{Weak, Rc};
+use std::cell::RefCell;
+
+#[derive(Debug)]
+struct Node {
+    value: i32,
+    parent: RefCell<Weak<Node>>,
+    children: RefCell<Vec<Rc<Node>>>,
+}
+
+fn main() {
+    let leaf = Rc::new(Node {
+        value: 3,
+        parent: RefCell::new(Weak::new()),
+        children: RefCell::new(vec![]),
+    });
+
+    println!("leaf parent = {:?}, strong = {}, weak = {}",
+        leaf.parent.borrow().upgrade(),
+        Rc::strong_count(&leaf),
+        Rc::weak_count(&leaf),
+    );
+    {
+        let branch = Rc::new(Node {
+            value: 5,
+            parent: RefCell::new(Weak::new()),
+            children: RefCell::new(vec![Rc::clone(&leaf)]),
+        });
+
+        *leaf.parent.borrow_mut() = Rc::downgrade(&branch);
+
+        println!(
+            "branch strong = {}, weak = {}",
+            Rc::strong_count(&branch),
+            Rc::weak_count(&branch),
+        );
+
+        println!(
+            "leaf strong = {}, weak = {}",
+            Rc::strong_count(&leaf),
+            Rc::weak_count(&leaf),
+        );
+
+        println!("leaf parent = {:?}", leaf.parent.borrow().upgrade());
+        // println!("{:?}, {:?}, {:?}",
+            // branch,
+            // branch.children,
+            // leaf.parent.borrow().upgrade());
+    }
+
+    println!("leaf parent = {:?}", leaf.parent.borrow().upgrade());
+    println!(
+        "leaf strong = {}, weak = {}",
+        Rc::strong_count(&leaf),
+        Rc::weak_count(&leaf),
+    );
+
+}
+#+end_src
+
+** COMMENT CODE EXAMPLES
+*** mutable reference to immutable variable
+#+begin_src rust :exports both
+fn main() {
+    let x = 5;
+    let y = &mut x;
+    ,*y = 8;
+}
+#+end_src
+
+#+RESULTS:
+: error[E0596]: cannot borrow `x` as mutable, as it is not declared as mutable
+
+*** immutable reference to mutable variable
+#+begin_src rust :exports both
+fn main() {
+    let mut x = 5;
+    let y = &x;
+    *y = 8;
+}
+#+end_src
+
+#+RESULTS:
+: error[E0594]: cannot assign to `*y`, which is behind a `&` reference
+: |     let y = &x;
+: |             -- help: consider changing this to be a mutable reference: `&mut x`
+: |     *y = 8;
+: |     ^^^^^^ `y` is a `&` reference, so the data it refers to cannot be written
+
+*** borrow checker computes lifetime
+allowing for something that wouldn't be allowed if lifetimes weren't a thing
+(having immutable reference and simoutenously mutating value behind the smart pointer)
+#+begin_src rust :exports both
+fn main() {
+    let rand = 0.5;
+    let mut x = Box::new(42);
+    let r = &x;           // 'a
+    if rand > 0.5 {
+        *x = 84;
+    } else {
+        println!("{}", r);  // 'a
+    }
+    // the compiler is smart enough to figure the flow of computation can
+    // go either of two ways:
+    // 1. dereferece x and assign value to it (and simoutenously (and quietly)
+    //    disregards the fact there is a immutable reference `r` in the scope)
+    // 2. read value behind immutable reference r (and disregard line of code
+    //    which tries to dereference and modify x, despite the fact immutable
+    //    reference has been already declared in the scope)
+
+    // uncommenting below line --
+    // println!("{}", r);
+    // -- will result in a following error
+    //     error[E0506]: cannot assign to `*x` because it is borrowed
+    //   --> src/main.rs:7:9
+    //    |
+    // 5  |     let r = &x;           // 'a
+    //    |             -- borrow of `*x` occurs here
+    // 6  |     if rand > 0.5 {
+    // 7  |         *x = 84;
+    //    |         ^^^^^^^ assignment to borrowed `*x` occurs here
+    // ...
+    // 11 |     println!("{}", r);  // 'a
+    //    |                    - borrow later used here
+}
+#+end_src
+
+**** another example
+#+begin_src rust :exports both
+fn main() {
+    let mut x = Box::new(42);
+                            //     first iteration       | second iteration      | ...
+    let mut z = &x;         // 1   lifetime 'a - created
+    for i in 0..3 {
+        println!("{}", z);  // 2   lifetime 'a - checked,  lifetime 'b - checked
+        x = Box::new(i);    // 3   lifetime 'a - deleted,  lifetime 'b - deleted
+        z = &x;             // 4   lifetime 'b - created,  lifetime 'c - created
+    }
+    println!("{}", z);
+}
+#+end_src
+
+#+RESULTS:
+: 42
+: 0
+: 1
+: 2
+*** generic lifetimes
+#+begin_src rust
+struct StrSplit<'s, 'p> {
+  delimiter: &'p str,
+  document: &'s str,
+}
+
+impl<'s, 'p> Iterator for StrSplit<'s, 'p> {
+  type Item = &'s str;
+  fn next(&mut self) -> Option<Self::Item> {
+    self.document.split(self.delimiter).next()
+}}
+
+fn main() {
+    let mut a = "ast,ars";
+    let d = ",";
+    let mut x = StrSplit{delimiter: &d, document:&a};
+    a = "ff,ff";
+    for i in x.next() {println!("{}", i);}
+    println!("{}", a);
+}
+#+end_src
+
+#+RESULTS:
+: ast
+: ff,ff
+*** lifetime variance
+#+begin_src rust :exports both
+struct MutStr<'a, 'b> { s: &'a mut &'b str }
+// below will also work, since both "hello" an "world" are 'static
+// struct MutStr<'a> { s: &'a mut &'static str }
+
+// if two lifetimes are replaced with a single 'a, the code fails to compile --
+// struct MutStr<'a> { s: &'a mut &'a str }
+// -- that's because, the compiler will infer that string "hello" and "world"
+// are 'static, therefore the compiler will do sth like this:
+// struct MutStr { s: &'static mut &'static str }
+// which will not fly, because in `main` the code tries to modify the reference
+// but it is unable to do so since it was marked as 'static
+// aka: 'static and mut can't work together ... UNLESS,
+// the value would never be accessed again
+// fn main() {
+//     let mut s = "hello";
+//     *MutStr { s: &mut s }.s = "world";
+//     no println here.....
+// }
+// the real reason why we can't println `s` later is:
+// lifetime variance incompability -- &mut T is invariant in T, therefore
+// compiler is unable to shortend mutable borrow
+
+// we could however do --
+// struct MutStr { s: &'static &'static str }
+// -- but this would force us to write:
+// fn main() {
+//     MutStr { s: &"hello" };
+// }
+// which defeats whole purpose
+
+fn main() {
+    let mut s = "hello";
+    ,*MutStr { s: &mut s }.s = "world";
+    println!("{}", s);
+}
+#+end_src
+
+#+RESULTS:
+: world
+
+* raw pointer
+:PROPERTIES:
+:ID:       9c2586ef-14a7-4790-8e54-fa977fd7a3a5
+:END:
+- =*const T= and =*mut T=
+- they dont have lifetimes
+- its possible to cast referece into raw pointer outside =unsafe= block
+  - reverse is possible only in =unsafe= block
+
+* function pointer comparison
+- generally a bad idea
+- It is easily possible to get nonsensical behavior in optimized builds, [[https://github.com/rust-lang/rust/issues/54685][example]]
+
+* wide pointers
+:PROPERTIES:
+:ID:       f8930596-47b9-4018-ac98-9093d3319146
+:ROAM_ALIASES: "fat pointer"
+:END:
+- place unsized types behind a wide pointer to make a function able to accept trait object or slice as argument ([[id:c3b2d4fe-1fae-48c9-8f8d-dba505e5a8c7][DST]])
+- a wide pointer is just like a normal pointer, but it includes an extra word-sized field that gives the additional information about that pointer that the compiler needs to generate reasonable code for working with the pointer
+- wide pointer is Sized - it is twice the size of a usize (the size of a word on the target platform): one usize for holding the pointer, and one usize for holding the extra information needed to “complete” the type
+  - for a slice, the extra information is simply the length of the slice
+  - for a trait object ...
+- when taking reference to a DST, the compiler automatically constructs a wide pointer
+- =Box= and =Arc= also support storing wide pointers, which is why they both support =T: ?Sized=

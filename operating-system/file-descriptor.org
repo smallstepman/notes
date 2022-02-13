@@ -1,0 +1,14 @@
+:PROPERTIES:
+:ID:       266a7f87-569a-4776-9aac-5408125915de
+:ROAM_REFS: https://en.wikipedia.org/wiki/File_descriptor
+:END:
+#+title: file descriptor
+
+- a unique identifier (handle) for a file or other input/output resource, such as a pipe or network socket
+- file descriptors typically have non-negative integer values, with negative values being reserved to indicate "no value" or error conditions
+- file descriptors are a part of the POSIX API
+* POSIX API
+each Unix process (except perhaps daemons) should have three standard POSIX file descriptors, corresponding to the three standard streams:
+- =0= Standard input
+- =1= Standard output
+- =2= Standard error

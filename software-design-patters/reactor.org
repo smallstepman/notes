@@ -1,0 +1,18 @@
+:PROPERTIES:
+:ID:       3eeb522f-8db4-465f-8930-a4e3cbcc14a2
+:ROAM_REFS: https://cfsamsonbooks.gitbook.io/epoll-kqueue-iocp-explained/appendix-1/reactor-executor-pattern
+
+:END:
+#+title: reactor
+
+- commonly used technique for "demultiplexing" asynchronous events in the order they arrive
+
+* COMMENT anki
+** usecase
+:PROPERTIES:
+:ANKI_DECK: Computer Science
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:ANKI_TAGS: Rust
+:END:
+*** Front
+*** Back

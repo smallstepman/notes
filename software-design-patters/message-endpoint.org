@@ -1,0 +1,20 @@
+:PROPERTIES:
+:ID:       4c3fc645-42c9-4d73-821c-420081d5199a
+:ROAM_REFS: https://www.youtube.com/watch?v=d0tRbEzjEHw
+:END:
+:CATEGORY: [[id:f8b45e0a-d9c3-4507-82fa-a3bdba04c886][design pattern]]
+#+title: message endpoint
+
+- provide functionality to send and receive messages
+
+[[download:_20220209_140643screenshot.png]]
+
+- (benefit) clearly defined responsiblility
+- (benefit) conversion between different in/out data formats
+- (benefit) endpoint reusability
+- (benefit) decoupling of external protocol and internal communication
+- (drawback) changes in message-protocol have to be propagated to every component using message endpoint
+- (drawback) performance overhead
+- (drawback) single point of failure
+- (drawback) bottleneck
+* COMMENT Anki

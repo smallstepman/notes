@@ -1,0 +1,84 @@
+:PROPERTIES:
+:ID:       5ed193f5-02ca-43d4-9ce9-5a6e65bd99c0
+:END:
+#+title: Rust type alignment
+#+filetags: rust
+
+- an in-memory representation of a type
+* C-compatible layout
+:PROPERTIES:
+:ID:       0bcf4744-603f-4dc8-a830-227bd42f3a7b
+:END:
+- place all fields in the same order that they appear in the original struct definition
+- deterministic field ordering for types that happen to have the same fields
+#+begin_src rust
+#[repr(C)]
+struct Foo {
+  tiny: bool,
+  normal: u32,
+  small: u8,
+  long: u64,
+  short: u16,
+}
+#+end_src
+|------------------+-----------+-------------------------------------|
+| 8-byte alligment | bit count | values (0 = padding)                |
+|------------------+-----------+-------------------------------------|
+|                1 |   000-032 | tinytiny 00000000 00000000 00000000 |
+|                2 |   033-064 | normnorm normnorm normnorm normnorm |
+|                3 |   065-096 | smalsmal 00000000 00000000 00000000 |
+|                4 |   097-128 | 00000000 00000000 00000000 00000000 |
+|                5 |   129-160 | longlong longlong longlong longlong |
+|                6 |   161-192 | longlong longlong longlong longlong |
+|                7 |   193-224 | shorshor shorshor 00000000 00000000 |
+|------------------+-----------+-------------------------------------|
+* Rust layout
+:PROPERTIES:
+:ID:       c367d17f-5c50-406b-9e29-1e8e4214a63e
+:END:
+- with =#[repr(Rust)]=
+- fields can be reordered
+- even two different types that share all the same fields, of the same type, in the same order, are not guaranteed to be laid out the same when using the default Rust layout
+(below is an example, however it may or may not be compatible with what the compiler would acctually produce)
+|------------------+-----------+-------------------------------------|
+| 8-byte alligment | bit count | values (0 = padding)                |
+|------------------+-----------+-------------------------------------|
+|                1 |   000-032 | tinytiny smalsmal shorshor shorshor |
+|                2 |   033-064 | normnorm normnorm normnorm normnorm |
+|                3 |   065-096 | longlong longlong longlong longlong |
+|                4 |   097-128 | longlong longlong longlong longlong |
+|------------------+-----------+-------------------------------------|
+* packed layout
+:PROPERTIES:
+:ID:       8fe0c151-1480-4451-84f4-0c68f648fa7f
+:END:
+- with =#[repr(packed)]=
+- reduces the in-memory size, but also the performance
+- useful for memory-cnstrained devices
+|------------------+-----------+-------------------------------------|
+| 8-byte alligment | bit count | values (X = next value)             |
+|------------------+-----------+-------------------------------------|
+|                1 |   000-032 | Tsmalsma lshorsho rshorsho rnormnor |
+|                2 |   033-064 | mnormnor mnormnor mnormnor mlonglon |
+|                3 |   065-096 | glonglon glonglog glonglog glonglog |
+|                4 |   097-128 | glonglog glonglog glonglog gXXXXXXX |
+|------------------+-----------+-------------------------------------|
+* custom aligned layout
+- with =#[repr(align(n))]=
+- gives a particular field or type a larger alignment than it technically requires
+- common use case for this is to ensure that different values stored contiguously in memory (like in an array) end up in different cache lines on the CPU, this avoids false sharing, which can cause huge performance degradations in concurrent programs
+  - false sharing occurs when two different CPUs access different values that happen to share a cache line; while they can theoretically operate in parallel, they both end up contending to update the same single entry in the cache
+* transparetn layout
+:PROPERTIES:
+:ID:       84c63625-013d-43c4-b46a-82157512ad9f
+:END:
+- =#[repr(transparent)]=
+- tells the compiler that the structure should be represented in binary as well as its field
+* [[id:1b12fe11-f3c2-47bd-9557-fbaf8c37d78d][tuple]]
+represented like a struct with fields of the same type as the tuple values in the same order
+* [[id:41a10dca-180b-45f2-bcf9-d19ca91884e3][array]]
+represented as a contiguous sequence of the contained type with no padding between the elements
+* [[id:0432654c-0098-4561-8c88-735cb992a8a7][union]]
+layout is chosen independently for each variant. alignment is the maximum across all the variants
+* [[id:0ed94a24-09b5-48fd-9c73-652c2912d6ec][enum]]
+same as union, but with one additional hidden shared field that stores the enum variant discriminant. the discriminant is the value thecode uses to determine which of the enum variants a given value holds. the size of the discriminant field depends on the number of variants

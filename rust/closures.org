@@ -1,0 +1,141 @@
+:PROPERTIES:
+:ID:       e5bd5217-58c8-4cc0-a182-17576bb61b28
+:END:
+#+title: Rust closures
+#+filetags: rust
+
+- closures are anonymous function that can be stored in a variable, passed as argument to other functions
+- unlike functions, they can capture values from the scope in which they're defined
+* capturing environment values
+Closures can capture values from their environment in three ways, which directly map to the three ways a function can take a parameter:
+- taking ownership
+- borrowing mutably
+- borrowing immutably.
+
+These are encoded in the three Fn traits as follows:
+- =FnOnce= consumes the variables it captures from its enclosing scope, known as the closure's environment. To consume the captured variables, the closure must take ownership of these variables and move them into the closure when it is defined. The Once part of the name represents the fact that the closure can't take ownership of the same variables more than once, so it can be called only once.
+- =FnMut= can change the environment because it mutably borrows values.
+- =Fn= borrows values from the environment immutably.
+
+- If one wants to force the closure to take ownership of the values it uses in the environment, use =move= keyword before the parameter list. This technique is mostly useful when passing a closure to a new thread to move the data so it's owned by the new thread.
+** COMMENT example
+#+begin_src rust
+struct Abc<T> where T: FnMut(u8) -> bool
+{
+    f: T
+}
+
+#[derive(Debug)]
+struct Def<T> where T: FnOnce(u8) -> bool
+{
+    f: T
+}
+
+struct Ghj<T> where T: Fn(u8) -> bool
+{
+    f: T
+}
+
+
+fn main() {
+    // move
+    let x = vec![1, 2, 3];
+    let equal_to_x = move |z| z == x;
+    // println!("can't use x here: {:?}", x);
+    // Error: borrow of moved value: `x`
+    // | let x = vec![1, 2, 3];
+    // |     - move occurs because `x` has type `std::vec::Vec<i32>`, which does not implement the `Copy` trait
+    // | let equal_to_x = move |z| z == x;
+    // |                  --------      - variable moved due to use in closure
+    // |                  |
+    // |                  value moved into closure here
+    // | println!("can't use x here: {:?}", x);
+    // |                                    ^ value borrowed here after move
+    let y = vec![1, 2, 3];
+    assert!(equal_to_x(y));
+    // assert!(equal_to_x(y));
+    // Error: use of moved value: `y`
+    // | let y = vec![1, 2, 3];
+    // |     - move occurs because `y` has type `std::vec::Vec<i32>`, which does not implement the `Copy` trait
+    // | assert!(equal_to_x(y));
+    // |                    - value moved here
+    // | assert!(equal_to_x(y));
+    // |                    ^ value used here after move
+    let e = vec![1, 2, 3];
+    assert!(equal_to_x(e));
+
+    // FnMut
+    let mut y = 5;
+    let mut x = Abc {
+        f: |x| {
+            y = 3;
+            x == y
+        }
+    };
+    assert_eq!((x.f)(3), true);
+    assert_eq!((x.f)(3), true);
+
+    // FnOnce
+    let mut i = 4;
+    let o = Def {
+        f: |x| {
+            i = 3;
+            x == i
+        }
+    };
+    assert_eq!((o.f)(3), true);
+    // assert_eq!((o.f)(3), true);
+    // Error: use of moved value: `o.f`
+    // 38 |     assert_eq!((o.f)(3), true);
+    //    |                ----- value moved here
+    // 39 |     assert_eq!((o.f)(3), true);
+    //    |                ^^^^^ value used here after move
+    // = note: move occurs because `o.f` has type i:&mut u8, which does not implement the `Copy` trait
+    assert_eq!(i, 3);
+
+    // Fn
+    let q = 5;
+    let w = Ghj {
+        f: |x| {
+            // q = 3;
+            // Error: cannot assign to `q`, as it is a captured variable in a `Fn` closure
+            // help: consider changing this to accept closures that implement `FnMut`
+            x == q
+        }
+    };
+    assert_ne!((w.f)(3), true);
+    assert_ne!((w.f)(3), true);
+}
+#+end_src
+
+* sugar syntax
+#+begin_src rust
+fn  add_one_v1   (x: u32) -> u32 { x + 1 }
+let add_one_v2 = |x: u32| -> u32 { x + 1 };
+let add_one_v3 = |x|             { x + 1 };
+let add_one_v4 = |x|               x + 1  ;
+#+end_src
+* returning closures
+#+begin_src rust
+fn returns_closure() -> Box<dyn Fn(i32) -> i32> {
+    Box::new(|x| x + 1)
+}
+#+end_src
+* inline closure
+#+begin_src rust
+let list_of_strings: Vec<String> = vec![1, 2, 3]
+    .iter()
+    .map(ToString::to_string)
+    .map(|i| i.to_string())
+    .collect();
+
+enum Status {
+    Value(u32),
+    Stop,
+}
+
+let list_of_statuses: Vec<Status> =
+    (0u32..20)
+    .map(Status::Value)
+    .collect();
+#+end_src

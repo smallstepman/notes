@@ -1,0 +1,137 @@
+:PROPERTIES:
+:ID:       def607ff-6200-40c9-9e2f-6aa21e540680
+:END:
+#+title: Rust method dispatch
+#+filetags: rust
+
+- when choosing [[id:1d75277b-af26-4a7f-969b-a8357a5be931][method dispatch]], broadly speaking, static dispatch should be utilized in libraries and dynamic dispatch in binaries
+|----------+------------------------------+-------------------------------|
+| dispatch | library                      | binary                        |
+|----------+------------------------------+-------------------------------|
+| static   | users of libarary can choose | slower compilation time,      |
+|          | whether they want to use     | marinally better performance, |
+|          | static or dynamic dispatch   | more convoluted               |
+|----------+------------------------------+-------------------------------|
+| dynamic  | users are forced to follow   | cleaner code,                 |
+|          | library implementation       | quicker compilation time,     |
+|          |                              | smaller binary size           |
+|----------+------------------------------+-------------------------------|
+
+* static dispatch
+:PROPERTIES:
+:ID:       8c4c3d45-69fb-4483-bcab-ba965ca992b4
+:END:
+#+begin_src rust
+impl String {
+  pub fn contains(&self, p: impl Pattern) -> bool {
+    p.is_contained_in(self)
+  }
+}
+#+end_src
+- when a type or function that is generic over T, compiler makes a copy of that type or function for each type T
+  - the compiler does only copy parts of the code that are used
+- =impl Trait= is shorthand for =<T: Trait>=
+- for any given copy of the method, the address we are “dispatching to” is known statically.
+** monomorphization
+:PROPERTIES:
+:ID:       d0721969-3215-46a5-b784-a8c35400b5b1
+:END:
+- a process of converting code with generic types into many non-generic types
+- it’s part of the reason generic Rust code usually performs just as well as non-generic code
+- monomorphization can increase compile time and can make the program larger
+- the process works similarly for both function and types (structs, enums, etc)
+*** COMMENT example
+compiler will turn this
+#+begin_src rust
+fn strlen(s: impl AsRef<str>) -> usize {
+    s.as_ref().len()
+}
+
+fn main() {
+    strlen("hello world"); // &'static str
+    strlen(String::from("hei verden"));
+}
+#+end_src
+into this
+#+begin_src rust
+fn strlen_refstr(s: &str) -> usize {
+    s.len()
+}
+
+fn strlen_string(s: String) -> usize {
+    s.len()
+}
+
+fn main() {
+    strlen_refstr("hello world"); // &'static str
+    strlen_string(String::from("hei verden")); // String
+}
+#+end_src
+
+** optimizations
+- each instance is optimized separately and with all of the types known. As a result, the code is just as efficient as if the trait method of the pattern that is passed in were called directly without any traits present
+- compiler has full knowledge of the types involved and can even inline the implementation called method
+** drawbacks
+- because instructions aren’t shared between different instantiations of a generic type’s methods, the CPU’s instruction cache is less effective as it now needs to hold multiple copies of effectively the same instructions
+
+* dynamic dispatch
+:PROPERTIES:
+:ID:       38d104d1-58d2-42f4-bf29-8d15a1ecca3b
+:END:
+#+begin_src rust
+impl String {
+  pub fn contains(&self, p: &dyn Pattern) -> bool {
+    p.is_contained_in(&*self)
+  }
+}
+#+end_src
+- enables code to call a trait method on a generic type without knowing what that type is
+- reduces compile times, since it’s no longer necessary to compile multiple copies of types and methods
+- can improve the efficiency of CPU instruction cache
+- prevents the compiler from optimizing for the specific types that are used
+  - with dynamic dispatch, all the compiler can do is insert a call to the function through the vtable
+  - it can no longer perform any additional optimizations as it does not know what code will sit on the other side of that function call
+  - every method call on a trait object requires a lookup in the vtable, which adds a small amount of overhead over calling the method directly
+- the caller gives a pointer to a chunk of memory called a virtual method table, or vtable,
+- allows to use the same function body regardless of what type the caller wants to use
+
+** opting-in to dynamic dispach
+:PROPERTIES:
+:ID:       191156b0-a07d-49f9-b0cc-38544dacc27f
+:END:
+use the =&dyn= keyword to opt-in to dynamic dispatch
+- the reason to use =&=: compiler at compile time doesn't know the size of the pattern type that the caller passes in, so it don’t know how much space to set aside for it
+- in other words, =dyn Trait= is =!Sized= (where the =!= means not)
+- to make possible to take it as argument, it has to be =Sized=
+- placing it behind a pointer (which size of is known) makes it =Sized=
+- since it also need to pass along the table of method addresses, this pointer becomes a wide pointer, where the extra word holds the pointer to the vtable
+- =&mut=, =Box=, =Arc= types are able to hold a wide pointer and therefor can be used for dynamic dispatch
+
+** vtable
+- example of an explicit vtable: [[https://doc.rust-lang.org/std/task/struct.RawWakerVTable.html][std::task::RawWakerVTable]]
+- holds the address of the implementation of all the trait’s methods for the type in question
+- when the code inside the method wants to call a trait method on the provided pattern, it looks up the address of that pattern’s implementation of trait method in the vtable and then calls the function at that address
+- every vtable also contains information about the concrete type’s layout and alignment since that information is always needed to work with a type
+** trait object
+- opaque value of another type that implements a set of traits
+- the combination of a type that implements a trait and its vtable is known as a trait object
+- non-object-safe traits cannot be turned into trait objects
+- trait bound =Self: Sized= implies that Self is not being used through a trait object (since it would then be !Sized).
+  - because methods with a =where Self: Sized= bound are exempted when checking if a trait is object-safe, that bound can be placed on:
+    a. a trait to require that the trait never use dynamic dispatch, or you can place it on
+    b. a specific method to make that method unavailable when the trait is accessed through a trait object.
+** object-safe
+- to be object-safe,
+  - none of a trait’s methods can be generic or use the Self type
+  - the trait cannot have any static methods (that is, methods whose first argument does not dereference to Self), since it would be impossible to know which instance of the method to call
+*** examples of traits that are not object-safe
+- the Clone trait, whose clone method returns Self, cannot be turned into a trait object
+  - if we accept a dyn Clone trait object and then call clone on it, the compiler won’t know what type to return
+- the Extend trait from the standard library, which has a method extend that is generic over the type of the provided iterator (so there may be many instances of it)
+  - if you were to call a method that took a dyn Extend, there would be no single address for extend to place in the trait object’s vtable; there would have to be one entry for every type extend might ever be called with
+
+* coherence property
+:PROPERTIES:
+:ID:       7752d3b2-5a35-4561-ac93-4fa649cf31f1
+:END:
+for any given type and method, there is only ever one correct choice for which implementation of the method to use for that type

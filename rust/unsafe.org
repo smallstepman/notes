@@ -2,6 +2,7 @@
 :ID:       4e633256-379e-4988-a12a-299e57cf128a
 :END:
 #+title: Rust unsafe
+#+filetags: rust
 
 - unsafe code is the mechanism Rust gives developers for taking advantage of [[id:66a20696-fc81-4ef4-bcc4-3158804429a1][invariants]] that, for whatever reason, the compiler cannot check
 - unsafe code, is a code that is allowed to make unsafe operations, because developer has figured out its safe to use such code in particural context
@@ -9,7 +10,7 @@
   - mark function as unsafe
   - enables to invoke unsafe functionality
 - =unsafe= block allows to
-  - dereference raw pointer
+  - dereference [[id:9c2586ef-14a7-4790-8e54-fa977fd7a3a5][raw pointer]]
   - call unsafe functions (e.g. ffi)
   - access mutable and external static variables
   - access fields of unions

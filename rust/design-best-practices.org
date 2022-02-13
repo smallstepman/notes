@@ -2,6 +2,7 @@
 :ID:       4479200f-621b-43d2-8512-318fe57bee3b
 :END:
 #+title: Rust API design best practices
+#+filetags: rust
 
 - interfaces should be intuitive enough that if the user has to guess, they usually guess correctly
 - by reusing common names for the same purpose, you make it easier for the user to guess what things do and allow them to more easily understand the things that are different about your interface

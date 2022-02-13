@@ -1,0 +1,286 @@
+:PROPERTIES:
+:ID:       a2eba9ac-e161-47b2-8231-ea8d277f4c85
+:END:
+#+title: Rust traits
+#+filetags: rust
+
+- *A type's behavior consists of the methods we can call on that type. Different types share the same behavior if we can call the same methods on all of those types. Trait definitions are a way to group method signatures together to define a set of behaviors necessary to accomplish some purpose.*
+- A trait tells the Rust compiler about functionality a particular type has and can share with other types
+- Use traits to define shared behavior in an abstract way
+- Use trait bounds to specify that a generic can be any type that has certain behavior
+- One restriction to note with trait implementations is that we can implement a trait on a type only if either the trait or the type is local to our crate. I can't implement external traits on external types, e.g. implement the =Display= trait on =Vec<T>= within our =aggregator= crate, because =Display= and =Vec<T>= are defined in the standard library and aren't local to our =aggregator= crate.
+  - This restriction is part of a property of programs called *[[id:2aaf6cbb-71b0-470b-bdac-75573f61d481][coherence]]*, and more specifically the [[id:33360f2f-4c61-4085-87c6-3a8fae37aedf][orphan rule]], so named because the parent type is not present
+  - Without the rule, two crates could implement the same trait for the same type, and Rust wouldn't know which implementation to use.
+- =Trait= has to be public (=pub=) in order to implement it in other crates
+
+* COMMENT Example
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644771144185
+:END:
+#+begin_src rust
+pub struct NewsArticle {
+    pub headline: String,
+    pub location: String,
+    pub author: String,
+    pub content: String,
+}
+
+pub struct Tweet {
+    pub username: String,
+    pub content: String,
+    pub reply: bool,
+    pub retweet: bool,
+}
+
+pub trait Summary {
+    fn summarize(&self) -> String;
+}
+
+impl Summary for NewsArticle {
+    fn summarize(&self) -> String {
+        format!("{}, by {} ({})", self.headline, self.author, self.location)
+    }
+}
+
+impl Summary for Tweet {
+    fn summarize(&self) -> String {
+        format!("{}, by {} ({})", self.username, self.content, self.reply)
+    }
+}
+
+fn main() {
+    let tweet = Tweet {
+        username: String::from("horse_ebooks"),
+        content: String::from("of course, as you probably already know, people"),
+        reply: false,
+        retweet: false,
+    };
+
+    println!("1 new tweet: {}", tweet.summarize());
+}
+#+end_src
+
+* default implementation
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644771144181
+:END:
+
+** basic
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644771144177
+:END:
+#+begin_src rust
+pub trait Summary {
+    fn summarize(&self) -> String {
+        String::from("(Read more...)")
+    }
+}
+#+end_src
+
+** nested requirements
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644771144174
+:END:
+#+begin_src rust
+pub trait Summary {
+    fn summarize_author(&self) -> String;
+
+    fn summarize(&self) -> String {
+        format!("(Read more from {}...)", self.summarize_author())
+    }
+}
+// To use this version of Summary, we only need to define summarize_author when we implement the trait on a type:
+impl Summary for Tweet {
+    fn summarize_author(&self) -> String {
+        format!("@{}", self.username)
+    }
+}
+#+end_src
+
+- ??? Note that it isn't possible to call the default implementation from an overriding implementation of that same method.
+
+* trait bounds
+** =impl Trait= sugar syntax
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644771144170
+:END:
+#+begin_src rust
+pub fn notify(item: impl Summary) {
+    println!("Breaking news! {}", item.summarize());
+}
+#+end_src
+** trait bound
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644771144165
+:END:
+#+begin_src rust
+pub fn notify(item1: impl Summary, item2: impl Summary) {}
+pub fn notify<T: Summary>(item1: T, item2: T) {}
+#+end_src
+** multiple trait bounds with =+= syntax
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644771144161
+:END:
+#+begin_src rust
+pub fn notify(item: impl Summary + Display) {}
+// or
+pub fn notify<T: Summary + Display>(item: T) {}
+#+end_src
+** trait bound using =where= clause
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644771144157
+:END:
+#+begin_src rust
+fn some_function<T: Display + Clone, U: Clone + Debug>(t: T, u: U) -> i32 {
+// or less clustered using where clause
+fn some_function<T, U>(t: T, u: U) -> i32
+  where T: Display + Clone,
+        U: Clone + Debug
+{
+#+end_src
+** returning types which implement traits
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644771144154
+:END:
+- this only works in functions which *return single type*
+#+begin_src rust
+fn returns_summarizable() -> impl Summary {
+  Tweet {
+      username: String::from("horse_ebooks"),
+      content: String::from("of course, as you probably already know, people"),
+      reply: false,
+      retweet: false,
+  }
+}
+#+end_src
+
+* trait objects
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644771144151
+:END:
+- points to both an instance of a type implementing specified trait as well as a table used to look up trait methods on that type at runtime
+- the purpose is to allow abstraction across common behavior
+- created by specifying some sort of pointer (e.g. =&= or =Box<T>=) + =dyn= keyword + relevant =trait=
+- can be used in place of generic or concrete type
+- Rust's type system will ensure at compile time that any value used in that context will implement the trait object's trait, therefore, it doesn't need to know all the possible types at compile time
+- uses [[id:38d104d1-58d2-42f4-bf29-8d15a1ecca3b][dynamic dispatch]]
+#+begin_src rust
+pub trait Draw {
+    fn draw(&self);
+}
+
+pub struct Screen {
+    pub components: Vec<Box<dyn Draw>>,
+}
+impl<T> Screen<T>
+    where T: Draw {
+    pub fn run(&self) {
+        for component in self.components.iter() {
+            component.draw();
+        }
+    }
+}
+// vs.:
+pub struct Screen<T: Draw> {
+    pub components: Vec<T>,
+}
+impl<T> Screen<T>
+    where T: Draw {
+    pub fn run(&self) {
+        for component in self.components.iter() {
+            component.draw();
+        }
+    }
+}
+// which limits `Screen` struct to have list of components all of the same type
+#+end_src
+* fully qualified syntax for disambiguation
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644771144146
+:END:
+- calling methods with the same name
+#+begin_src rust
+trait Pilot { fn fly(&self); }
+trait Wizard { fn fly(&self); }
+struct Human;
+impl Pilot for Human {
+    fn fly(&self) {
+        println!("This is your captain speaking.");
+    }
+}
+impl Wizard for Human {
+    fn fly(&self) {
+        println!("Up!");
+    }
+}
+impl Human {
+    fn fly(&self) {
+        println!("*waving arms furiously*");
+    }
+}
+fn main() {
+    let person = Human;
+    Pilot::fly(&person);
+    Wizard::fly(&person);
+    person.fly();
+}
+#+end_src
+* supertraits
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644771144141
+:END:
+- require one trait's functionality within another trait
+Sometimes, you might need one trait to use another trait's functionality. In this case, you need to rely on the dependent trait also being implemented. The trait you rely on is a supertrait of the trait you're implementing.
+#+begin_src rust
+use std::fmt;
+
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+impl fmt::Display for Point {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
+    }
+}
+
+trait OutlinePrint: fmt::Display {
+    fn outline_print(&self) {
+        let output = self.to_string();
+        let len = output.len();
+        println!("{}", "*".repeat(len + 4));
+        println!("*{}*", " ".repeat(len + 2));
+        println!("* {} *", output);
+        println!("*{}*", " ".repeat(len + 2));
+        println!("{}", "*".repeat(len + 4));
+    }
+}
+
+impl OutlinePrint for Point {}
+
+fn main() {
+  let p = Point {x:1, y:2};
+  p.outline_print();
+}
+#+end_src
+
+* why some traits have associated type insted of generics
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644771144133
+:END:
+e.g. why
+#+begin_src rust
+trait Iterator {
+    type Item;
+    fn next(&mut self) -> Option<Self::Item>
+}
+#+end_src
+instead of this
+#+begin_src rust
+trait Iterator<Item> {
+    fn next(&mut self) -> Option<Item>;
+}
+#+end_src
+
+Use associated type if we expect there will be only one implementation of the trait for a given type.

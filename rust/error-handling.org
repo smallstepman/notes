@@ -2,8 +2,12 @@
 :ID:       2360e1b5-1742-43ff-b63b-d3b9d8cdafcf
 :END:
 #+title: Rust error handling
+#+filetags: rust
 
 * error representation via enumeration
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644613951243
+:END:
 #+begin_src rust
 pub enum CopyError {
   In(std::io::Error),
@@ -25,6 +29,9 @@ pub enum CopyError {
     - not all error types can reasonably be Send and Sync, such as if they’re tied to particular thread-local resources (it’s something to be aware of before you go placing Rc<String> and RefCell<bool> types in your errors)
 
 * error representation via opaque errors
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644613951238
+:END:
 - only one error type to use everywhere
 - type-erased errors often compose nicely, and allow you to express an open-ended set of errors
 - useful when the application can’t meaningfully recover from error, even if it knows the exact cause
@@ -46,6 +53,9 @@ pub enum CopyError {
       - if they match, then the type behind the dyn Error or dyn Any really is T, and it is safe to cast from a reference to one to a reference to the other
 - Box<dyn Error + ...> does not itself implement Error, therefore, consider adding BoxError type for type erasure in libraries that does implement Error
 * special error cases
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644613951233
+:END:
 - some functions are fallible but cannot return any meaningful error if they fail
   - =None= conveys only that the function has nothing to return; it is usually not considered an exceptional case or something that should be handled
   - =Err(())= indicates that an operation failed and should be retried, reported, or otherwise handled exceptionally
@@ -75,6 +85,9 @@ pub enum CopyError {
 
 * propagating errors
 ** =?= operator
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644613951228
+:END:
 - ? operator at the time of writing uses From, not Into
 - syntax sugar for a =Try= trait
   - At its heart, Try defines a wrapper type whose state is either one where further computation is useful (the happy path), or one where it is not (monad)
@@ -88,6 +101,9 @@ pub enum CopyError {
     - this is the feature that makes error erasure through Box<dyn Error> so appealing;
 
 *** COMMENT example
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644613951205
+:END:
 #+begin_src rust
 fn do_the_thing() -> Result<(), Error> {
   let thing = Thing::setup()?;

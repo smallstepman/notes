@@ -1,0 +1,36 @@
+:PROPERTIES:
+:ID:       f8b45e0a-d9c3-4507-82fa-a3bdba04c886
+:END:
+#+title: design pattern
+
+- a proven solution for recurruing problem
+
+| pattern          | type | context | benefits & liabilities | limitations & tradeoffs | usecase |
+| [[id:4c3fc645-42c9-4d73-821c-420081d5199a][message endpoint]] |      |         |                        |                         |         |
+|                  |      |         |                        |                         |         |
+
+* types of design patters
+** architectural patterns
+- fundamental structural patterns
+- stencils for whole architecture
+- examples:
+  - layers
+  - pipes-and-filters
+  - broker
+  - model-view-controller
+  - microkernel
+** design patterns
+- solution templates for more isolated problems
+- examples:
+  - composite
+  - adapter
+  - proxy
+  - factory
+** idioms
+- fine-grained patterns for problems in specific [[id:2e18e980-737b-41b6-b643-3cef41410215][programming languages]] or environmment
+- examples:
+  - counted pointer
+  - scoped locking
+  - variadic macros
+    
+#+transclude: [[id:7820b6a2-706a-4340-8bfd-069f50b31145]] :level 2 :only-contents

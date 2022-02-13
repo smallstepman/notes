@@ -2,6 +2,7 @@
 :ID:       ceda7bd6-04cf-4ce3-b3f8-c030b9ff9f5a
 :END:
 #+title: Rust testing
+#+filetags: rust
 
 - unit tests: =#[test]=
 - integration tests: tests in =tests/= directory
@@ -9,6 +10,9 @@
 - https://doc.rust-lang.org/nightly/unstable-book/compiler-flags/sanitizer.html
 - https://github.com/rust-lang/miri
 * rust testing mechanisms
+:PROPERTIES:
+:ID:       f3875e1a-7614-4c3e-8bc8-6bc380647ea4
+:END:
 1. cargo test --lib, passes the --test flag to rustc
 2. --test flag tells rustc to produce a test binary that runs all the unit tests (rather than just compiling the crate’s library or binary)
 3. --test has two primary effects
@@ -16,6 +20,9 @@
    b. makes the compiler generate a test harness: a carefully generated main function that invokes each #[test] function in your program when it’s run
 
 * the test harness
+:PROPERTIES:
+:ID:       a2ede737-5b70-4ba9-b367-73fb290cd780
+:END:
 - test harness iterates over the tests in the crate, runs them, captures their results, and prints the results
   - also includes:
     - logic to parse command line arguments (for things like --test-threads=1)
@@ -52,6 +59,9 @@
     #+end_src
 
 ** arguments to the default test harness
+:PROPERTIES:
+:ID:       40ad5d10-2e99-4999-890f-54ca82a9ab6a
+:END:
 - command line arguments to configure how the tests are run
   - these aren’t passed to cargo test directly but rather to the test binary that Cargo compiles and runs for you when you run cargo test
   - implemented by the default test harness (implement your own for =harness = false=)
@@ -66,10 +76,16 @@
 - run =cargo test -- --list= to list all the available tests
 
 * #[cfg(test)]
+:PROPERTIES:
+:ID:       ea5e37b7-a5f1-4571-b3f1-dbd232c9f952
+:END:
 - compiler conditional compilation flag for test configuration q
   - lets, which you can then use with conditional compilation to have code that is compiled out unless it is specifically being tested. On the surface, this may seem odd: don’t you want to test exactly the same code that’s going into production? You do, but having code exclusively available when testing allows you to write better, more thorough tests, in a few ways.
 
 ** mocking
+:PROPERTIES:
+:ID:       fe1c7c90-7e95-4a54-a76b-65a0249176f5
+:END:
 - =mockall= crate
 - a key feature of any extensive unit test suite
 - tight control over the tested code, as well as any other types that the code may interact with
@@ -91,6 +107,9 @@
   - instead of using generics, encapsulate the state and behavior to mock in a dedicated struct
   - then generate a mocked version of that struct and its methods and use conditional compilation to use either the real or mocked implementation depending on cfg(test) or a test-only feature like cfg(feature = "test_mock_foo")
 ** test-only APIs
+:PROPERTIES:
+:ID:       10c577dc-3d63-4209-be6d-1ab90cc98dfe
+:END:
 - check not only that the public API behaves correctly but also that the internal state is correct
 - having test-only code allows to expose additional methods, fields, and types to unit tests so the tests can
 *** COMMENT example
@@ -120,6 +139,9 @@ impl RawTable {
 #+end_src
 
 ** COMMENT bookkeeping for test assertions
+:PROPERTIES:
+:ID:       5a6cac95-e948-4199-bd5b-e26dcf792a81
+:END:
 - another benefit of having code that exists only during testing is that you can augment the program to perform additional runtime bookkeeping that can then be inspected by tests
 - Keep in mind that test is set only for the crate that is being compiled as a test. For unit tests, this is the crate being tested, as you would expect. For integration tests, however, it is the integration test binary being compiled as a test—the crate you are testing is just compiled as a library and so will not have test set.
 *** COMMENT example
@@ -143,6 +165,9 @@ impl<T: Write> Write for BufWriter<T> {
 }
 #+end_src
 * doctests
+:PROPERTIES:
+:ID:       3822d646-c3d5-47b2-9905-93c5bf807e9d
+:END:
 - Rust code snippets in documentation comments are automatically run as test cases
 - because doctests appear in the public documentation of your crate, and users are likely to mimic what they contain, they are run as integration tests
   - this means that the doctests don’t have access to private fields and methods, and test is not set on the main crate’s code
@@ -214,6 +239,9 @@ is_send::<MyNonSendType>();
 #+end_src
 
 * linting
+:PROPERTIES:
+:ID:       dfb30cae-0e81-46ef-8ebb-5a68337fdb40
+:END:
 - lints catch code patterns that compile but are almost certainly bugs
   - examples:
     - =a = b; b = a= - fails to swap a and b
@@ -229,6 +257,9 @@ is_send::<MyNonSendType>();
     - #![warn(rust_2018_idioms)] (when enabled, the compiler will tell  if you’re failing to take advantage of changes brought by the Rust 2018 edition)
     - =missing_docs= and =missing_debug_implementations= (when enabled warn if you’ve forgotten to document any public items in your crate or add Debug implementations for any public types)
 * test generation
+:PROPERTIES:
+:ID:       4fb55618-d81a-4e20-b51a-1d856dcdcd70
+:END:
 - automatically generate input to use to check your application’s correctness
 - most testers have support for minimizing inputs, so they will search for the smallest sequence of operations that still violates a property if a property-violating input is found
 - fuzzers and property testers allow you to generate arbitrary Rust types
@@ -238,6 +269,9 @@ is_send::<MyNonSendType>();
 - https://github.com/rust-fuzz/arbitrary/
 - https://altsysrq.github.io/proptest-book/intro.html
 ** fuzzing
+:PROPERTIES:
+:ID:       befcaaf4-a629-43e5-9ec9-ea4ba2df7888
+:END:
 - cargo-fuzz
 - generate random inputs to your program and see if it crashes
 - great at finding strange corner cases that your code doesn’t handle correctly
@@ -262,6 +296,9 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
 - fuzzer will generate semi-random inputs to the closure, and any that form valid UTF-8 strings will be passed to the parser
 - notice that the code here doesn’t check whether the parsing succeeds or fails, instead, it’s looking for cases where the parser panics or otherwise crashes due to internal invariants that are violated
 ** property-based testing
+:PROPERTIES:
+:ID:       cfa49f41-4c7c-4b3a-b46e-e66aa81cf8ce
+:END:
 - =proptest= crate
 - describe a number of properties your code should uphold, and then the property testing framework generates inputs and checks that those properties indeed hold
 - checking not only if program doesn’t crash but also that it does what it’s expected to do
@@ -275,17 +312,26 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
 - property testing tends to be guided by developer annotations like “a number between 0 and 64” or “a string that contains three commas.”
   - this allows property testing to more quickly reach cases that fuzzers may take a long time to encounter randomly, but it does require manual work and may miss important but niche buggy inputs
 *** testing sequences of operations
+:PROPERTIES:
+:ID:       3bbec25c-6127-4439-ba2a-e1662ba2a6bc
+:END:
 - test that some type Foo behaves correctly if particular sequence of operations is performed on it
 - steps
   1. define an enum Operation that lists operations, and make your test function take a Vec<Operation>
   2. instantiate a Foo and perform each operation on that Foo, one after the other
 
 * test augmentation
+:PROPERTIES:
+:ID:       143b7cb6-f46f-4759-9cc5-04d68e89af55
+:END:
 - if tests inexplicably fails or crashes with a segmentation fault, it might be cuz of:
   - race conditions (two operations occur on different threads)
   - undefined behavior in unsafe code (e.g. some unsafe code reads a particular value out of uninitialized memory)
 - catching these kinds of bugs with normal tests can be difficult—often you don’t have sufficient low-level control over thread scheduling, memory layout and content, or other random-ish system factors to write a reliable test
 ** Miri
+:PROPERTIES:
+:ID:       830f586b-9f2e-4839-8aee-660f7a8d3c51
+:END:
 - an interpreter for Rust’s mid-level intermediate representation (MIR)
   - MIR is an internal, simplified representation of Rust that helps the compiler find optimizations and check properties without having to consider all of the syntax sugar of Rust itself
 - Miri interprets the code rather than compiling and running it like a normal binary
@@ -298,6 +344,9 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
 - makes the tests run a decent amount slower
 - =cargo miri test=
 ** Loom
+:PROPERTIES:
+:ID:       d8f875e2-104f-478d-8fc4-1976a0d63099
+:END:
 - tries to ensure your tests are run with every relevant interleaving of concurrent operations
 - if a test fails, Loom can give an exact rundown of which threads executed in what order so you can determine how the crash happened
 - keeps track of all cross-thread synchronization points and runs your tests over and over, adjusting the order in which threads proceed from those synchronization points each time
@@ -323,6 +372,9 @@ error: Undefined Behavior: trying to reborrow for Unique at alloc1383, but paren
 #+end_example
 
 * performance testing
+:PROPERTIES:
+:ID:       8f5893a6-3cf1-44b0-be7e-0da9324358f3
+:END:
 - it is often hard to accurately model a workload that reflects real-world usage of your crate
 - having performance tests is important
   - if the code suddenly runs 100 times slower, that really should be considered a bug
@@ -342,6 +394,9 @@ error: Undefined Behavior: trying to reborrow for Unique at alloc1383, but paren
 
 instead, in this section, we’ll look at some of the issues you may encounter when writing performance tests in Rust and how to mitigate them. Three particularly common pitfalls that are often overlooked are performance variance, compiler optimizations, and I/O overhead. Let’s explore each of these in turn.
 ** performance variance
+:PROPERTIES:
+:ID:       6f42c4de-0d5b-4224-8c7d-cf2d7a354af5
+:END:
 - performance can vary for a huge variety of reasons
   - many factors affect how fast a particular sequence of machine instructions run
     - CPU and memory clock speed
@@ -364,6 +419,9 @@ instead, in this section, we’ll look at some of the issues you may encounter w
       - graphical representations of trends over time
       - categorization of the noises that is measurable across executions
 ** compiler optimizations
+:PROPERTIES:
+:ID:       01b51ca8-19fb-43fa-8526-fe5da841a2ad
+:END:
 - compilers these days are really clever
   - they:
     - eliminate dead code
@@ -393,6 +451,9 @@ println!("took {:?}", start.elapsed());
   - that’s because of the caveat that the compiler should assume black_box can perform any legal operation on its argument
   - it is not legal to mutate the Vec through a shared reference, so if we used black_box(&vs), the compiler might notice that =vs= will not change between iterations of the loop and implement optimizations based on that observation
 ** i/o overhead measurement
+:PROPERTIES:
+:ID:       571702c6-fc60-4836-a26c-279c899dee98
+:END:
 - when writing benchmarks, it’s easy to:
   - accidentally measure the wrong thing
   - end up overshadowing the time you actually wanted to measure

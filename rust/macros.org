@@ -2,6 +2,7 @@
 :ID:       f435fad4-d094-47c4-a764-4eb120d5584e
 :END:
 #+title: Rust macros
+#+filetags: rust
 
 * Function-like
 - prodedural macros

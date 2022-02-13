@@ -1,0 +1,82 @@
+:PROPERTIES:
+:ID:       4f33577c-1a4f-4ec4-8056-aa44c01bc291
+:END:
+#+title: iterators
+#+filetags: rust
+
+- =.iter()= - produces iterator over immutable references
+- =.iter_mut()= - produces iterator over mutable references
+- =.into_iter()= - produces iterator over owned values
+- [[https://github.com/rust-lang/rust/issues?q=is:issue+is:open+RangeInclusive+label:I-slow][slow =RangeInclusive=]]
+* =for v in vs {}= vs =for v in vs.iter {}=
+this one will consume data, and give owned value
+#+begin_src rust
+let data = vec![1,2,3];
+for value in data {
+    // consumes data, owned value
+}
+#+end_src
+this one will borrow data, and give & to value
+#+begin_src rust
+let data = vec![1,2,3];
+for value in &data {
+    // borrows data, refereced value
+}
+#+end_src
+this one will borrow data, and give & to value
+#+begin_src rust
+let data = vec![1,2,3];
+for value in data.iter() {
+    // borrows data, referenced value
+}
+#+end_src
+* returning iterators from functions
+#+begin_src rust
+pub fn move_targets_from(&self) -> impl Iterator<Item = Coordinate> {
+    let mut moves = Vec::new();
+    let Coordinate(x, y) = *self;
+    // ...
+    if x >= 1 {
+        moves.push(Coordinate(x - 1, y + 1));
+    }
+    moves.into_iter()
+}
+#+end_src
+* COMMENT iterator with itertools
+#+begin_src rust
+use itertools::Itertools;
+
+type U8Iter4 = impl Iterator<Item=(u8, u8, u8, u8)>;
+
+fn make_iter() -> U8Iter4 {
+    iproduct!(0..=255u8, 0..=255u8, 0..=255u8, 0..=255u8)
+}
+
+pub struct Thing(U8Iter4);
+impl Thing {
+    pub fn new() -> Self {
+        Thing(make_iter())
+    }
+    pub fn next_u8x4(&mut self) -> Option<[u8; 4]> {
+        self.0.next().map(|(a, b, c, d)| [a, b, c, d])
+    }
+}
+#+end_src
+* COMMENT iterator
+#+begin_src rust
+type U32Iter = impl Iterator<Item=u32>;
+
+fn make_iter() -> U32Iter {
+    0 ..= u32::max_value()
+}
+
+pub struct Thing(U32Iter);
+impl Thing {
+    pub fn new() -> Self {
+        Thing(make_iter())
+    }
+    pub fn next_u8x4(&mut self) -> Option<[u8; 4]> {
+        self.0.next().map(|n| n.to_be_bytes())
+    }
+}
+#+end_src

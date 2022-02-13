@@ -1,0 +1,160 @@
+:PROPERTIES:
+:ID:       f84f48ca-7e04-4b50-a83e-d5cc40e9d4ff
+:ROAM_ALIASES: "auto pointer" "shared pointer" "smart pointer"
+:ROAM_REFS: https://www.youtube.com/watch?v=VNVzL7L8tsA
+:END:
+#+ANKI_DECK: org-anki-test-deck
+#+title: counted pointer
+| context | i |
+- count references to our object, and call destructor when no one is using the object anymore
+
+
+| 1 | 1 | nil | nil | wrapper variant | nil |
+[[download:_20220209_152919screenshot.png]]
+* counted pointer summary
+:PROPERTIES:
+:ID:       7820b6a2-706a-4340-8bfd-069f50b31145
+:ANKI_NOTE_ID: 1644436670320
+:END:
+| context | i |
+<<my-content>>
+* a
+** b
+*** wrapper variant
+:PROPERTIES:
+:ANKI_NOTE_ID: 1644436670315
+:END:
+[[download:_20220209_153311screenshot.png]]
+
+
+#+begin_src emacs-lisp :results raw
+;; (defun tt-get-heading-info ()
+;;   "show org-heading-components result"
+;;   (interactive)
+;;   (let ((x (org-element-parse-buffer))) (print x)))
+;; (tt-get-heading-info)
+;; (defun tt-get-headings ()
+;;   "2019-01-14"
+;;   (interactive)
+;;   (let (headings '())
+;;     (org-map-entries
+;;      (lambda ()
+;;        (push (org-heading-components) headings)))
+;;       (print headings))
+;; )
+;; (tt-get-headings)
+#+end_src
+
+#+begin_src emacs-lisp :results raw
+(org-element-map (org-element-at-point) 'section
+                 (lambda (hl) (print (org-element-property :title hl))))
+#+end_src
+
+#+RESULTS:
+nil
+
+#+begin_src emacs-lisp :results raw
+;; (org-element-property :parent (org-element-at-point))
+(org-element-map
+(org-element-property :parent (org-element-property :parent (org-element-at-point)))
+  'headline
+                 (lambda (hl) (print (org-element-property :title hl))))
+#+end_src
+
+#+RESULTS:
+
+#+begin_src emacs-lisp :results raw
+(org-element-property :parent (org-element-property :parent (org-element-at-point)))
+#+end_src
+
+#+begin_src emacs-lisp :results code
+(org-element-lineage (org-element-at-point))
+#+end_src
+
+#+RESULTS:
+#+begin_src emacs-lisp
+((section
+  (:begin 628 :end 1911 :contents-begin 628 :contents-end 1909 :robust-begin 628 :robust-end 1907 :post-blank 2 :post-affiliated 628 :mode section :granularity element :cached t :parent
+          (headline
+           (:raw-value "wrapper variant" :begin 608 :end 1911 :pre-blank 0 :contents-begin 628 :contents-end 1909 :robust-begin 675 :robust-end 1907 :level 3 :priority nil :tags nil :todo-keyword nil :todo-type nil :post-blank 2 :footnote-section-p nil :archivedp nil :commentedp nil :post-affiliated 608 :ANKI_NOTE_ID "1644436670315" :title
+                       (#("wrapper variant" 0 15
+                          (:parent
+                           (headline #4))))
+                       :mode nil :granularity nil :parent
+                       (headline
+                        (:raw-value "b" :begin 603 :end 1911 :pre-blank 0 :contents-begin 608 :contents-end 1909 :robust-begin 610 :robust-end 1907 :level 2 :priority nil :tags nil :todo-keyword nil :todo-type nil :post-blank 2 :footnote-section-p nil :archivedp nil :commentedp nil :post-affiliated 603 :title
+                                    (#("b" 0 1
+                                       (:parent
+                                        (headline #6))))
+                                    :mode nil :granularity nil :parent
+                                    (headline
+                                     (:raw-value "a" :begin 599 :end 1911 :pre-blank 0 :contents-begin 603 :contents-end 1909 :robust-begin 605 :robust-end 1907 :level 1 :priority nil :tags nil :todo-keyword nil :todo-type nil :post-blank 2 :footnote-section-p nil :archivedp nil :commentedp nil :post-affiliated 599 :title
+                                                 (#("a" 0 1
+                                                    (:parent
+                                                     (headline #8))))
+                                                 :mode nil :granularity nil :parent
+                                                 (org-data
+                                                  (:begin 1 :contents-begin 1 :contents-end 1909 :end 1911 :robust-begin 186 :robust-end 1907 :post-blank 2 :post-affiliated 1 :path "/home/m/org/pkms/software-design-patters/counted-pointer.org" :mode org-data :ID "f84f48ca-7e04-4b50-a83e-d5cc40e9d4ff" :ROAM_ALIASES "\"auto pointer\" \"shared pointer\" \"smart pointer\"" :ROAM_REFS "https://www.youtube.com/watch?v=VNVzL7L8tsA" :CATEGORY "counted-pointer" :parent nil :cached t))
+                                                 :cached t :org-element--cache-sync-key
+                                                 (1438 . 599)))
+                                    :cached t :org-element--cache-sync-key
+                                    (1438 . 603)))
+                       :cached t :org-element--cache-sync-key
+                       (1438 . 608)))))
+ (headline
+  (:raw-value "wrapper variant" :begin 608 :end 1911 :pre-blank 0 :contents-begin 628 :contents-end 1909 :robust-begin 675 :robust-end 1907 :level 3 :priority nil :tags nil :todo-keyword nil :todo-type nil :post-blank 2 :footnote-section-p nil :archivedp nil :commentedp nil :post-affiliated 608 :ANKI_NOTE_ID "1644436670315" :title
+              (#("wrapper variant" 0 15
+                 (:parent
+                  (headline #2))))
+              :mode nil :granularity nil :parent
+              (headline
+               (:raw-value "b" :begin 603 :end 1911 :pre-blank 0 :contents-begin 608 :contents-end 1909 :robust-begin 610 :robust-end 1907 :level 2 :priority nil :tags nil :todo-keyword nil :todo-type nil :post-blank 2 :footnote-section-p nil :archivedp nil :commentedp nil :post-affiliated 603 :title
+                           (#("b" 0 1
+                              (:parent
+                               (headline #4))))
+                           :mode nil :granularity nil :parent
+                           (headline
+                            (:raw-value "a" :begin 599 :end 1911 :pre-blank 0 :contents-begin 603 :contents-end 1909 :robust-begin 605 :robust-end 1907 :level 1 :priority nil :tags nil :todo-keyword nil :todo-type nil :post-blank 2 :footnote-section-p nil :archivedp nil :commentedp nil :post-affiliated 599 :title
+                                        (#("a" 0 1
+                                           (:parent
+                                            (headline #6))))
+                                        :mode nil :granularity nil :parent
+                                        (org-data
+                                         (:begin 1 :contents-begin 1 :contents-end 1909 :end 1911 :robust-begin 186 :robust-end 1907 :post-blank 2 :post-affiliated 1 :path "/home/m/org/pkms/software-design-patters/counted-pointer.org" :mode org-data :ID "f84f48ca-7e04-4b50-a83e-d5cc40e9d4ff" :ROAM_ALIASES "\"auto pointer\" \"shared pointer\" \"smart pointer\"" :ROAM_REFS "https://www.youtube.com/watch?v=VNVzL7L8tsA" :CATEGORY "counted-pointer" :parent nil :cached t))
+                                        :cached t :org-element--cache-sync-key
+                                        (1438 . 599)))
+                           :cached t :org-element--cache-sync-key
+                           (1438 . 603)))
+              :cached t :org-element--cache-sync-key
+              (1438 . 608)))
+ (headline
+  (:raw-value "b" :begin 603 :end 1911 :pre-blank 0 :contents-begin 608 :contents-end 1909 :robust-begin 610 :robust-end 1907 :level 2 :priority nil :tags nil :todo-keyword nil :todo-type nil :post-blank 2 :footnote-section-p nil :archivedp nil :commentedp nil :post-affiliated 603 :title
+              (#("b" 0 1
+                 (:parent
+                  (headline #2))))
+              :mode nil :granularity nil :parent
+              (headline
+               (:raw-value "a" :begin 599 :end 1911 :pre-blank 0 :contents-begin 603 :contents-end 1909 :robust-begin 605 :robust-end 1907 :level 1 :priority nil :tags nil :todo-keyword nil :todo-type nil :post-blank 2 :footnote-section-p nil :archivedp nil :commentedp nil :post-affiliated 599 :title
+                           (#("a" 0 1
+                              (:parent
+                               (headline #4))))
+                           :mode nil :granularity nil :parent
+                           (org-data
+                            (:begin 1 :contents-begin 1 :contents-end 1909 :end 1911 :robust-begin 186 :robust-end 1907 :post-blank 2 :post-affiliated 1 :path "/home/m/org/pkms/software-design-patters/counted-pointer.org" :mode org-data :ID "f84f48ca-7e04-4b50-a83e-d5cc40e9d4ff" :ROAM_ALIASES "\"auto pointer\" \"shared pointer\" \"smart pointer\"" :ROAM_REFS "https://www.youtube.com/watch?v=VNVzL7L8tsA" :CATEGORY "counted-pointer" :parent nil :cached t))
+                           :cached t :org-element--cache-sync-key
+                           (1438 . 599)))
+              :cached t :org-element--cache-sync-key
+              (1438 . 603)))
+ (headline
+  (:raw-value "a" :begin 599 :end 1911 :pre-blank 0 :contents-begin 603 :contents-end 1909 :robust-begin 605 :robust-end 1907 :level 1 :priority nil :tags nil :todo-keyword nil :todo-type nil :post-blank 2 :footnote-section-p nil :archivedp nil :commentedp nil :post-affiliated 599 :title
+              (#("a" 0 1
+                 (:parent
+                  (headline #2))))
+              :mode nil :granularity nil :parent
+              (org-data
+               (:begin 1 :contents-begin 1 :contents-end 1909 :end 1911 :robust-begin 186 :robust-end 1907 :post-blank 2 :post-affiliated 1 :path "/home/m/org/pkms/software-design-patters/counted-pointer.org" :mode org-data :ID "f84f48ca-7e04-4b50-a83e-d5cc40e9d4ff" :ROAM_ALIASES "\"auto pointer\" \"shared pointer\" \"smart pointer\"" :ROAM_REFS "https://www.youtube.com/watch?v=VNVzL7L8tsA" :CATEGORY "counted-pointer" :parent nil :cached t))
+              :cached t :org-element--cache-sync-key
+              (1438 . 599)))
+ (org-data
+  (:begin 1 :contents-begin 1 :contents-end 1909 :end 1911 :robust-begin 186 :robust-end 1907 :post-blank 2 :post-affiliated 1 :path "/home/m/org/pkms/software-design-patters/counted-pointer.org" :mode org-data :ID "f84f48ca-7e04-4b50-a83e-d5cc40e9d4ff" :ROAM_ALIASES "\"auto pointer\" \"shared pointer\" \"smart pointer\"" :ROAM_REFS "https://www.youtube.com/watch?v=VNVzL7L8tsA" :CATEGORY "counted-pointer" :parent nil :cached t)))
+#+end_src

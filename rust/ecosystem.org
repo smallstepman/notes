@@ -2,6 +2,7 @@
 :ID:       d33a8061-e4bd-41e6-b9fa-dd43f3255039
 :END:
 #+title: Rust ecosystem
+#+filetags: rust
 
 * databases and tools
 - https://github.com/rbatis/rbatis

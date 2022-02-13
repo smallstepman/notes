@@ -1,0 +1,56 @@
+:PROPERTIES:
+:ID:       a4b2a1c9-075b-4c63-8025-e0d181a28ec9
+:END:
+#+title: I/O
+
+* blocking I/O
+:PROPERTIES:
+:ID:       83b7b799-fd93-4285-a79c-7898cbdc5469
+:ROAM_REFS: https://eklitzke.org/blocking-io-nonblocking-io-and-epoll
+:END:
+- when OS is being asked to perform a blocking operation, it will suspend the thread that makes the call
+  - it will stop executing code, store the CPU state (and go on to do other things)
+- when data arrives through the network, OS will wake up our thread again and resume operation
+- by default, all file descriptors on Unix systems start out in "blocking mode"
+* non-blocking I/O
+:PROPERTIES:
+:ID:       443f0a91-1de0-4296-8a10-537bd040d31d
+:END:
+- OS will not suspend the thread that made an I/O request
+  - instead, OS will return handle
+  - the thread can use the handle to ask the operating system if the event is ready or not
+  - "Polling" is using our handle to call OS asking for status
+- drawbacks
+  - when data is coming in very slowly the program will wake up frequently and unnecessarily, which wastes CPU resources
+  - when data does come in, the program may not read it immediately if it's sleeping, so the latency of the program will be poor
+  - handling a large number of file descriptors with this pattern would become cumbersome
+* I/O multiplexing
+- "asynchronous I/O"
+- achived via select (POSIX), epoll (Linux), kqueue (BSD), IOCP (Windows)
+  - they let the kernel know what events (typically read events and write events) are of interest on a set of file descriptors, and then they block until something of interest happens
+- these methods let us hook into the OS in a way in which we can wait for many events
+  - one thread is waiting for many tasks
+  - instead of being limited to waiting on one event per thread, we can wait for many events on one thread
+  - avoids one of the biggest drawbacks of using one thread per event:
+    - wasteful memory occupation
+    - the overhead of continuously spawning new threads
+- if we only register one event to the epoll/kqueue/iocp event queue and wait for it, it will be no different from using blocking I/O
+  - the advantage comes we can have a queue that waits for hundreds of thousands of events with very little wasted resources.
+- I/O multiplexing system calls typically do not care if the file descriptors are in blocking mode or nonblocking mode
+  - the blocking or nonblocking status of a file descriptor is significant for edge-triggered polling
+** epoll
+- Linux kernel system call for a scalable I/O event notification mechanism
+- its function is to monitor multiple file descriptors to see whether I/O is possible on any of them
+- operates in $0(1)$ time
+** readiness based model
+:PROPERTIES:
+:ID:       fe7fd1d1-6d09-434d-bac2-2cb2e0f7b6ce
+:ROAM_REFS: https://cfsamsonbooks.gitbook.io/epoll-kqueue-iocp-explained/part-1-an-express-explanation
+:END:
+- Epoll and Kqueue are "readiness based"
+- thread receives a *notification* when an operation is ready to be performed
+  - (e.g. when data is ready to be read into a buffer)
+** completion based models
+- IOCP (abbrev of Input/Output Completion Ports), is a completion-based model
+- thread receives a notification when an operation has happened.
+  - e.g. when data has been read into a buffer

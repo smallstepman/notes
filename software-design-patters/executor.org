@@ -1,0 +1,16 @@
+:PROPERTIES:
+:ID:       d29c709f-7820-46df-ac89-1dd2f949dc22
+:ROAM_REFS: https://stackoverflow.com/questions/42177803/what-is-the-executor-pattern-in-a-c-context
+:END:
+#+title: executor
+#+filetags: :design-pattern:
+#+begin_quote
+executor model exists because, by and large, you don't actually know, when you're first writing code, what parallelism model is best for your scenario. You might have little to gain from parallelism and shouldn't use threads at all, you might do best with a long running dedicated worker thread for each core, or a dynamically scaling pool of threads based on current load that cleans up threads after they've been idle a while to reduce memory usage, context switches, etc., or maybe just launching a thread for every task on demand, exiting when the task is done. The key here is it's nigh impossible to know which approach is best when you're first writing code. You may know where parallelism might help you, but in traditional threading, you end up intermingling the parallelism "configuration" (when and whether to create threads) with the use of parallelism (determining which functions to call with what arguments)
+#+end_quote
+
+* benefits
+- separating the definition of a program's parallelism from how it's used
+- simplify performance testing of different concurrency options
+- to experiment with other configurations, you change the one line defining the executor and run your code again
+- simplify the code, by avoiding intermingling thread creation/management with the tasks the threads do
+- abstracting away the complexities of transferring data into and out of a worker thread

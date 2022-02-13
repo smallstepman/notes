@@ -1,0 +1,6 @@
+:PROPERTIES:
+:ID:       e9cc47ae-9bea-4481-af49-4c595e286ef1
+:END:
+#+title: liquidity pool
+
+a collection of assets where a liquidity provider can deposit his assets to be used by the platform

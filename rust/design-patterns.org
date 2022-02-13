@@ -2,9 +2,29 @@
 :ID:       1711a3a7-9746-45c5-a1c6-928377bd7a21
 :END:
 #+title: Rust design patterns
+#+filetags: rust
 
 * newtype
 - another useful representation is repr(transparent), which can be used only on types with a single field and which guarantees that the layout of the outer type is exactly the same as that of the inner type. This comes in handy in combination with the “newtype” pattern, where you may want to operate on the in-memory representations of some struct A and struct NewA(A) as if they were the same. Without repr(transparent), the Rust compiler does not guarantee that they will have the same layout.
+- *Using the Newtype Pattern to Implement External Traits on External Types.* (CH19)
+To get around orphan rule restriction, it's possible to use *newtype pattern*, where I wrap External Type with a tuple, to implement External Trait on that tuple. There is no runtime  performance penalty. The downside is the fact that new type doesn't have methods of the value it's holding, although implementing =Deref= trait would be a solution.
+
+  #+begin_src rust
+    use std::fmt;
+
+    struct Wrapper(Vec<String>);
+
+    impl fmt::Display for Wrapper {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "[{}]", self.0.join(", "))
+        }
+    }
+
+    fn main() {
+        let w = Wrapper(vec![String::from("hello"), String::from("world")]);
+        println!("w = {}", w);
+    }
+  #+end_src
 * typestate
 :PROPERTIES:
 :ID:       72caa898-b8a5-4045-8eea-c1a9656514a1
@@ -13,6 +33,10 @@
 - http://rust-lang.github.io/chalk/book/recursive/coinduction.html
 - https://www.youtube.com/watch?v=nOqO5OlC920
 - https://github.com/rust-lang/rust/issues/26925
+* interior mutability
+:PROPERTIES:
+:ID:       65e8df06-496f-471e-b581-509c4433de87
+:END:
 * COMMENT old example
 #+begin_src rust
 use std::ops::Deref;

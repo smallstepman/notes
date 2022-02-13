@@ -1,0 +1,28 @@
+:PROPERTIES:
+:ID:       5f09384e-fcfb-4860-9424-5c79706d1e5f
+:END:
+#+title: Rust pattern matching
+#+filetags: rust
+
+* irrefutable
+:PROPERTIES:
+:ID:       1aa4d01b-1b27-4325-b9d9-dbaab90d1251
+:END:
+patterns that will match for any possible value passed are irrefutable.
+#+begin_src rust
+let x = 5;
+fn foo(a: i32) {}
+for i in [1,2,3] {}
+#+end_src
+* refutable
+:PROPERTIES:
+:ID:       a80e5be2-ae81-40e3-bf98-74f01698912e
+:END:
+patterns that can fail to match for some possible value are refutable
+#+begin_src rust
+let Some(x) = some_option
+#+end_src
+* =match=
+- =match= is exhaustive (compiler confirms that all possible cases are handled)
+- =_= pattern will match any value
+- examples: https://doc.rust-lang.org/rust-by-example/flow_control/match.html

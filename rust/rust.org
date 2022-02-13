@@ -4,17 +4,9 @@
 #+STARTUP: overview
 #+VISIBILITY: folded
 #+TITLE: Rust
-#+filetags: :project:
+#+filetags: :project: rust
 
-* raw pointer
-- =*const T= and =*mut T=
-- they dont have lifetimes
-- its possible to cast referece into raw pointer outside =unsafe= block
-  - reverse is possible only in =unsafe= block
--
 
-* downcasting
-downcasting is the process of taking an item of one type and casting it to a more specific type (This is one of the few cases where Rust gives you access to type information at runtime; it’s a limited case of the more general type reflection that dynamic languages often provide
 * continous integration
 :PROPERTIES:
 :ID:       32639ce4-25ea-41ef-9018-caa0bd47623e
@@ -32,9 +24,6 @@ The standard library has many conversion traits, but two of the core ones are Fr
 * zero sized types
 - compile-time concepts that disappear during compilation and have a runtime representation of zero bytes
 * https://github.com/DanielKeep/cargo-script
-* function pointer comparison
-- generally a bad idea
-- It is easily possible to get nonsensical behavior in optimized builds, [[https://github.com/rust-lang/rust/issues/54685][example]]
 * TODO [#A] auto-dereferencing rules
 https://stackoverflow.com/a/28552082/6086311
 #+begin_src rust

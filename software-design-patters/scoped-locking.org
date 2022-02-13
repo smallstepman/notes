@@ -1,0 +1,15 @@
+:PROPERTIES:
+:ID:       d2cf61d8-1724-416d-ba0f-7b440f0999c5
+:ROAM_REFS: https://www.youtube.com/watch?v=o8DRPf2uRCU
+:END:
+#+title: scoped locking
+
+- used for acuiring or releasing locks
+- useful when I want to avoid forgetting to release the lock
+- useful when I want to lock mechanism to protect a critical section (e.g. concurrent access)
+- uses scoped semantics of a programming language
+- relies on stack unwinding to call the destructor on leaving a scope
+- (benefit) increased robustness
+- (benefit) simple usage
+- (drawback) potential deadlock when used recursively (reacquire lock needed)
+- (limitation) language specific semantice - doing a =longjmp= can break stack unwinding semantics (therefore also break scoped locking)

@@ -2,6 +2,7 @@
 :ID:       6153f08a-6e18-4bf7-b2c7-1b855b911ded
 :END:
 #+title: Rust async
+#+filetags: rust
 
 - an asynchronous interface is a method that returns a Poll
 #+begin_src rust
