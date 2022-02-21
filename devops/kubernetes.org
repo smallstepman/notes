@@ -5,6 +5,7 @@
 #+TITLE: Kubernetes
 #+created_at:<2021-04-27 Tue 18:32>
 #+roam_tags: Empty
+#+filetags: :project:
 
 - Kubernetes is a container [[id:86366706-d878-41c9-8547-51b208882280][orchestration tool]]
 - it creates groups of containers that can be logically discovered and managed for easy operations on containers
@@ -175,3 +176,6 @@ A context is a group of access parameters that has a cluster, a user, and a name
 The components of the Kubernetes Master include the API server, the controller manager, the Scheduler, and the etcd components. The Kubernetes Master components are responsible for running and managing the Kubernetes cluster.
 ** What do I need on-premises to run the Kubernetes architecture?
 Many on-premises environments are remodeled to enable Kubernetes integration. Integrating storage, servers, and networking into a smoothly running environment requires top skills. For Kubernetes, deciding the right storage and networking equipment is crucial as it facilitates interaction with resources for storage, load balancers, etc. A critical part of Kubernetes’ value proposition is the ability to automate storage and the networking components.
+
+* HOLD what happens when
+https://github.com/jamiehannaford/what-happens-when-k8s
