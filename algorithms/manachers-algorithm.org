@@ -1,0 +1,107 @@
+:PROPERTIES:
+:ID:       3662c5ff-9135-4d60-950d-cc1a78c5f0b9
+:ROAM_REFS: https://en.wikipedia.org/wiki/Longest_palindromic_substring#CITEREFManacher1975
+:ROAM_ALIASES: "longest symmetric factor" "longest palidromic substring"
+:END:
+#+title: Manacher's algorithm
+#+filetags: :string-data-structure:
+
+
+#+begin_src rust
+fn main() {}
+struct Solution;
+impl Solution {
+    fn add_bogus_char(s: &str) -> String {
+        s.chars().map(|x| format!("|{}", x)).collect::<String>() + "|"
+    }
+    fn distance_to_edge(center: usize, length: usize) -> usize {
+        std::cmp::min(center, length - center)
+    }
+    fn is_reflected(s: &str, center: usize, radius: usize) -> bool {
+        s.chars().nth(center - radius) == s.chars().nth(center + radius)
+    }
+    fn max_with_position<T: Ord + Copy>(v: Vec<T>) -> (T, usize) {
+        let max_value = v.iter().max().unwrap().to_owned();
+        let max_position = v.iter().position(|x| *x == max_value).unwrap();
+        (max_value, max_position)
+    }
+
+    fn lps(s: &str) -> String {
+        let s = Self::add_bogus_char(s);
+        let mut radii = vec![0; s.len()];
+        let mut radius = 0;
+        for (center, _) in s.chars().enumerate() {
+            let distance = Self::distance_to_edge(center, s.len());
+            if distance > 1 {
+                for r in 0..distance {
+                    if Self::is_reflected(&s, center, r) {
+                        radius += 1;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            radii[center] = radius;
+            // let old_center = center;
+            // let old_radius = radius;
+            // let mut center = center + 1;
+            radius = 0;
+            // while center <= old_center + old_radius {
+            //     let mirrored_center = old_center - (center - old_center);
+            //     let max_mirrored_radius = old_center + old_radius - center;
+            //     if center > s.len() - 1 {
+            //         break;
+            //     } else {
+            //         if radii[mirrored_center] < max_mirrored_radius {
+            //             radii[center] = radii[mirrored_center];
+            //             center = center + 1;
+            //         } else if radii[mirrored_center] > max_mirrored_radius {
+            //             radii[center] = max_mirrored_radius;
+            //             center = center + 1;
+            //         } else {
+            //             radius = max_mirrored_radius;
+            //             break;
+            //         }
+            //     }
+            // }
+        }
+
+        let (m, p) = Self::max_with_position(radii);
+        s[p - m + 1..p + m]
+            .chars()
+            .filter(|c| c != &'|')
+            .collect::<String>()
+    }
+}
+
+#[test]
+fn test_name() {
+    let s = "abracadabba".to_string();
+    let x = Solution::lps(&s);
+    assert_eq!("abba", x);
+}
+#[test]
+fn test_w() {
+    let s = "aba".to_string();
+    let x = Solution::lps(&s);
+    assert_eq!("aba", x);
+}
+#[test]
+fn test_nrame() {
+    let s = "abc".to_string();
+    let x = Solution::lps(&s);
+    assert_eq!("b", x);
+}
+#[test]
+fn test_nfame() {
+    let s = "xyxfwirf".to_string();
+    let x = Solution::lps(&s);
+    assert_eq!("xyx", x);
+}
+#[test]
+fn test_nfafe() {
+    let s = "fuyfwrxyx".to_string();
+    let x = Solution::lps(&s);
+    assert_eq!("xyx", x);
+}
+#+end_src
