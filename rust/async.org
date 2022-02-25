@@ -6,15 +6,17 @@
 
 - an asynchronous interface is a method that returns a Poll
 #+begin_src rust
-let v: Vec<bool> = x.iter().filter(|v| match v { true => false, false => true} ).cloned().collect();
-let x: Vec<bool> = vec![true,false,false];
-println!("{:?}", v);
 enum Poll<T> {
     Ready(T),
     Pending
 }
 #+end_src
-- polling is standardized through the Future trait
+- Future is a way of creating an interruptible task
+* polling
+:PROPERTIES:
+:ID:       485b2b69-5866-4902-9f6c-e976b506364d
+:END:
+- standardized through the Future trait
   - types that implement the Future trait are known as futures and represent values that may not be available yet
   - =Future<Output = Foo>=: a type that will produce a Foo in the future
   - when a future eventually returns Poll::Ready(T), we say that the future resolves into a T
@@ -34,6 +36,9 @@ Rust takes a unique approach. Primarily, Rust's async operations are lazy. This 
 - An =async fn= is used as we want to enter an asynchronous context. However, asynchronous functions must be executed by a runtime. The runtime contains the asynchronous task scheduler, provides evented I/O, timers, etc. The runtime does not automatically start, so the =main= function needs to start it.
 
 ** tokio
+:PROPERTIES:
+:ID:       73066fcd-3cb5-4ce8-a7c2-830bdddb32f7
+:END:
 - The =#[tokio::main]= function is a macro. It transforms the =async fn main()= into a synchronous =fn main()= that initializes a runtime instance and executes the async main function.For example, the following:
 #+begin_src rust
 #[tokio::main]
