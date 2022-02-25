@@ -52,6 +52,10 @@ fn frobnicate3(s: impl AsRef<str>) -> impl AsRef<str>
 1. start with the argument fully generic with no bounds, and then just
 2. follow the compiler errors to discover what bounds you need to add
 ** object safety
+:PROPERTIES:
+:ID:       cd8b7cc5-8bf5-4dd4-8213-637c46c2cfe9
+:ROAM_REFS: https://github.com/rust-lang/rfcs/blob/master/text/0255-object-safety.md
+:END:
 - object safety is a part of public interface
 - you should prefer your traits to be object-safe even if that comes at a slight cost to the ergonomics of using them (such as taking impl AsRef<str> over &str), since object safety enables new ways to use your traits
   - if the trait is object-safe, users can treat different types that implement your trait as a single common type using dyn Trait
@@ -117,11 +121,11 @@ code, and you are confident in your ability to do so.
   - example: function which takes three bool arguments (using Enum insted)
   - newtype around a numeric type may provide a unit for the contained value, or it could constrain raw pointer arguments to only those that have been returned by another method.
 ** zero-sized types
-- indicate that a particular fact is true about an instance of a type ([[id:72caa898-b8a5-4045-8eea-c1a9656514a1][typestate]])
-*** COMMENT zero-sized types code example
 :PROPERTIES:
 :ID:       907a6bf6-cb91-49f2-bb80-8ee003b2317f
 :END:
+- indicate that a particular fact is true about an instance of a type ([[id:72caa898-b8a5-4045-8eea-c1a9656514a1][typestate]])
+*** COMMENT example
 Consider, for instance, a type called Rocket that represents the state of a real rocket. Some operations (methods) on Rocket should be available no matter what state the rocket is in, but some make sense only in particular situations. It is, for example, impossible to launch a rocket if it has already been launched. Similarly, it should probably not be possible to separate the fuel tank if the rocket has not yet launched. We could model these as enum variants, but then all the methods would be available at every stage, and we’d need to introduce possible panics.
 #+begin_src rust :session xrf
 #[derive(Debug)]
