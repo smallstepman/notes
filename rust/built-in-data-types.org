@@ -10,7 +10,7 @@
 :PROPERTIES:
 :ID:       e425c79c-559d-4c87-9a69-d5100a75ad00
 :END:
-- an immutable reference to value hardcoded into the program
+- an immutable reference to value hardcoded into the program [[id:7bfb76c4-d745-4bd9-8413-5e20b90ad684][static memory]]
 - its type is =&str=, a string slice pointing to specific point in binary
 #+begin_src rust
 let s = "hello";
@@ -19,7 +19,7 @@ let s = "hello";
 :PROPERTIES:
 :ID:       0f790e28-8793-4fd3-8b0f-7eab2fb30387
 :END:
-- allocated on the heap
+- allocated on the [[id:43faddc6-b695-4dc6-bbaa-096f705b41e9][heap]]
 - internal representation of a String is a str
 #+begin_src rust
 let s = String::from("hello");
@@ -31,11 +31,13 @@ println!("{}", s);
 :PROPERTIES:
 :ID:       d765cc94-e7fd-40e1-9dc6-56d8ce3348a1
 :END:
-a reference to a part of a =String=
+- a reference to a part of a =String= or =&str=
+- a [[id:c3b2d4fe-1fae-48c9-8f8d-dba505e5a8c7][dynamically sized type]]
 #+begin_src rust
 let s = String::from("hello world");
 let hello = &s[0..5];
-let world = &s[6..11];
+let f  = "f";
+let f_ref = &x[..];
 #+end_src
 ** hash map
 :PROPERTIES:
@@ -68,7 +70,7 @@ scores.entry(String::from("Blue")).or_insert(50);
 :ID:       431010cd-ed6b-4883-87f7-d1e67e7d8698
 :END:
 - can hold same type
-- stored on heap
+- stored on [[id:43faddc6-b695-4dc6-bbaa-096f705b41e9][heap]]
 #+begin_src rust
 let v: Vec<i32> = Vec::new();
 v.push(5);
@@ -102,12 +104,11 @@ let row = vec![
     SpreadsheetCell::Float(10.12),
 ];
 #+end_src
-
 ** array
 :PROPERTIES:
 :ID:       41a10dca-180b-45f2-bcf9-d19ca91884e3
 :END:
-- stored on stack
+- stored on [[id:6bd81b97-d697-448e-ac04-1d245027c40f][stack]]
 - can hold single type
 #+begin_src rust
 let a: [i32; 5] = [1, 2, 3, 4, 5];
@@ -117,7 +118,14 @@ let first = a[0];
 ** function pointers
 :PROPERTIES:
 :ID:       a5e87543-0e84-4394-89f6-9aea33ac19a6
+:ROAM_REFS: https://doc.rust-lang.org/reference/const_eval.html
 :END:
+- function pointer is a pointer to a function with a given signature
+- function item uniquely idendifes partucular instance of a function (e.g. after [[id:d0721969-3215-46a5-b784-a8c35400b5b1][monomorphization]])
+- its possible to turn function pointer into function item, but not the other way around
+- has no state, and there is no lifetime associated with function pointer or item
+- =self= points to itself
+- implements =FnOnce=, =FnMut=, =Fn=
 #+begin_src rust
 fn add_one(x: i32) -> i32 {
     x + 1
@@ -132,6 +140,17 @@ fn main() {
 
     println!("The answer is: {}", answer);
 }
+#+end_src
+*** constant function
+- function permitted to call from a const context
+- declaring a function const has no effect on any existing uses
+#+begin_src rust
+fn main() {
+    let a = [3u32; x(2)];
+    println!("{:?}", a);
+}
+
+const fn x(u: usize) -> usize {3+u}
 #+end_src
 ** enum
 :PROPERTIES:
@@ -173,3 +192,174 @@ m.call();
 :PROPERTIES:
 :ID:       0432654c-0098-4561-8c88-735cb992a8a7
 :END:
+** closure
+:PROPERTIES:
+:ID:       23653d9c-8b8c-449a-8ead-8e26f3f4ab2a
+:END:
+- closures are anonymous function that can be stored in a variable, passed as argument to other functions
+- unlike functions, they can capture values from the scope in which they're defined
+- closures can either be non-capturing, or capture values from their environment in three ways
+*** non-capturing closure
+:PROPERTIES:
+:ID:       dc8466bc-6780-4dce-8e92-af1ca369a4e1
+:END:
+- doesn't use any variables from environment, uses only values passed as arguments
+- can be coerced to [[id:a5e87543-0e84-4394-89f6-9aea33ac19a6][function pointers]]
+#+begin_src rust :main
+fn main() { bar(|x: u8, y| x + y); }
+fn bar<F, X>(_f: F) where F: Fn(X, X) -> X { }
+#+end_src
+*** capturing environment values by taking ownership
+:PROPERTIES:
+:ID:       5bece9ba-9a60-4115-b0f9-0cb786a418b3
+:END:
+- =FnOnce= consumes the variables it captures from its enclosing scope (known as the closure's environment) by taking ownership of these variables and move them into the closure when it is defined
+- the "Once" part of the name represents the fact that the closure can't take ownership of the same variables more than once
+*** capturing environment values by borrowing mutably
+:PROPERTIES:
+:ID:       61b124f2-87b6-47de-8d33-8180cb74167d
+:END:
+- =FnMut= can change the environment because it mutably borrows values
+*** capturing environment values by taking borrowing immutably
+:PROPERTIES:
+:ID:       f5ba67fd-9b8d-4d84-b834-dadf46fc240a
+:END:
+- =Fn= borrows values from the environment immutably
+- use =move= keyword before the parameter list to force the closure to take ownership of the values it uses in the environment
+  - useful when passing a closure to a new thread to move the data so it's owned by the new [[id:6837b09c-8b80-482a-bf59-83aae0bd69ae][thread]]
+
+
+**** COMMENT example
+#+begin_src rust
+struct Abc<T> where T: FnMut(u8) -> bool
+{
+    f: T
+}
+
+#[derive(Debug)]
+struct Def<T> where T: FnOnce(u8) -> bool
+{
+    f: T
+}
+
+struct Ghj<T> where T: Fn(u8) -> bool
+{
+    f: T
+}
+
+
+fn main() {
+    // move
+    let x = vec![1, 2, 3];
+    let equal_to_x = move |z| z == x;
+    // println!("can't use x here: {:?}", x);
+    // Error: borrow of moved value: `x`
+    // | let x = vec![1, 2, 3];
+    // |     - move occurs because `x` has type `std::vec::Vec<i32>`, which does not implement the `Copy` trait
+    // | let equal_to_x = move |z| z == x;
+    // |                  --------      - variable moved due to use in closure
+    // |                  |
+    // |                  value moved into closure here
+    // | println!("can't use x here: {:?}", x);
+    // |                                    ^ value borrowed here after move
+    let y = vec![1, 2, 3];
+    assert!(equal_to_x(y));
+    // assert!(equal_to_x(y));
+    // Error: use of moved value: `y`
+    // | let y = vec![1, 2, 3];
+    // |     - move occurs because `y` has type `std::vec::Vec<i32>`, which does not implement the `Copy` trait
+    // | assert!(equal_to_x(y));
+    // |                    - value moved here
+    // | assert!(equal_to_x(y));
+    // |                    ^ value used here after move
+    let e = vec![1, 2, 3];
+    assert!(equal_to_x(e));
+
+    // FnMut
+    let mut y = 5;
+    let mut x = Abc {
+        f: |x| {
+            y = 3;
+            x == y
+        }
+    };
+    assert_eq!((x.f)(3), true);
+    assert_eq!((x.f)(3), true);
+
+    // FnOnce
+    let mut i = 4;
+    let o = Def {
+        f: |x| {
+            i = 3;
+            x == i
+        }
+    };
+    assert_eq!((o.f)(3), true);
+    // assert_eq!((o.f)(3), true);
+    // Error: use of moved value: `o.f`
+    // 38 |     assert_eq!((o.f)(3), true);
+    //    |                ----- value moved here
+    // 39 |     assert_eq!((o.f)(3), true);
+    //    |                ^^^^^ value used here after move
+    // = note: move occurs because `o.f` has type i:&mut u8, which does not implement the `Copy` trait
+    assert_eq!(i, 3);
+
+    // Fn
+    let q = 5;
+    let w = Ghj {
+        f: |x| {
+            // q = 3;
+            // Error: cannot assign to `q`, as it is a captured variable in a `Fn` closure
+            // help: consider changing this to accept closures that implement `FnMut`
+            x == q
+        }
+    };
+    assert_ne!((w.f)(3), true);
+    assert_ne!((w.f)(3), true);
+}
+#+end_src
+
+** COMMENT sugar syntax
+#+begin_src rust
+fn  add_one_v1   (x: u32) -> u32 { x + 1 }
+let add_one_v2 = |x: u32| -> u32 { x + 1 };
+let add_one_v3 = |x|             { x + 1 };
+let add_one_v4 = |x|               x + 1  ;
+#+end_src
+** returning closures
+:PROPERTIES:
+:ID:       7eb1e981-7d98-4d14-ac78-2ce50ba9d0b9
+:END:
+#+begin_src rust
+fn main() {
+    let _ = returns_closure();
+    let _ = returns_closure2();
+}
+fn returns_closure() -> Box<dyn Fn(i32) -> i32> {
+    Box::new(|x| x + 1)
+}
+fn returns_closure2() -> impl Fn(i32) -> i32 {
+    // - wont work for coverd types
+    // - wont work if if-statmment determmines which closure
+    // implementation should this fn return
+    |x| x + 1
+}
+#+end_src
+** inline closure
+#+begin_src rust
+let list_of_strings: Vec<String> = vec![1, 2, 3]
+    .iter()
+    .map(ToString::to_string)
+    .map(|i| i.to_string())
+    .collect();
+
+enum Status {
+    Value(u32),
+    Stop,
+}
+
+let list_of_statuses: Vec<Status> =
+    (0u32..20)
+    .map(Status::Value)
+    .collect();
+#+end_src
