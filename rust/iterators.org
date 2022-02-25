@@ -3,7 +3,7 @@
 :END:
 #+title: iterators
 #+filetags: rust
-
+- https://ridiculousfish.com/blog/posts/least-favorite-rust-type.html
 - =.iter()= - produces iterator over immutable references
 - =.iter_mut()= - produces iterator over mutable references
 - =.into_iter()= - produces iterator over owned values
