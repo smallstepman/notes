@@ -191,6 +191,7 @@ fn main() {
 * trait bounds
 :PROPERTIES:
 :ID:       ab6fe483-62f8-4920-b158-d372df9b6a62
+:ROAM_REFS: https://stackoverflow.com/questions/26126683/how-to-match-trait-implementors
 :END:
 - trait bounds do not have to be of the form T: Trait where T is some type your implementation or type is generic over. The bounds can be arbitrary type restrictions and do not even need to include generic parameters, types of arguments, or local types.
 - generic type parameters do not need to appear only on the left-hand side =io::Error: From<MyError<T>>=
@@ -240,7 +241,8 @@ fn main () {
 #+RESULTS:
 : OtherStruct
 : ""
-
+**  Any trait
+- a facility for type-safe downcasting from trait objects to regular types
 * generics
 :PROPERTIES:
 :ID:       384a9d41-ea02-4718-852d-c192efcf23aa
