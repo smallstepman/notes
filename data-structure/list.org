@@ -1,12 +1,10 @@
 :PROPERTIES:
 :ID:       f6ad4bd0-5214-41da-b1c0-3090c9127312
 :END:
-#+title: list
+#+title: Linked list
 
-* Linked list
-:PROPERTIES:
-:ID:       01e29ab6-9324-44d2-8e3e-90f268997590
-:END:
+[[id:0d061b3f-f871-4c7c-814d-472f4995c7a6][Rust implementation]]
+
 - linear data structure
 - Linked list is a one-at-a-time linear-access structure.
 - every element is a separate object called a Node
@@ -48,7 +46,7 @@
   + last and first node points to null
 
 
-** Techniques
+* Techniques
 - Traversal
 - Insertion
 - Deletion
