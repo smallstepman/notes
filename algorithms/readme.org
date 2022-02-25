@@ -15,7 +15,7 @@
   - reduce a known NP-hard problem into the given problem
   - identify hints
   - special properties of the problem
-  - attack problem from non-obvious problem
+  - attack problem from non-obvious angle
   - compress the input data?
   - rework math formulas
   - list observations and patterns
@@ -23,7 +23,7 @@
 - do [[id:ddf5bcff-2fbe-471f-9c55-608b0b59f9cc][algorithm analysis]]
   - refrain from implementation until sure the solution is correct and fast enough
   - given max input bound, can currently implemented solution with its time/space complexity, pass the memory/time limit?
-  - Modern CPU can do 100M operations. If max input size is 100K and the algo is $$O(n^2)$$ then there are $^{10}$$ operations to be made, therefore the program will run for 100 seconds
+  - Modern CPU can do 100M/s operations. If max input size is 100K and the algo is $$O(n^2)$$ then there are $$10^{10}$$ operations to be made, therefore the program will run for 100 seconds
 - master programming languages
 - master the art of testing code
 - practice practice practice
