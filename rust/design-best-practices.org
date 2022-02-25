@@ -124,6 +124,7 @@ code, and you are confident in your ability to do so.
 :PROPERTIES:
 :ID:       907a6bf6-cb91-49f2-bb80-8ee003b2317f
 :END:
+- compile-time concepts that disappear during compilation and have a runtime representation of zero bytes
 - indicate that a particular fact is true about an instance of a type ([[id:72caa898-b8a5-4045-8eea-c1a9656514a1][typestate]])
 *** COMMENT example
 Consider, for instance, a type called Rocket that represents the state of a real rocket. Some operations (methods) on Rocket should be available no matter what state the rocket is in, but some make sense only in particular situations. It is, for example, impossible to launch a rocket if it has already been launched. Similarly, it should probably not be possible to separate the fuel tank if the rocket has not yet launched. We could model these as enum variants, but then all the methods would be available at every stage, and we’d need to introduce possible panics.

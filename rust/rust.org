@@ -4,9 +4,19 @@
 #+STARTUP: overview
 #+VISIBILITY: folded
 #+TITLE: Rust
-#+filetags: :project: rust
+#+filetags: :rust:
 
-
+- matches macro =filter(|&c| matches!(c, 'a'|'i'|'o'|'u'|'e'|'y'))=
+- [[https://docs.rs/parking_lot/0.11.1/parking_lot/index.html]]
+- https://doc.rust-lang.org/stable/std/io/struct.Cursor.html
+- https://docs.rs/bytes/1.0.1/bytes/buf/trait.Buf.html
+- [[https://stackoverflow.com/questions/46557608/what-is-the-null-pointer-optimization-in-rust][null pointer optimization]]
+- https://awesome-rust.com/#resources
+- https://github.com/brson/stdx
+- https://doc.rust-lang.org/std/keyword.ref.html
+- https://willcrichton.net/notes/rust-memory-safety/
+- https://rustype.github.io/typestate-rs/chapter_1.html
+- https://github.com/DanielKeep/cargo-script
 * continous integration
 :PROPERTIES:
 :ID:       32639ce4-25ea-41ef-9018-caa0bd47623e
@@ -15,129 +25,9 @@
 - configure your continuous integration infrastructure to test each subcrate both with the latest released versions of the other subcrates and with all of them configured to use path dependencies
 - cargo-deny and cargo-audit
 - If you are not running clippy as part of your CI pipeline already, you probably should be.
-* type std::any::TypeId
-- allows to get a unique identifier for any type. The Error trait has a hidden provided method called type_id, whose default implementation is to return TypeId::of::<Self>()
-- Any has a blanket implementation of impl Any for T, and in that implementation, its type_id returns the same. In the context of these impl blocks, the concrete type of Self is known, so this type_id is the type identifier of the real type
 * COMMENT =From= and =Into=
 The standard library has many conversion traits, but two of the core ones are From and Into. It might strike you as odd to have two: if we have From, why do we need Into, and vice versa? There are a couple of reasons, but let’s start with the historical one: it wouldn’t have been possible to have just one in the early days of Rust due to the coherence rules discussed in Chapter 2. Or, more specifically, what the coherence rules used to be.  Suppose you want to implement two-way conversion between some local type you have defined in your crate and some type in the standard library. You can write impl<T> From<Vec<T>> for MyType<T> and impl<T> Into<Vec<T>> for MyType<T> easily enough, but if you only had From or Into, you would have to write impl<T> From<MyType<T>> for Vec<T> or impl<T> Into<MyType<T>> for Vec<T>. However, the compiler used to reject those implementations! Only since Rust 1.41.0, when the exception for covered types was added to the coherence rules, are they legal. Before that change, it was necessary to have both traits. And since much Rust code was written before Rust 1.41.0, neither trait can be removed now.  Beyond that historical fact, however, there are also good ergonomic reasons to have both of these traits, even if we could start from scratch today. It is often significantly easier to use one or the other in different situations. For example, if you’re writing a method that takes a type that can be turned into a Foo, would you rather write fn (impl Into<Foo>) or fn<T>(T) where Foo: From<T>? And conversely, to turn a string into a syntax identifier, would you rather write Ident::from("foo") or <_ as Into<Ident>>::into("foo")? Both of these traits have their uses, and we’re better off having them both.  Given that we do have both, you may wonder which you should use in your code today. The answer, it turns out, is pretty simple: implement From, and use Into in bounds. The reason is that Into has a blanket implementation for any T that implements From, so regardless of whether a type explicitly implements From or Into, it implements Into!  Of course, as simple things frequently go, the story doesn’t quite end there. Since the compiler often has to “go through” the blanket implementation when Into is used as a bound, the reasoning for whether a type implements Into is more complicated than whether it implements From. And in some cases, the compiler is not quite smart enough to figure that puzzle out. For this reason, the ? operator at the time of writing uses From, not Into. Most of the time that doesn’t make a difference, because most types implement From, but it does mean that error types from old libraries that implement Into instead may not work with ?. As the compiler gets smarter, ? will likely be “upgraded” to use Into, at which point that problem will go away, but it's what we have for now.
-* godbolt.org or cargo-asm
-* zero sized types
-- compile-time concepts that disappear during compilation and have a runtime representation of zero bytes
-* https://github.com/DanielKeep/cargo-script
-* TODO [#A] auto-dereferencing rules
-https://stackoverflow.com/a/28552082/6086311
-#+begin_src rust
-struct X { val: i32 }
-struct Y { val: i32 }
-struct Z { val: Y }
-#[derive(Clone, Copy)]
-struct A;
-
-impl std::ops::Deref for X {
-    type Target = i32;
-    fn deref(&self) -> &i32 { &self.val }
-}
-
-impl std::ops::Deref for Y {
-    type Target = i32;
-    fn deref(&self) -> &i32 { &self.val }
-}
-
-impl std::ops::Deref for Z {
-    type Target = Y;
-    fn deref(&self) -> &Y { &self.val }
-}
-
-trait M { fn m(self); }
-trait RefM { fn refm(&self); }
-
-impl M for i32   { fn m(self) { println!("i32::m()");  } }
-impl M for X     { fn m(self) { println!("X::m()");    } }
-impl M for &X    { fn m(self) { println!("&X::m()");   } }
-impl M for &&X   { fn m(self) { println!("&&X::m()");  } }
-impl M for &&&X  { fn m(self) { println!("&&&X::m()"); } }
-
-impl RefM for i32  { fn refm(&self) { println!("i32::refm()");  } }
-impl RefM for X    { fn refm(&self) { println!("X::refm()");    } }
-impl RefM for &X   { fn refm(&self) { println!("&X::refm()");   } }
-impl RefM for &&X  { fn refm(&self) { println!("&&X::refm()");  } }
-impl RefM for &&&X { fn refm(&self) { println!("&&&X::refm()"); } }
-
-impl M for    A { fn m(self) { println!("A::m()");    } }
-impl M for &&&A { fn m(self) { println!("&&&A::m()"); } }
-
-impl RefM for    A { fn refm(&self) { println!("A::refm()");    } }
-impl RefM for &&&A { fn refm(&self) { println!("&&&A::refm()"); } }
-
-
-fn main() {
-    // I'll use @ to denote left side of the dot operator
-    (*X{val:42}).m();        // i32::m()    , Self == @
-    X{val:42}.m();           // X::m()      , Self == @
-    (&X{val:42}).m();        // &X::m()     , Self == @
-    (&&X{val:42}).m();       // &&X::m()    , Self == @
-    (&&&X{val:42}).m();      // &&&X:m()    , Self == @
-    (&&&&X{val:42}).m();     // &&&X::m()   , Self == *@
-    (&&&&&X{val:42}).m();    // &&&X::m()   , Self == **@
-    println!("-------------------------");
-
-    (*X{val:42}).refm();     // i32::refm() , Self == @
-    X{val:42}.refm();        // X::refm()   , Self == @
-    (&X{val:42}).refm();     // X::refm()   , Self == *@
-    (&&X{val:42}).refm();    // &X::refm()  , Self == *@
-    (&&&X{val:42}).refm();   // &&X::refm() , Self == *@
-    (&&&&X{val:42}).refm();  // &&&X::refm(), Self == *@
-    (&&&&&X{val:42}).refm(); // &&&X::refm(), Self == **@
-    println!("-------------------------");
-
-    Y{val:42}.refm();        // i32::refm() , Self == *@
-    Z{val:Y{val:42}}.refm(); // i32::refm() , Self == **@
-    println!("-------------------------");
-
-    A.m();                   // A::m()      , Self == @
-    // without the Copy trait, (&A).m() would be a compilation error:
-    // cannot move out of borrowed content
-    (&A).m();                // A::m()      , Self == *@
-    (&&A).m();               // &&&A::m()   , Self == &@
-    (&&&A).m();              // &&&A::m()   , Self == @
-    A.refm();                // A::refm()   , Self == @
-    (&A).refm();             // A::refm()   , Self == *@
-    (&&A).refm();            // A::refm()   , Self == **@
-    (&&&A).refm();           // &&&A::refm(), Self == @
-}
-
-#+end_src
-
-#+RESULTS:
-#+begin_example
-i32::m()
-X::m()
-&X::m()
-&&X::m()
-&&&X::m()
-&&&X::m()
-&&&X::m()
--------------------------
-i32::refm()
-X::refm()
-X::refm()
-&X::refm()
-&&X::refm()
-&&&X::refm()
-&&&X::refm()
--------------------------
-i32::refm()
-i32::refm()
--------------------------
-A::m()
-A::m()
-&&&A::m()
-&&&A::m()
-A::refm()
-A::refm()
-A::refm()
-&&&A::refm()
-#+end_example
+* godbolt.org / cargo-asm
 * destructuring tuple structs/variants with an infallible single-armed match
 - https://github.com/rust-lang/rust-clippy/pull/2684
 #+begin_src rust
@@ -154,74 +44,7 @@ fn main() {
 #+RESULTS:
 : 42
 
-* https://willcrichton.net/notes/rust-memory-safety/
-* https://rustype.github.io/typestate-rs/chapter_1.html
-* old
-filter(|&c| matches!(c, 'a'|'i'|'o'|'u'|'e'|'y'))
-- [[id:bf2625f2-703a-4646-9299-e6f8213db340][???]] (from tokio tutorial) The link in the info-box above uses the terminology "bounded by 'static" rather than "its type outlives 'static" or "the value is 'static" for T: 'static. These all mean the same thing, and are different from "annotated with 'static" as in &'static T.
-- ??
-#+begin_src rust
-fn main() {
-    let a = {
-        2 + 2;
-        "rast"
-    };
-    println!("{:?}", a);
-}
-#+end_src
-
-#+RESULTS:
-#+begin_example
-warning: unused arithmetic operation that must be used
- --> src/main.rs:3:15
-  |
-3 |     let a = { 2+2; "rast" };
-  |               ^^^
-  |
-  = note: `#[warn(unused_must_use)]` on by default
-
-warning: 1 warning emitted
-
-warning: unused arithmetic operation that must be used
- --> src/main.rs:3:15
-  |
-3 |     let a = { 2+2; "rast" };
-  |               ^^^
-  |
-  = note: `#[warn(unused_must_use)]` on by default
-
-warning: 1 warning emitted
-
-"rast"
-#+end_example
-- [[https://docs.rs/parking_lot/0.11.1/parking_lot/index.html]]
-- https://doc.rust-lang.org/stable/std/io/struct.Cursor.html
-- https://docs.rs/bytes/1.0.1/bytes/buf/trait.Buf.html
-  - Using the Field Init Shorthand when Variables and Fields Have the Same Name
-- what is linked hash map?
-- jak sprawdzic ile miejca zajmuje struktura danych w pamieci, co do bitu i z dokladnymi adresami - mozliwe ze tego sie nie da zrobic tak jakbym tego chcial czyli w formie inspekcji live danych.
-- [[https://stackoverflow.com/questions/46557608/what-is-the-null-pointer-optimization-in-rust][null pointer optimization]]
-- https://awesome-rust.com/#resources
-https://github.com/brson/stdx
-- https://doc.rust-lang.org/std/keyword.ref.html
-- stuff I don't understand
-** from [[https://rust-unofficial.github.io/too-many-lists][Learning Rust With Entirely Too Many Linked Lists]]
-*** =.as_ref()=
-The correct way to handle this is with the as_ref method on Option, which has the following definition:
-#+begin_src rust
-impl<T> Option<T> {
-    pub fn as_ref(&self) -> Option<&T>;
-}
-#+end_src
-It demotes the Option to an Option to a reference to its internals. We could do this ourselves with an explicit match but ugh no. It does mean that we need to do an extra dereference to cut through the extra indirection, but thankfully the . operator handles that for us.
-#+begin_src rust
-pub fn peek(&self) -> Option<&T> {
-    self.head.as_ref().map(|node| {
-        &node.elem
-    })
-}
-#+end_src
-* Atomics and Memory ordering
+* atomics and memory ordering
 reasons to use atomic types
 - if there is shared access to some memory value, we need to have additional information
   - about that access to let CPU know when should different threads see the operations that other threads do. Which operations are visible to threads that share memory
@@ -260,9 +83,7 @@ String => &str        // (cheap -- AsRef)
 *** fat pointer vs shallow pointer
 Fat pointer stores both start of the slice and lenght of the slice
 
-* =std::prelude= if a list of default imports
-* =::<>= turbofish https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.collect
-* Is it possible to define structs at runtime or otherwise achieve a similar effect?
+* COMMENT Is it possible to define structs at runtime or otherwise achieve a similar effect?
 No, it is not possible.
 
 Simplified, at compile time, the layout (ordering, offset, padding, etc.) of every struct is computed, allowing the size of the struct to be known. When the code is generated, all of this high-level information is thrown away and the machine code knows to jump X bytes in to access field foo.
@@ -275,136 +96,15 @@ Additionally, Rust is a statically typed language. When you have a value, you kn
 
 As pointed out in the comments, dynamic data needs a dynamic data structure, such as a HashMap.
 
-* Strings
-  - A more experienced Rustacean would write the signature shown in
-    Listing 4-9 instead because it allows us to use the same function on
-    both &String values and &str values.
 
-    #+begin_src rust
-      fn first_word(s: &str) -> &str {
-          //instad of (s: &String)
-          let bytes = s.as_bytes();
-
-          for (i, &item) in bytes.iter().enumerate() {
-              if item == b' ' {
-                  return &s[0..i];
-              }
-          }
-
-          &s[..]
-      }
-      fn main() {
-          let my_string = String::from("hello world");
-
-          // first_word works on slices of `String`s
-          let word = first_word(&my_string[..]);
-
-          let my_string_literal = "hello world";
-
-          // first_word works on slices of string literals
-          let word = first_word(&my_string_literal[..]);
-
-          // Because string literals *are* string slices already,
-          // this works too, without the slice syntax!
-          let word = first_word(my_string_literal);
-      }
-    #+end_src
-
-* ownership
-
-    - what's the difference between =transfering ownership= and
-      =borrowing from= (ch1505
-      having-multiple-owners-of-mutable-data-by-combining-rct-and-refcellt
-
-    - why this doesn't work
-
-      #+begin_src rust
-        let strlit = "asdzxcqqq";
-        println!("sa {}", strlit);
-        let x = strlit[1..3];
-        println!("{}", x);
-        // error:
-        // doesn't have a size known at compile-time
-        // = help: the trait `std::marker::Sized` is not implemented for `str`
-        // = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
-        // = note: all local variables must have a statically known size
-        // = help: unsized locals are gated as an unstable feature
-      #+end_src
-
-* lifetimes
-
-- CH1504: We could change the definition of Cons to hold references
-      instead, but then we would have to specify lifetime parameters. By
-      specifying lifetime parameters, we would be specifying that every
-      element in the list will live at least as long as the entire list.
-      The borrow checker wouldn't let us compile let a = Cons(10, &Nil);
-      for example, because the temporary Nil value would be dropped before
-      a could take a reference to it.
-
-- why first works (with one lifetime specifier), but second doesn't (it reflects lifetimes closely)
-
-      #+begin_src rust
-        fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
-            if x.len() > y.len() {
-                x
-            } else {
-                y
-            }
-        }
-
-        fn main() {
-            let q = String::from("popopop asd");
-
-            {
-                let result;
-                let w = String::from("asdasd");
-                result = longest(q.as_str(), w.as_str());
-                println!("{}", result);
-            }
-        }
-      #+end_src
-
+* crazy things with =Range=
+https://ridiculousfish.com/blog/posts/least-favorite-rust-type.html
 #+begin_src rust
-fn longest<'a,'b>(x: &'a str, y: &'b str) -> &'a str {
-    if x.len() > y.len() {
-        x
-    } else {
-        y
-    }
-}
-
 fn main() {
-    let q = String::from("popopop asd");
-
-    {
-        let result;
-        let w = String::from("asdasd");
-        result = longest(q.as_str(), w.as_str());
-        println!("{}", result);
+    let r = vec![1, 2, 3]..=vec![10, 11, 12];
+    for i in r {
+        println!("{:?}", i);
     }
 }
 #+end_src
-- (from tokio tutorial) Note that the error message talks about the argument type outliving the 'static lifetime. This terminology can be rather confusing because the 'static lifetime lasts until the end of the program, so if it outlives it, don't you have a memory leak? The explanation is that it is the type, not the value that must outlive the 'static lifetime, and the value may be destroyed before its type is no longer valid. When we say that a value is 'static, all that means is that it would not be incorrect to keep that value around forever. This is important because the compiler is unable to reason about how long a newly spawned task stays around, so the only way it can be sure that the task doesn't live too long is to make sure it may live forever.
-* traits
-object safety: https://github.com/rust-lang/rfcs/blob/master/text/0255-object-safety.md
 
-* enums
-- CH1504: why there is no =List= keyword used
-#+begin_src rust
-enum List {
-  Cons(i32, Rc<List>),
-  Nil,
-}
-
-use crate::List::{Cons, Nil};
-use std::rc::Rc;
-
-fn main() {
-  let a = Rc::new(Cons(5, Rc::new(Cons(10, Rc::new(Nil)))));
-  let b = Cons(3, Rc::clone(&a));
-  let c = Cons(4, Rc::clone(&a));
-}
-#+end_src
-
-
-- =Cons=, =Nil=, =crate::List::{Cons, Nil}=

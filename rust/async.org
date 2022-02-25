@@ -293,6 +293,9 @@ warning: 2 warnings emitted
 GOT = sending from second handle
 GOT = sending from first handle
 #+end_example
+#+begin_quote
+ The link in the info-box above uses the terminology "bounded by 'static" rather than "its type outlives 'static" or "the value is 'static" for T: 'static. These all mean the same thing, and are different from "annotated with 'static" as in &'static T.
+#+end_quote
 *** I/O
 - =AsyncRead= - trait for reading
 - =AsyncWrite= - trait for writing

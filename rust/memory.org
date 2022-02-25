@@ -295,6 +295,7 @@ an interesting example of safe interior mutability through invariants:
 * lifetimes
 :PROPERTIES:
 :ANKI_NOTE_ID: 1644613452741
+:ID:       f1405377-b328-44c5-a16e-bff6e7ba594e
 :END:
 - is a name for a region of code that some reference must be valid for
 - oversimplistic explanation: a lifetime begins when you take a reference to some variable and ends when that variable is moved or goes out of scope
@@ -314,6 +315,60 @@ an interesting example of safe interior mutability through invariants:
       #+end_src
       which means: =b= has unique arbitrary lifetime, and return type gets turned into lifetime inference, therefore the compiler infers the return type lifetime must be tied to a lifetime of =a=
   - signals to the compiler, that it should guess the lifetime
+** lifetimes
+
+- CH1504: We could change the definition of Cons to hold references
+      instead, but then we would have to specify lifetime parameters. By
+      specifying lifetime parameters, we would be specifying that every
+      element in the list will live at least as long as the entire list.
+      The borrow checker wouldn't let us compile let a = Cons(10, &Nil);
+      for example, because the temporary Nil value would be dropped before
+      a could take a reference to it.
+
+- why first works (with one lifetime specifier), but second doesn't (it reflects lifetimes closely)
+
+      #+begin_src rust
+        fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+            if x.len() > y.len() {
+                x
+            } else {
+                y
+            }
+        }
+
+        fn main() {
+            let q = String::from("popopop asd");
+
+            {
+                let result;
+                let w = String::from("asdasd");
+                result = longest(q.as_str(), w.as_str());
+                println!("{}", result);
+            }
+        }
+      #+end_src
+
+#+begin_src rust
+fn longest<'a,'b>(x: &'a str, y: &'b str) -> &'a str {
+    if x.len() > y.len() {
+        x
+    } else {
+        y
+    }
+}
+
+fn main() {
+    let q = String::from("popopop asd");
+
+    {
+        let result;
+        let w = String::from("asdasd");
+        result = longest(q.as_str(), w.as_str());
+        println!("{}", result);
+    }
+}
+#+end_src
+- (from tokio tutorial) Note that the error message talks about the argument type outliving the 'static lifetime. This terminology can be rather confusing because the 'static lifetime lasts until the end of the program, so if it outlives it, don't you have a memory leak? The explanation is that it is the type, not the value that must outlive the 'static lifetime, and the value may be destroyed before its type is no longer valid. When we say that a value is 'static, all that means is that it would not be incorrect to keep that value around forever. This is important because the compiler is unable to reason about how long a newly spawned task stays around, so the only way it can be sure that the task doesn't live too long is to make sure it may live forever.
 ** generic lifetimes
 :PROPERTIES:
 :ANKI_NOTE_ID: 1644613452734

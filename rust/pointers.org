@@ -2,7 +2,7 @@
 :ID:       c083bf0c-9ded-4d2a-bfe0-0d7bd3134815
 :END:
 #+title: Rust pointers
-#+filetags: rust
+#+filetags: :project:rust:
 Pointer types to DSTs are sized but have twice the size of pointers to sized types
 Pointers to slices also store the number of elements of the slice.
 Pointers to trait objects also store a pointer to a vtable.
@@ -48,6 +48,9 @@ fn change(some_string: &mut String) {
 #+end_src
 
 * slice
+:PROPERTIES:
+:ID:       a6509ffe-87aa-40df-9da1-0f7dbb51f951
+:END:
 - a contiguous sequence of elements in a collection
 #+begin_src rust
 let s = String::from("hello world");
@@ -78,10 +81,10 @@ in memory. Reference =&= is the most common pointer in Rust.
   allow to modify it. They also hold metadata (e.g. vec length) and
   guarantees (String being valid utf8)
 
-** Derefernce trait
-     :PROPERTIES:
-     :CUSTOM_ID: derefernce-trait
-     :END:
+** derefernce trait
+:PROPERTIES:
+:ID:       09abfa5a-a22a-451f-8d5a-f25221138500
+:END:
 
 - Rust converts =y*= to =*(y.deref())=
 - *[[dict:%22ukryty,domniemany%22][Implicit]] Deref
@@ -97,16 +100,43 @@ in memory. Reference =&= is the most common pointer in Rust.
   into the type the parameter needs.
 
 #+begin_src rust
-  fn main() {
-      let z = MyBox::new(String::from("Lola"));
-      hello(&z);
-      hello(&(*z));
-      hello(&(*z)[..]);
-  }
+fn main() {
+    let z = MyBox::new(String::from("Lola"));
+    hello(&z);
+    hello(&(*z));
+    hello(&(*z)[..]);
 
-  fn hello(name: &str) {
-      println!("{}", name);
-  }
+
+    let my_string = String::from("hello world");
+
+    // first_word works on slices of `String`s
+    let word = first_word(&my_string[..]);
+
+    let my_string_literal = "hello world";
+
+    // first_word works on slices of string literals
+    let word = first_word(&my_string_literal[..]);
+
+    // Because string literals *are* string slices already,
+    // this works too, without the slice syntax!
+    let word = first_word(my_string_literal);
+}
+
+fn hello(name: &str) {
+    println!("{}", name);
+}
+fn first_word(s: &str) -> &str {
+    //instad of (s: &String)
+    let bytes = s.as_bytes();
+
+    for (i, &item) in bytes.iter().enumerate() {
+        if item == b' ' {
+            return &s[0..i];
+        }
+    }
+
+    &s[..]
+}
 #+end_src
 
 Above will print =Lola= three times, bacause rust is able to call Deref
@@ -126,10 +156,128 @@ until it matches parameter's type. This is resolved during compliation.
       reference to that data, but the borrowing rules don't guarantee
       that.
 
+*** TODO [#A] auto-dereferencing rules
+:PROPERTIES:
+:ID:       6b24a165-4512-43e3-bb1e-e886f39c67cf
+:ROAM_REFS: https://stackoverflow.com/a/28552082/6086311
+
+:END:
+#+begin_src rust
+struct X { val: i32 }
+struct Y { val: i32 }
+struct Z { val: Y }
+#[derive(Clone, Copy)]
+struct A;
+
+impl std::ops::Deref for X {
+    type Target = i32;
+    fn deref(&self) -> &i32 { &self.val }
+}
+
+impl std::ops::Deref for Y {
+    type Target = i32;
+    fn deref(&self) -> &i32 { &self.val }
+}
+
+impl std::ops::Deref for Z {
+    type Target = Y;
+    fn deref(&self) -> &Y { &self.val }
+}
+
+trait M { fn m(self); }
+trait RefM { fn refm(&self); }
+
+impl M for i32   { fn m(self) { println!("i32::m()");  } }
+impl M for X     { fn m(self) { println!("X::m()");    } }
+impl M for &X    { fn m(self) { println!("&X::m()");   } }
+impl M for &&X   { fn m(self) { println!("&&X::m()");  } }
+impl M for &&&X  { fn m(self) { println!("&&&X::m()"); } }
+
+impl RefM for i32  { fn refm(&self) { println!("i32::refm()");  } }
+impl RefM for X    { fn refm(&self) { println!("X::refm()");    } }
+impl RefM for &X   { fn refm(&self) { println!("&X::refm()");   } }
+impl RefM for &&X  { fn refm(&self) { println!("&&X::refm()");  } }
+impl RefM for &&&X { fn refm(&self) { println!("&&&X::refm()"); } }
+
+impl M for    A { fn m(self) { println!("A::m()");    } }
+impl M for &&&A { fn m(self) { println!("&&&A::m()"); } }
+
+impl RefM for    A { fn refm(&self) { println!("A::refm()");    } }
+impl RefM for &&&A { fn refm(&self) { println!("&&&A::refm()"); } }
+
+
+fn main() {
+    // I'll use @ to denote left side of the dot operator
+    (*X{val:42}).m();        // i32::m()    , Self == @
+    X{val:42}.m();           // X::m()      , Self == @
+    (&X{val:42}).m();        // &X::m()     , Self == @
+    (&&X{val:42}).m();       // &&X::m()    , Self == @
+    (&&&X{val:42}).m();      // &&&X:m()    , Self == @
+    (&&&&X{val:42}).m();     // &&&X::m()   , Self == *@
+    (&&&&&X{val:42}).m();    // &&&X::m()   , Self == **@
+    println!("-------------------------");
+
+    (*X{val:42}).refm();     // i32::refm() , Self == @
+    X{val:42}.refm();        // X::refm()   , Self == @
+    (&X{val:42}).refm();     // X::refm()   , Self == *@
+    (&&X{val:42}).refm();    // &X::refm()  , Self == *@
+    (&&&X{val:42}).refm();   // &&X::refm() , Self == *@
+    (&&&&X{val:42}).refm();  // &&&X::refm(), Self == *@
+    (&&&&&X{val:42}).refm(); // &&&X::refm(), Self == **@
+    println!("-------------------------");
+
+    Y{val:42}.refm();        // i32::refm() , Self == *@
+    Z{val:Y{val:42}}.refm(); // i32::refm() , Self == **@
+    println!("-------------------------");
+
+    A.m();                   // A::m()      , Self == @
+    // without the Copy trait, (&A).m() would be a compilation error:
+    // cannot move out of borrowed content
+    (&A).m();                // A::m()      , Self == *@
+    (&&A).m();               // &&&A::m()   , Self == &@
+    (&&&A).m();              // &&&A::m()   , Self == @
+    A.refm();                // A::refm()   , Self == @
+    (&A).refm();             // A::refm()   , Self == *@
+    (&&A).refm();            // A::refm()   , Self == **@
+    (&&&A).refm();           // &&&A::refm(), Self == @
+}
+
+#+end_src
+
+#+RESULTS:
+#+begin_example
+i32::m()
+X::m()
+&X::m()
+&&X::m()
+&&&X::m()
+&&&X::m()
+&&&X::m()
+-------------------------
+i32::refm()
+X::refm()
+X::refm()
+&X::refm()
+&&X::refm()
+&&&X::refm()
+&&&X::refm()
+-------------------------
+i32::refm()
+i32::refm()
+-------------------------
+A::m()
+A::m()
+&&&A::m()
+&&&A::m()
+A::refm()
+A::refm()
+A::refm()
+&&&A::refm()
+#+end_example
 ** Drop trait
-     :PROPERTIES:
-     :CUSTOM_ID: drop-trait
-     :END:
+:PROPERTIES:
+:ID:       57669816-b7b4-4dfb-b82a-ea276be13519
+:END:
 #+begin_src rust
 struct CustomSmartPointer {
     data: String,
@@ -180,11 +328,7 @@ Dropping CustomSmartPointer with data `my stuff`!
 - to manually drop a value, I need to call =std::mem::drop=, which is
   already in the scope under =drop()=
 
-** Most common smart pointers in std:
-   :PROPERTIES:
-   :CUSTOM_ID: most-common-smart-pointers-in-std
-   :END:
-**** =Box<T>= for allocating values in the heap.
+** =Box<T>= for allocating values in the heap.
      :PROPERTIES:
      :CUSTOM_ID: boxt-for-allocating-values-in-the-heap.
      :END:
@@ -233,7 +377,7 @@ fn main() {
   - When I want to own a value and I care only that it's a type that
     implements a particular trait rather than being specific type
 
-**** =Rc<T>= a reference counting type that enables multiple ownership
+** =Rc<T>= a reference counting type that enables multiple ownership
      :PROPERTIES:
      :CUSTOM_ID: rct-a-reference-counting-type-that-enables-multiple-ownership
      :END:
@@ -319,7 +463,7 @@ count after c goes out of scope = 2
       =None= if it had been dropped). Rust will ensure =Some=/=None=
       cases are handled, hence no invalid pointer.
 
-**** =Ref<T>= and =RefMut<T>=, accessed via =RefCell<T>=
+** =Ref<T>= and =RefMut<T>=, accessed via =RefCell<T>=
      :PROPERTIES:
      :CUSTOM_ID: reft-and-refmutt-accessed-via-refcellt
      :END:
@@ -377,7 +521,10 @@ c after = Cons(RefCell { value: 10 }, Cons(RefCell { value: 15 }, Nil))
   immutable.
 -
 
-**** =Cell<T>=
+** =Cell<T>=
+:PROPERTIES:
+:ID:       844e7e4e-76fd-4f70-8c5a-315e3b6c0ece
+:END:
 ** Memory leaks
    :PROPERTIES:
    :CUSTOM_ID: memory-leaks
@@ -507,132 +654,6 @@ fn main() {
 : |             -- help: consider changing this to be a mutable reference: `&mut x`
 : |     *y = 8;
 : |     ^^^^^^ `y` is a `&` reference, so the data it refers to cannot be written
-
-*** borrow checker computes lifetime
-allowing for something that wouldn't be allowed if lifetimes weren't a thing
-(having immutable reference and simoutenously mutating value behind the smart pointer)
-#+begin_src rust :exports both
-fn main() {
-    let rand = 0.5;
-    let mut x = Box::new(42);
-    let r = &x;           // 'a
-    if rand > 0.5 {
-        *x = 84;
-    } else {
-        println!("{}", r);  // 'a
-    }
-    // the compiler is smart enough to figure the flow of computation can
-    // go either of two ways:
-    // 1. dereferece x and assign value to it (and simoutenously (and quietly)
-    //    disregards the fact there is a immutable reference `r` in the scope)
-    // 2. read value behind immutable reference r (and disregard line of code
-    //    which tries to dereference and modify x, despite the fact immutable
-    //    reference has been already declared in the scope)
-
-    // uncommenting below line --
-    // println!("{}", r);
-    // -- will result in a following error
-    //     error[E0506]: cannot assign to `*x` because it is borrowed
-    //   --> src/main.rs:7:9
-    //    |
-    // 5  |     let r = &x;           // 'a
-    //    |             -- borrow of `*x` occurs here
-    // 6  |     if rand > 0.5 {
-    // 7  |         *x = 84;
-    //    |         ^^^^^^^ assignment to borrowed `*x` occurs here
-    // ...
-    // 11 |     println!("{}", r);  // 'a
-    //    |                    - borrow later used here
-}
-#+end_src
-
-**** another example
-#+begin_src rust :exports both
-fn main() {
-    let mut x = Box::new(42);
-                            //     first iteration       | second iteration      | ...
-    let mut z = &x;         // 1   lifetime 'a - created
-    for i in 0..3 {
-        println!("{}", z);  // 2   lifetime 'a - checked,  lifetime 'b - checked
-        x = Box::new(i);    // 3   lifetime 'a - deleted,  lifetime 'b - deleted
-        z = &x;             // 4   lifetime 'b - created,  lifetime 'c - created
-    }
-    println!("{}", z);
-}
-#+end_src
-
-#+RESULTS:
-: 42
-: 0
-: 1
-: 2
-*** generic lifetimes
-#+begin_src rust
-struct StrSplit<'s, 'p> {
-  delimiter: &'p str,
-  document: &'s str,
-}
-
-impl<'s, 'p> Iterator for StrSplit<'s, 'p> {
-  type Item = &'s str;
-  fn next(&mut self) -> Option<Self::Item> {
-    self.document.split(self.delimiter).next()
-}}
-
-fn main() {
-    let mut a = "ast,ars";
-    let d = ",";
-    let mut x = StrSplit{delimiter: &d, document:&a};
-    a = "ff,ff";
-    for i in x.next() {println!("{}", i);}
-    println!("{}", a);
-}
-#+end_src
-
-#+RESULTS:
-: ast
-: ff,ff
-*** lifetime variance
-#+begin_src rust :exports both
-struct MutStr<'a, 'b> { s: &'a mut &'b str }
-// below will also work, since both "hello" an "world" are 'static
-// struct MutStr<'a> { s: &'a mut &'static str }
-
-// if two lifetimes are replaced with a single 'a, the code fails to compile --
-// struct MutStr<'a> { s: &'a mut &'a str }
-// -- that's because, the compiler will infer that string "hello" and "world"
-// are 'static, therefore the compiler will do sth like this:
-// struct MutStr { s: &'static mut &'static str }
-// which will not fly, because in `main` the code tries to modify the reference
-// but it is unable to do so since it was marked as 'static
-// aka: 'static and mut can't work together ... UNLESS,
-// the value would never be accessed again
-// fn main() {
-//     let mut s = "hello";
-//     *MutStr { s: &mut s }.s = "world";
-//     no println here.....
-// }
-// the real reason why we can't println `s` later is:
-// lifetime variance incompability -- &mut T is invariant in T, therefore
-// compiler is unable to shortend mutable borrow
-
-// we could however do --
-// struct MutStr { s: &'static &'static str }
-// -- but this would force us to write:
-// fn main() {
-//     MutStr { s: &"hello" };
-// }
-// which defeats whole purpose
-
-fn main() {
-    let mut s = "hello";
-    ,*MutStr { s: &mut s }.s = "world";
-    println!("{}", s);
-}
-#+end_src
-
-#+RESULTS:
-: world
 
 * raw pointer
 :PROPERTIES:

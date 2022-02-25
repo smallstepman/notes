@@ -298,3 +298,7 @@ pub trait Write {
 
 ** =type X = impl Trait;=
 [[https://github.com/rust-lang/rfcs/blob/master/text/2515-type_alias_impl_trait.md][RFC]]
+
+* type std::any::TypeId
+- allows to get a unique identifier for any type. The Error trait has a hidden provided method called type_id, whose default implementation is to return TypeId::of::<Self>()
+- Any has a blanket implementation of impl Any for T, and in that implementation, its type_id returns the same. In the context of these impl blocks, the concrete type of Self is known, so this type_id is the type identifier of the real type
