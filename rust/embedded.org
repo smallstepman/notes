@@ -1,0 +1,4 @@
+:PROPERTIES:
+:ID:       594ff7a4-126a-479a-897e-39f5a8c491a5
+:END:
+#+TITLE: embedded
