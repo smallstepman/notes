@@ -3,6 +3,7 @@
 :ROAM_REFS: https://stackoverflow.com/questions/21057393/what-does-double-free-mean
 :END:
 #+title: double free
+#+filetags: computer-science
 
 - in C, leads to [[id:eca79387-9149-4816-9ad9-84c0664a9bac][undefinied behaviour]]
   - As per published C11 standard, calling free on already free memory location leads to undefined behaviour

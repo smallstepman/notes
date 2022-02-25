@@ -3,3 +3,4 @@
 :ROAM_REFS: https://cfsamson.gitbook.io/green-threads-explained-in-200-lines-of-rust/simple-but-unsafe-green-thread-implementation#implementing-the-runtime
 :END:
 #+title: green threads
+#+filetags: computer-science

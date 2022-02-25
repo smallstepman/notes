@@ -3,6 +3,7 @@
 :ROAM_REFS: https://en.wikipedia.org/wiki/Indirection
 :END:
 #+title: indirection
+#+filetags: computer-science
 
 
 - also called dereferencing

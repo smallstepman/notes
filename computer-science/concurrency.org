@@ -5,7 +5,7 @@
 :ROAM_REFS: https://cfsamsonbooks.gitbook.io/epoll-kqueue-iocp-explained/part-1-an-express-explanation https://rust-for-rustaceans.com/
 #+TITLE: concurrency
 #+created_at: <2021-03-28 Sun 03:57>
-#+roam_tags:
+#+filetags: computer-science
 
 multiple logical threads of execution with unknown inter-task dependencies
 

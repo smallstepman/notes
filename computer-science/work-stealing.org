@@ -1,7 +1,9 @@
 :PROPERTIES:
 :ID:       6daeed81-036a-4f47-bce0-9d4705b125ea
+:ROAM_REFS: https://www.youtube.com/watch?v=gof_OEv71Aw
 :END:
 #+title: work stealing
+#+filetags: computer-science
 
 - in parallel computing, work stealing is a scheduling strategy for multithreaded computer programs
 - tasks are being continiously split and shared by threads

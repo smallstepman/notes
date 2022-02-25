@@ -2,6 +2,7 @@
 :ID:       eca79387-9149-4816-9ad9-84c0664a9bac
 :END:
 #+title: undefinied behaviour
+#+filetags: computer-science
 
 - undefined behavior describes the consequences of a program that violates [[id:66a20696-fc81-4ef4-bcc4-3158804429a1][invariants]] of the language at [[id:a3043e53-f2d0-4bab-bff9-c0b8010df7e5][runtime]]
 - in general, if a program triggers undefined behavior, the outcome is entirely unpredictable

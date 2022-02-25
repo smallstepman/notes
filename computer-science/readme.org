@@ -2,7 +2,7 @@
 :ID:       e598efd2-e18c-4af5-8fea-845adeaa8a98
 :END:
 #+title: Computer Science
-#+roam_tags: Technology
+#+filetags: computer-science
 
 * abstraction barriers
 - limited interaction

@@ -2,6 +2,7 @@
 :ID:       ea863b26-9918-4672-9469-b204aace0cf3
 :END:
 #+title: heap
+#+filetags: computer-science
 
 - data with unknown size at compile time or changing size must be stored on the heap
 - *Pointer* will point to the data on the heap

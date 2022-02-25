@@ -3,6 +3,7 @@
 :ROAM_REFS: https://cfsamson.gitbook.io/green-threads-explained-in-200-lines-of-rust/green-threads
 :END:
 #+title: non-preemptive multitasking
+#+filetags: computer-science
 
 - a task itself decides when the CPU would be better off doing something else than waiting for something to happen in the current task
 - commonly this is done by yielding control to the scheduler

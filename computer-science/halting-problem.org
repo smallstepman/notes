@@ -3,4 +3,6 @@
 :ROAM_REFS: https://en.wikipedia.org/wiki/Halting_problem
 :END:
 #+title: halting problem
+#+filetags: computer-science
+
 the problem of determining, from a description of an arbitrary computer program and an input, whether the program will finish running, or continue to run forever

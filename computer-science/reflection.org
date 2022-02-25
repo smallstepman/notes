@@ -2,5 +2,6 @@
 :ID:   8af96600-528b-4ef7-9dcb-ac8fb0f8b67d
 :END:
 #+title: reflection
+#+filetags: computer-science
 
 implies you can get details about a type at runtime, like the fields, methods, interfaces it implements

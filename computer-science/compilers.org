@@ -2,6 +2,7 @@
 :ID:       e7afbe7b-a4c9-4599-958f-6e0fcff9a54e
 :END:
 #+title: Compilers
+#+filetags: computer-science
 
 * terms
 ** LLVM IR is designed to host mid-level analyses

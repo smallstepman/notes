@@ -2,6 +2,7 @@
 :ID:       1f902d22-85bd-41e5-b286-0244856e245a
 :END:
 #+title: memory
+#+filetags: computer-science
 
 * types
 :PROPERTIES:

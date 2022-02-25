@@ -3,6 +3,7 @@
 :ROAM_REFS: https://stackoverflow.com/questions/19373405/do-cpp-object-methods-have-their-own-stack-frame
 :END:
 #+TITLE: stack frame
+#+filetags: computer-science
 
 * [[https://stackoverflow.com/questions/19373405/do-cpp-object-methods-have-their-own-stack-frame][c++ - Do cpp object methods have their own stack frame? - Stack Overflow]] [2021-12-25 sob 18:14]
 #+begin_quote

@@ -2,6 +2,7 @@
 :ID:       66a20696-fc81-4ef4-bcc4-3158804429a1
 :END:
 #+title: invariants
+#+filetags: computer-science
 
 - "something that must be true for your program to be correct"
 - a property of the program state that is always true

@@ -2,6 +2,7 @@
 :ID:       340b655e-e614-4ba8-8705-7f6f630597ad
 :END:
 #+title: Object-oriented programming
+#+filetags: computer-science
 
 * SOLID design principles
 ** single responsibility principle:

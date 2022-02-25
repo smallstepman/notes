@@ -2,6 +2,7 @@
 :ID:       3ce46bcd-d418-417e-9516-dbb620a49e35
 :END:
 #+title: fundamental theorem of software engineering
+#+filetags: computer-science
 
 The "fundamental theorem of software engineering" (FTSE)
 - "We can solve any problem by introducing an extra level of [[id:973805cb-e63b-432a-86c4-894232ab2da0][indirection]]."

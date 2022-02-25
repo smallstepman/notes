@@ -2,5 +2,6 @@
 :ID:       1d75277b-af26-4a7f-969b-a8357a5be931
 :END:
 #+title: method dispatch
+#+filetags: computer-science
 
 method dispatch, which describes how a language or environment will select which implementation of a method or function to use
