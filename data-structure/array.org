@@ -4,7 +4,9 @@
 #+TITLE: array
 
 
-
+- basic data structure to store a collection of elements sequentially
+- array can have one or more dimensions
+  - one-dimensional array is also called the linear array
 - linear data structure
 - homogenous types
 - item in array is called **element**
