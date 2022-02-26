@@ -1,0 +1,116 @@
+:PROPERTIES:
+:ID:       0d061b3f-f871-4c7c-814d-472f4995c7a6
+:ROAM_REFS: https://rust-unofficial.github.io/too-many-lists
+:END:
+#+title: Rust linked list
+
+* trivial implementation with =Box=
+:PROPERTIES:
+:ID:       3fe77601-5867-4560-8981-3a296f2c6b7a
+:ROAM_REFS: https://rust-unofficial.github.io/too-many-lists/first-layout.html
+:END:
+#+begin_src rust :exports both
+#[derive(Debug)]
+enum List {
+    Elem(i32, Box<List>),
+    Empty,
+}
+
+fn main() {
+    let list: List = List::Elem(1, Box::new(List::Elem(2, Box::new(List::Empty))));
+    println!("{:?}", list);
+layout took advantage of the null pointer optimization}
+#+end_src
+
+#+RESULTS:
+: Elem(1, Elem(2, Empty))
+** features
+- compiles
+- the layout takes advantage of the [[id:1578850d-d7d8-4f9c-8aa4-18fca46ff5c2][null pointer optimization]]
+** issues
+- allocating a node that just says "I'm not actually a Node"
+- non-uniform node layout
+  - first node is stack-allocated, while the rest of (non-empty) nodes is heap-allocated, which has an impact on splitting and merging lists
+  - when splitting, new head (start) of the list will have to be downcasted from pointer to value on the heap, into value on the stack, which effectively means copying a value
+- even though =Empty= is a single bit of information, it necessarily consumes enough space for a pointer and an element, because it has to be ready to become an =Elem= at any time
+** fixing issues, implementing methods, writing tests
+#+begin_src rust :exports both
+#![allow(dead_code)]
+#[derive(Debug)]
+pub struct List {
+    head: Link,
+}
+
+#[derive(Debug)]
+enum Link {
+    Empty,
+    More(Box<Node>),
+}
+
+#[derive(Debug)]
+struct Node {
+    elem: i32,
+    next: Link,
+}
+
+impl List {
+    fn new() -> Self {
+        List { head: Link::Empty }
+    }
+    fn push(&mut self, elem: i32) {
+        let new_node = Box::new(Node {
+            elem,
+            next: std::mem::replace(&mut self.head, Link::Empty),
+        });
+        self.head = Link::More(new_node);
+    }
+    fn pop(&mut self) -> Option<i32> {
+        if let Link::More(v) = std::mem::replace(&mut self.head, Link::Empty) {
+            self.head = v.next;
+            Some(v.elem)
+        } else {
+            None
+        }
+    }
+}
+
+impl Drop for List {
+    fn drop(&mut self) {
+        let mut cur_link = std::mem::replace(&mut self.head, Link::Empty);
+        while let Link::More(mut boxed_node) = cur_link {
+            cur_link = std::mem::replace(&mut boxed_node.next, Link::Empty);
+        }
+    }
+}
+
+fn main() {
+    let mut list = List::new();
+    println!("{:?}", list);
+    list.push(83);
+    list.push(3);
+    println!("{:?}", list);
+    list.pop();
+    println!("{:?}", list);
+}
+#+end_src
+
+#+RESULTS:
+: List { head: Empty }
+: List { head: More(Node { elem: 3, next: More(Node { elem: 83, next: Empty }) }) }
+: List { head: More(Node { elem: 83, next: Empty }) }
+
+* =.as_ref()=
+The correct way to handle this is with the as_ref method on Option, which has the following definition:
+#+begin_src rust
+impl<T> Option<T> {
+    pub fn as_ref(&self) -> Option<&T>;
+}
+#+end_src
+It demotes the Option to an Option to a reference to its internals. We could do this ourselves with an explicit match but ugh no. It does mean that we need to do an extra dereference to cut through the extra indirection, but thankfully the . operator handles that for us.
+#+begin_src rust
+pub fn peek(&self) -> Option<&T> {
+    self.head.as_ref().map(|node| {
+        &node.elem
+    })
+}
+#+end_src
