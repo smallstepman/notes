@@ -1,0 +1,6 @@
+:PROPERTIES:
+:ID:       7638a905-a380-4ffb-9296-3f4634b2bbcd
+:END:
+#+title: Rust compiler
+
+-  https://stackoverflow.com/questions/46557608/what-is-the-null-pointer-optimization-in-rust#comment104892595_46557737
