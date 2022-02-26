@@ -172,10 +172,60 @@ impl Message {
 let m = Message::Write(String::from("hello"));
 m.call();
 #+end_src
-** struct
+*** how an enum is laid out in memory
+:PROPERTIES:
+:ID:       62b21d21-7143-4df2-b0c3-b1a9527023a9
+:ROAM_REFS: https://rust-unofficial.github.io/too-many-lists/first-layout.html
+:END:
+with the following enum
+#+begin_src rust
+enum Foo {
+    D1(T1),
+    D2(T2),
+    ...
+    Dn(Tn),
+}
+#+end_src
+- =Foo= will need to store a *tag* - some integer to indicate which variant of the enum it represents (D1, D2, .. Dn)
+- it will also need enough space to store the largest of T1, T2, .. Tn (plus some extra space to satisfy alignment requirements)
+**** struct
 :PROPERTIES:
 :ID:       c89fbd1c-e7fc-4b22-9bdd-a17b838ceff9
 :END:
+*** null pointer optimization
+:PROPERTIES:
+:ID:       1578850d-d7d8-4f9c-8aa4-18fca46ff5c2
+:ROAM_REFS: https://stackoverflow.com/questions/46557608/what-is-the-null-pointer-optimization-in-rust
+:END:
+if an enum has two variants, where one variant has no associated data, and the other variant has associated data where the bit pattern of all zeros isn't a valid value, then the enum itself will take exactly the same amount of space as that associated value, using the all zeroes bit pattern to indicate that it's the other variant.
+#+begin_src rust
+enum Foo {
+    A,
+    B(ContainsANonNullPtr),
+}
+#+end_src
+the null pointer optimization kicks in, which eliminates the space needed for the tag. If the variant is A, the whole enum is set to all 0's. Otherwise, the variant is B. This works because B can never be all 0's, since it contains a non-zero pointer
+#+begin_src rust :exports both
+pub enum WithNullPtrOptimization{
+    A,
+    B(String),
+}
+
+pub enum WithoutNullPtrOptimization{
+    A,
+    B(u32),
+}
+
+fn main()  {
+    println!("{} {}", std::mem::size_of::<WithNullPtrOptimization>(), std::mem::size_of::<String>()); // 24 24
+    println!("{} {}", std::mem::size_of::<WithoutNullPtrOptimization>(), std::mem::size_of::<u32>()); // 8 4
+}
+#+end_src
+
+#+RESULTS:
+: 24 24
+: 8 4
+It means =&=, =&mut=, =Box=, =Rc=, =Arc=, =Vec=, and several other important types in Rust have no overhead when put in an =Option=
 ** unit struct
 :PROPERTIES:
 :ID:       8897d6d0-ae14-45d8-915e-11349efc8354
