@@ -41,11 +41,7 @@ pub struct List {
     head: Link,
 }
 
-#[derive(Debug)]
-enum Link {
-    Empty,
-    More(Box<Node>),
-}
+type Link = Option<Box<Node>>;
 
 #[derive(Debug)]
 struct Node {
@@ -55,30 +51,28 @@ struct Node {
 
 impl List {
     fn new() -> Self {
-        List { head: Link::Empty }
+        List { head: Link::None }
     }
     fn push(&mut self, elem: i32) {
         let new_node = Box::new(Node {
             elem,
-            next: std::mem::replace(&mut self.head, Link::Empty),
+            next: self.head.take(),
         });
-        self.head = Link::More(new_node);
+        self.head = Link::Some(new_node);
     }
     fn pop(&mut self) -> Option<i32> {
-        if let Link::More(v) = std::mem::replace(&mut self.head, Link::Empty) {
-            self.head = v.next;
-            Some(v.elem)
-        } else {
-            None
-        }
+        self.head.take().map(|node| {
+            self.head = node.next;
+            node.elem
+        })
     }
 }
 
 impl Drop for List {
     fn drop(&mut self) {
-        let mut cur_link = std::mem::replace(&mut self.head, Link::Empty);
-        while let Link::More(mut boxed_node) = cur_link {
-            cur_link = std::mem::replace(&mut boxed_node.next, Link::Empty);
+        let mut cur_link = self.head.take();
+        while let Link::Some(mut boxed_node) = cur_link {
+            cur_link = boxed_node.next.take();
         }
     }
 }
@@ -95,9 +89,10 @@ fn main() {
 #+end_src
 
 #+RESULTS:
-: List { head: Empty }
-: List { head: More(Node { elem: 3, next: More(Node { elem: 83, next: Empty }) }) }
-: List { head: More(Node { elem: 83, next: Empty }) }
+: List { head: None }
+: List { head: Some(Node { elem: 3, next: Some(Node { elem: 83, next: None }) }) }
+: List { head: Some(Node { elem: 83, next: None }) }
+
 
 * =.as_ref()=
 The correct way to handle this is with the as_ref method on Option, which has the following definition:
