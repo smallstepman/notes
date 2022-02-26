@@ -97,7 +97,7 @@ Additionally, Rust is a statically typed language. When you have a value, you kn
 As pointed out in the comments, dynamic data needs a dynamic data structure, such as a HashMap.
 
 
-* crazy things with =Range=
+* comment crazy cool things with =Range=
 https://ridiculousfish.com/blog/posts/least-favorite-rust-type.html
 #+begin_src rust
 fn main() {
@@ -108,3 +108,30 @@ fn main() {
 }
 #+end_src
 
+* comment cool if let patter matching
+#+begin_src rust
+fn main() {
+    let gfg = 2;
+    let gfg_answer = if let v @ 0..=3 = gfg {
+        format!("{}{}", "dsa=",v)
+    } else {
+        "fff".to_string()
+    };
+    println!("{}", gfg_answer);
+}
+#+end_src
+
+#+RESULTS:
+: dsa=2
+
+* comment cool methods on option
+#+begin_src rust
+fn main() {
+    let mut o = Some(5);
+    let x = o.take().map(|uu| uu + 5);
+    println!("{:?}", x);
+}
+#+end_src
+
+#+RESULTS:
+: Some(10)
