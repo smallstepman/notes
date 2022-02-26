@@ -124,6 +124,7 @@ Got: you
 :PROPERTIES:
 :ID:       9721b778-9095-4300-9bae-cc12c746d0c8
 :END:
+** mutex
 - =Mutex= is an abbreviation for mutual exclusion
 - *=Mutex= rules*
   - attempt to acquire the lock before using the data.
@@ -179,6 +180,31 @@ Got: you
         println!("Result: {}", *counter.lock().unwrap());
     }
   #+end_src
+** RwLock
+** Mutex vs RwLock
+:PROPERTIES:
+:ID:       2e14652f-8859-462d-a22c-e75c5a6554d5
+:ROAM_REFS: https://stackoverflow.com/questions/50704279/when-or-why-should-i-use-a-mutex-over-an-rwlock
+:END:
+Mutex is a simple method of locking to control access to shared resources.
+- At the same time, only one thread can master a mutex, and threads with locked status can access shared resources.
+- If another thread wants to lock a resource that has been mutexed, the thread hangs until the locked thread releases the mutex.
+- Threads using mutex lack read concurrency.
+- Use Mutex when your T is only Send and not Sync.
+- Mutex should be used when you have possibly too many readers to let the writers have the lock.
+
+RwLock<T> needs more bounds for T to be thread-safe:
+- Mutex requires T: Send to be Sync,
+- RwLock requires T to be Send and Sync to be itself Sync.
+- In other words, Mutex is the only wrapper that can make a T syncable. I found a good and intuitive explanation in reddit:
+- Because of those bounds, RwLock requires its contents to be Sync, i.e. it's safe for two threads to have a &ptr to that type at the same time. Mutex only requires the data to be Send, because conceptually you can think of it like when you lock the Mutex it sends the data to your thread, and when you unlock it the data gets sent to another thread.
+
+When there are more read operations and fewer write operations, read-write locks can be used to improve thread read concurrency.
+The implementation of read-write lock is more complex than that of mutual exclusion lock, and the performance is poor.
+The read-write lock supports simultaneous reading by multiple threads. The mutex lock does not support simultaneous reading by multiple threads, so the read-write lock has high concurrency.
+
+Preventing writer starvation
+- RwLock does not have a specified implementation because it uses the implementation of the system. Some read-write locks can be subject to writer starvation while Mutex cannot have this kind of issue.
 
 * =Sync= and =Send= traits
 :PROPERTIES:
