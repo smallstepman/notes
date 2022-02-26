@@ -302,3 +302,13 @@ pub trait Write {
 * type std::any::TypeId
 - allows to get a unique identifier for any type. The Error trait has a hidden provided method called type_id, whose default implementation is to return TypeId::of::<Self>()
 - Any has a blanket implementation of impl Any for T, and in that implementation, its type_id returns the same. In the context of these impl blocks, the concrete type of Self is known, so this type_id is the type identifier of the real type
+* recursive types
+:PROPERTIES:
+:ID:       47f2a3f7-7833-4d80-96ca-d949108b8aee
+:END:
+#+begin_quote
+Rust needs to know at compile time how much space a type takes up. One kind of type whose size can’t be known at compile time is a recursive type where a value can have as part of itself another value of the same type. This nesting of values could theoretically continue infinitely, so Rust doesn’t know how much space a value of a recursive type needs. Boxes have a known size, however, so by inserting a box in a recursive type definition, we are allowed to have recursive types.
+#+end_quote
+** releted errors
+- [[https://doc.rust-lang.org/error-index.html#E0072][A recursive type has infinite size because it doesn’t have an indirection.]]
+- [[https://doc.rust-lang.org/error-index.html#E0720][An impl Trait type expands to a recursive type.]]
