@@ -46,7 +46,7 @@ fn change(some_string: &mut String) {
     some_string.push_str(", world");
 }
 #+end_src
-
+- Rust understands that it's ok to shard a mutable reference into the subfields of the pointed-to struct, because there's no way to "go back up", and they're definitely disjoint.
 * slice
 :PROPERTIES:
 :ID:       a6509ffe-87aa-40df-9da1-0f7dbb51f951
@@ -81,23 +81,14 @@ in memory. Reference =&= is the most common pointer in Rust.
   allow to modify it. They also hold metadata (e.g. vec length) and
   guarantees (String being valid utf8)
 
+
 ** derefernce trait
 :PROPERTIES:
 :ID:       09abfa5a-a22a-451f-8d5a-f25221138500
 :END:
-
 - Rust converts =y*= to =*(y.deref())=
-- *[[dict:%22ukryty,domniemany%22][Implicit]] Deref
-  [[dict:%22przymus,wymuszenie%22][Coercions]] with Functions and
-  Methods.* Deref coercion works only on types that implement the Deref
-  trait. Deref coercion converts such a type into a reference to another
-  type. For example, deref coercion can convert &String to &str because
-  String implements the Deref trait such that it returns str. Deref
-  coercion happens automatically when we pass a reference to a
-  particular type's value as an argument to a function or method that
-  doesn't match the parameter type in the function or method definition.
-  A sequence of calls to the deref method converts the type we provided
-  into the type the parameter needs.
+- Implicit Deref Coercions with Functions and Methods
+- Deref coercion works only on types that implement the Deref trait. Deref coercion converts such a type into a reference to another type. For example, deref coercion can convert &String to &str because String implements the Deref trait such that it returns str. Deref coercion happens automatically when we pass a reference to a particular type's value as an argument to a function or method that doesn't match the parameter type in the function or method definition. A sequence of calls to the deref method converts the type we provided into the type the parameter needs.
 
 #+begin_src rust
 fn main() {
@@ -274,6 +265,12 @@ A::refm()
 A::refm()
 &&&A::refm()
 #+end_example
+*** when deref coercion is too complicated to auto-deref
+The as_deref and as_deref_mut functions are stable as of Rust 1.40
+#+begin_src rust
+Some(T).map(|node| &**node)    == Some(T).as_deref()
+Some(T).map(|node| &mut**node) == Some(T).as_deref_mut()
+#+end_src
 ** Drop trait
 :PROPERTIES:
 :ID:       57669816-b7b4-4dfb-b82a-ea276be13519

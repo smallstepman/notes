@@ -297,6 +297,18 @@ an interesting example of safe interior mutability through invariants:
 :ANKI_NOTE_ID: 1644613452741
 :ID:       f1405377-b328-44c5-a16e-bff6e7ba594e
 :END:
+#+begin_src rust
+&i32        // a reference
+&'a i32     // a reference with an explicit lifetime
+&'a mut i32 // a mutable reference with an explicit lifetime
+#+end_src
+
+*Every reference has a lifetime, which is a scope for which the reference is valid.*
+
+- lifetimes are variety of generics that give the compiler information about how references
+  relate to each other
+- lifetimes allow us to borrow values in many situations while still enabling the compiler to check that the references are valid
+- most of times they are implicit and inferred. I must annotate lifetime when the lifetime of references could be related in a few different ways
 - is a name for a region of code that some reference must be valid for
 - oversimplistic explanation: a lifetime begins when you take a reference to some variable and ends when that variable is moved or goes out of scope
 - when a reference with some lifetime 'a is used, the borrow checker checks that 'a is still alive
@@ -315,38 +327,27 @@ an interesting example of safe interior mutability through invariants:
       #+end_src
       which means: =b= has unique arbitrary lifetime, and return type gets turned into lifetime inference, therefore the compiler infers the return type lifetime must be tied to a lifetime of =a=
   - signals to the compiler, that it should guess the lifetime
-** lifetimes
 
-- CH1504: We could change the definition of Cons to hold references
-      instead, but then we would have to specify lifetime parameters. By
-      specifying lifetime parameters, we would be specifying that every
-      element in the list will live at least as long as the entire list.
-      The borrow checker wouldn't let us compile let a = Cons(10, &Nil);
-      for example, because the temporary Nil value would be dropped before
-      a could take a reference to it.
+#+begin_src rust
+fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+    if x.len() > y.len() {
+        x
+    } else {
+        y
+    }
+}
 
-- why first works (with one lifetime specifier), but second doesn't (it reflects lifetimes closely)
+fn main() {
+    let q = String::from("popopop asd");
 
-      #+begin_src rust
-        fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
-            if x.len() > y.len() {
-                x
-            } else {
-                y
-            }
-        }
-
-        fn main() {
-            let q = String::from("popopop asd");
-
-            {
-                let result;
-                let w = String::from("asdasd");
-                result = longest(q.as_str(), w.as_str());
-                println!("{}", result);
-            }
-        }
-      #+end_src
+    {
+        let result;
+        let w = String::from("asdasd");
+        result = longest(q.as_str(), w.as_str());
+        println!("{}", result);
+    }
+}
+#+end_src
 
 #+begin_src rust
 fn longest<'a,'b>(x: &'a str, y: &'b str) -> &'a str {
@@ -368,10 +369,10 @@ fn main() {
     }
 }
 #+end_src
-- (from tokio tutorial) Note that the error message talks about the argument type outliving the 'static lifetime. This terminology can be rather confusing because the 'static lifetime lasts until the end of the program, so if it outlives it, don't you have a memory leak? The explanation is that it is the type, not the value that must outlive the 'static lifetime, and the value may be destroyed before its type is no longer valid. When we say that a value is 'static, all that means is that it would not be incorrect to keep that value around forever. This is important because the compiler is unable to reason about how long a newly spawned task stays around, so the only way it can be sure that the task doesn't live too long is to make sure it may live forever.
 ** generic lifetimes
 :PROPERTIES:
 :ANKI_NOTE_ID: 1644613452734
+:ID:       56fcec07-1bae-4c12-b419-269298cc864b
 :END:
 - rust allows to make a type definition generic over one or more lifetimes, this allows ... :
   - store references within your own types - those references need to have a lifetime so that the borrow checker can check their validity when they are used in the various methods on that type
@@ -388,6 +389,7 @@ fn main() {
 ** lifetime variance
 :PROPERTIES:
 :ANKI_NOTE_ID: 1644613452724
+:ID:       737c2ee3-577d-4d3b-8bfa-121d276fca00
 :END:
 - variance describes what types are subtypes of other types and when a subtype can be used in place of a supertype (and vice versa)
   - 'static is a subtype of 'a because a 'static lives at least as long as any 'a and so is more useful
@@ -409,29 +411,11 @@ fn main() {
 - lifetime variance becomes relevant when you consider how generic lifetime parameters interact with the borrow checker
 
 
-** Lifetimes
-:PROPERTIES:
-:CUSTOM_ID: lifetimes
-:ANKI_NOTE_ID: 1644613452714
-:END:
-#+begin_src rust
-&i32        // a reference
-&'a i32     // a reference with an explicit lifetime
-&'a mut i32 // a mutable reference with an explicit lifetime
-#+end_src
 
-*Every reference has a lifetime, which is a scope for which the reference is valid.*
-
-- Lifetimes are variety of generics that give the compiler information about how references
-  relate to each other.
-
-- Lifetimes allow us to borrow values in many situations while still enabling the compiler to check that the references are valid.
-
-- Most of times they are implicit and inferred. I must annotate lifetime when the lifetime of references could be related in a few different ways.
-
-*** *lifetime elision and it's rules*
+** lifetime elision
 :PROPERTIES:
 :ANKI_NOTE_ID: 1644613452704
+:ID:       889e98ed-e6e5-4f9a-b2ef-6bd8a57c5320
 :END:
 - The elision rules don't provide full inference.
 - Lifetimes on function or method parameters are called *input lifetimes*
@@ -439,16 +423,17 @@ fn main() {
 - Rules apply to =fn= definitions as well as =impl= blocks.
 - The first rule applies to input lifetimes, and the second and third rules apply to output lifetimes. If the compiler gets to the end of the three rules and there are still references for which it can't figure out lifetimes, the compiler will stop with an error.
 
-**** *Rules*
+*** lifetime elision rules
 :PROPERTIES:
 :ANKI_NOTE_ID: 1644613452696
+:ID:       b487f1ed-a0b5-4ef0-bdd2-4441e3830386
 :END:
 1. each parameter that is a reference gets its own lifetime parameter.
    In other words, a function with one parameter gets one lifetime parameter: =fn foo<'a>(x: &'a i32)=; a function with two parameters gets two separate lifetime parameters: =fn foo<'a, 'b>(x: &'a i32, y: &'b i32)=; and so on.
 2. if there is exactly one input lifetime parameter, that lifetime is assigned to all output lifetime parameters: =fn foo<'a>(x: &'a i32) -> &'a i32=.
 3. if there are multiple input lifetime parameters, but one of them is =&self= or =&mut self= because this is a method, the lifetime of =self= is assigned to all output lifetime parameters. This third rule makes methods much nicer to read and write because fewer symbols are necessary.
 
-*** Basic example
+** COMMENT examples
 :PROPERTIES:
 :ANKI_NOTE_ID: 1644613452690
 :END:
@@ -512,11 +497,28 @@ impl<'a> ImportantExcerpt<'a> {
 }
 #+end_src
 
-*** ='static= lifetime
+** ='static= lifetime
 :PROPERTIES:
 :ANKI_NOTE_ID: 1644613452656
+:ID:       5754de78-b918-42be-8ff0-27b81dddc456
 :END:
 a reference that *can* live for entire duration of program. All string literals have ='static= lifetime.
 #+begin_src rust
-let s: &'static str = "I have a static lifetime.";zx
+let s: &'static str = "I have a static lifetime.";
+#+end_src
+from tokio tutorial:
+#+begin_quote
+Note that the error message talks about the argument type outliving the 'static lifetime. This terminology can be rather confusing because the 'static lifetime lasts until the end of the program, so if it outlives it, don't you have a memory leak? The explanation is that it is the type, not the value that must outlive the 'static lifetime, and the value may be destroyed before its type is no longer valid. When we say that a value is 'static, all that means is that it would not be incorrect to keep that value around forever. This is important because the compiler is unable to reason about how long a newly spawned task stays around, so the only way it can be sure that the task doesn't live too long is to make sure it may live forever.
+#+end_quote
+** explicitly elided lifetime
+:PROPERTIES:
+:ID:       670cfa11-8114-4bb2-aca4-2425f8e7c36f
+:END:
+if you're not comfortable "hiding" that a struct contains a lifetime, you can use the Rust 2018 syntax: ='_=
+#+begin_src rust
+impl<T> List<T> {
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter { next: self.head.as_deref() }
+    }
+}
 #+end_src
