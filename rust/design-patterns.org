@@ -38,6 +38,14 @@ To get around orphan rule restriction, it's possible to use *newtype pattern*, w
 :ID:       65e8df06-496f-471e-b581-509c4433de87
 :END:
 - a type that externally looks like it's immutable, but has methods which allow to mutate it
+** when to choose
+- last resort
+- introducing inherited mutability roots to shared types, e.g. [[id:0d061b3f-f871-4c7c-814d-472f4995c7a6][Rust linked list]]
+- implementation details of logically-immutable methods
+- mutating implementations of Clone
+#+begin_quote
+The more common inherited mutability, where one must have unique access to mutate a value, is one of the key language elements that enables Rust to reason strongly about pointer aliasing, statically preventing crash bugs. Because of that, inherited mutability is preferred, and interior mutability is something of a last resort. Since cell types enable mutation where it would otherwise be disallowed though, there are occasions when interior mutability might be appropriate, or even must be used, e.g.: ...(listed above)
+#+end_quote
 * COMMENT old example
 #+begin_src rust
 use std::ops::Deref;
