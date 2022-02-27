@@ -13,7 +13,7 @@
   - when popping value off the list, its required to remove things, by getting the head of the list by value, which is tricky because moving out of node is hard when all we have is a shared reference to it (solved with =std::mem::replace=)
   - when peeking, we need to do is return a reference to the element in the head of the list, but we need to do it without moving the value (solved with =as_ref= & =as_mut=)
 - lifetimes during iteration
-* singly-linked list
+*
 ** implementation using =Box=
 :PROPERTIES:
 :ID:       3fe77601-5867-4560-8981-3a296f2c6b7a
@@ -35,6 +35,7 @@ fn main() {
 #+RESULTS:
 : Elem(1, Elem(2, Empty))
 *** features
+- singly-linked list
 - compiles
 - the layout takes advantage of the [[id:1578850d-d7d8-4f9c-8aa4-18fca46ff5c2][null pointer optimization]]
 *** issues
@@ -239,7 +240,7 @@ fn main() {
 : List { head: Some(Node { elem: 3, next: None }) }
 
 *** features
-- peristent list
+- peristent singly-linked list
 - when creating copies of the list, all copies point to the same data
   #+begin_src
   list1 = A -> B -> C -> D
@@ -256,11 +257,75 @@ fn main() {
   #+end_src
 *** issues
 - we can't mutate data inside Arc/Rc smart pointers
-** implementation using raw pointers
-* deque
-** features
-- allows for mutating data using [[id:65e8df06-496f-471e-b581-509c4433de87][interior mutability]] pattern
+** implementation using =Rc= and =RefCell=
+:PROPERTIES:
+:ID:       11585273-bde9-4d9e-b9d2-2520f1734f51
+:END:
+#+begin_src rust
+#![allow(dead_code)]
+use std::rc::Rc;
+use std::cell::RefCell;
 
+#[derive(Debug)]
+pub struct List<T> {
+    head: Link<T>,
+    tail: Link<T>,
+}
+
+type Link<T> = Option<Rc<RefCell<Node<T>>>>;
+
+#[derive(Debug)]
+struct Node<T> {
+    elem: T,
+    next: Link<T>,
+    prev: Link<T>,
+}
+
+impl<T> Node<T> {
+    fn new(elem: T) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Node {
+            elem,
+            next: None,
+            prev: None,
+        }))
+    }
+}
+
+impl<T> List<T> {
+    fn new() -> Self {
+        List { head: None, tail: None }
+    }
+    fn push_front(&mut self, elem: T) {
+        let new_head = Node::new(elem);
+        match self.head.take() {
+            Some(old_head) => {
+                old_head.borrow_mut().prev = Some(new_head.clone());
+                new_head.borrow_mut().next = Some(old_head);
+                self.head = Some(new_head);
+            }
+            None => {
+                self.tail = Some(new_head.clone());
+                self.head = Some(new_head);
+            }
+        }
+    }
+}
+
+fn main() {
+    let mut list = List::new();
+    list.push_front(3);
+    println!("{:?}", list);
+}
+#+end_src
+
+#+RESULTS:
+: List { head: Some(RefCell { value: Node { elem: 3, next: None, prev: None } }), tail: Some(RefCell { value: Node { elem: 3, next: None, prev: None } }) }
+
+*** features
+- allows for mutating data using [[id:65e8df06-496f-471e-b581-509c4433de87][interior mutability]] pattern
+- doubly-linked list
+
+** TODO implementation using raw pointers
 * comment insights
 ** implementation with associated types
 #+begin_src rust
