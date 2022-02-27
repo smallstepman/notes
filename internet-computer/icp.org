@@ -1,0 +1,965 @@
+:PROPERTIES:
+:ID:       c4b00147-5f2c-4ed5-95c0-914c4b3fdba5
+:END:
+#+TITLE: Internet Computer Protocol (ICP)
+#+VISIBILITY: folded
+#+STARTUP: overview
+#+CREATED: [2022-02-22 wto 19:22]
+#+LAST_MODIFIED: [2022-02-27 nie 20:17]
+
+* [[https://www.youtube.com/watch?v=FJE1s8ZkUyg][Inside the internet computer academy talks]]
+** [[https://www.youtube.com/watch?v=hWnsluxmRqc&list=PLuhDt1vhGcrfHG_rnRKsqZO1jL_Pd970h][Network Nervous System (NNS)]]
+*** IC
++ scalability on demand thanks to subnets, that can be added over time
++ subnets need to communicate with each other
++ consensus has to be reached in each subnet
++ nodes can be added to a subnet to improve its robustness
+*** Why it's needed
++ How to organize growing amount of subnets and nodes?
++ When to make a decision about adding/removing new nodes/subnets?
++ Updating/upgrading the protocol
+*** How it works
+
+[[download:_20220224_005457screenshot.png]]
+
+**** Governance canister
++ stores *proposals* that can be voted on
++ stores *neurons* which determine who is allowed to participate in governance
+***** Proposals
+
+[[download:_20220224_010532screenshot.png]]
+
+****** Proposal topics
++ SubnetManagement - adding/removing nodes/subnets
++ ExchangeRate - value of tokens
++ NodeAdmin - administering nodes, such as upgrading replicas
++ NetworkEconomics - determining what rewards should be paid
+****** Submitting a proposal
++ upon submitting a proposal it already has a number of votes equal to the voting power of the neuron that submitted it
++ a small fee is paid by the neuron that submitted a proposal which was rejected
+
+[[download:_20220224_010850screenshot.png]]
+
+***** Neurons
++ the amount of locked tokens roughly equals the voting power
+
+[[download:_20220224_004622screenshot.png]]
+
+****** Creating a neuron
+
+[[download:_20220224_010205screenshot.png]]
+
+**** Registry canister
++ stores the *configuration* of the whole IC (e.g. nodes included in Subnet 3)
+**** Ledger canister
++ stores accounts *balances* and *transactions*
+**** Cycles Minting canister
++ burns ICP and tops up canisters with cycles
+
+[[download:_20220224_013410screenshot.png]]
+
+**** Voting rewards
++ participation rewards depend on the amount of all possible decisions the neuron has participated in
+**** Following
++ neuron doesn't have to actively participate in voting
++ it can follow other neurons and vote based on how the majority of them voted
+** [[https://www.youtube.com/watch?v=vUcDRFC09J0&list=PLuhDt1vhGcrfHG_rnRKsqZO1jL_Pd970h&index=2][Chain Key Cryptography]]
+*** IC
++ replicated execution ensures robustness and correctness
++ but a canister cannot be run on all nodes (scalability)
++ and on the other hand needs to be run on sufficiently many nodes (security)
+*** How it works
++ nodes are split into sufficiently large subnets
++ canisters are assigned to different subnets
++ all nodes within a given subnet each execute a given canister code on message input
++ each of them produces a partial signature on the computed result
++ when 3/4 nodes have agreed the result is correct and have signed that result, then these signatures are combined into a full signature on the message that then is sent back to the user
++ the combined signature can be verified against the public key
+**** Authentication
++ the NNS generates:
+  - *static* public keys for each subnet
+  - key shares of the subnet's public key (?) for all the nodes within the subnet
+  - the certificate on the public key of the subnet
++ every node within that subnet has its own shared secret key from the threshold key (?)
++ a special subnet - NNS - certifies subnet keys (all keys get certified w.r.t. the NNS public key)
++ if the user receives a message signed by a subnet, the subnet then can pass a certificate from the NNS -> then all the user needs to authenticate the response is the NNS public key and then it can validate the certificate of subnet's public key
+
+[[download:_20220224_211138screenshot.png]]
+
+**** Dynamic membership
++ NNS assigns new nodes to a subnet if some of the existing nodes crash or become compromised and need to be wiped out
++ nodes regularly re-share their keys with the new set of nodes
+**** Threshold signature scheme
+
+[[download:_20220224_213709screenshot.png]]
+
+Generated keys should be:
+- perfectly random
+- safely distributed (not leaked)
+
+but..
+
+***** how can we trust the dealer?
+We don't need to!
+
+There are two tricks we can use to address this issue:
+
+****** Non-interactive Key Generation
++ zero-knowledge proof
++ ensures the correctness of secret keys
+
+[[download:_20220224_215918screenshot.png]]
+
+****** Multiple dealers
++ public keys and secret key shares are homomorphic
++ protects agaist a malicious dealer
++ *as long as a single dealer is honest the whole scheme is secure !*
+
+[[download:_20220224_215959screenshot.png]]
+**** Starting a new subnet
++ each node of the NNS subnet is a dealer
++ each dealer generates a public key and secret key shares for the new subnet
++ all the public keys generated by the dealers are combined into a single public key and certify it
++ once all this material is computed it is sent to the nodes who form a new subnet
++ nodes in a new subnet decrypt it and combine their secrets into a single secret
+
+[[download:_20220224_221823screenshot.png]]
+**** Evolving a subnet
+
+[[download:_20220225_005817screenshot.png]]
+
+[[download:_20220225_005948screenshot.png]]
+
+Nodes regularly certify the state.
+The new node now has to get the canisters and their current state to start operating.
+So, the new joiner to the subnet requests a so called *catch-up package* from a sufficient number of nodes.
+
+**** Catch-up package
+A set of:
+- secret key sharings
+- the certified state
+***** applications:
++ node replacement
++ node resumption
++ subnet resurrection
+  - when the large amount of nodes crashes and they lost large amount of key shares so they can't reconstruct that public key and new key sets have to be generated, some nodes still have the current state (certified) so data is safe
++ protocol upgrade
+*** Features
+
+[[download:_20220225_013155screenshot.png]]
+
++ the IC has a single public key!
++ by sending certificates along the signed messages, authenticity is verifiable by a single IC's public key (48 bytes) only!
+** [[https://www.youtube.com/watch?v=vVLRRYh3JYo&list=PLuhDt1vhGcrfHG_rnRKsqZO1jL_Pd970h&index=3][Consensus Overview]]
+
+[[download:_20220225_015505screenshot.png]]
+
+*** Components
+**** Block making
+
+[[download:_20220225_020317screenshot.png]]
+
+**** Notarization
++ sufficient approval: 3/4 nodes
++ *notarization shares* are multi-signatures, that allow for aggregation into a single constant size signature
+
+[[download:_20220225_021346screenshot.png]]
+
++ if the replica would only sign one of the blocks, we might get stuck, because some notaries might support one block while support another block and neither will get enough approval
+
+[[download:_20220225_022248screenshot.png]]
+
+[[download:_20220225_022420screenshot.png]]
+
+**** Random Beacon
++ a random value shared and created jointly by the replicas of the subnet
++ The Random Beacon is a unique threshold BLS signature on the previous random beacon value
+???
+[[download:_20220225_024102screenshot.png]]
+
+[[download:_20220225_024459screenshot.png]]
+
+[[download:_20220225_024650screenshot.png]]
+
+Example:
+[[download:_20220225_025503screenshot.png]]
+
+There might still be some rounds with multiple blocks tough.
+
+[[download:_20220225_030246screenshot.png]]
+
+[[download:_20220225_030429screenshot.png]]
+
+**** Finalization
++ whenever we see a finalization on a given block, we know we can trust the chain up to that point
+
+[[download:_20220225_030840screenshot.png]]
+
+** [[https://www.youtube.com/watch?v=gKUi-2T7tdc&list=PLuhDt1vhGcrfHG_rnRKsqZO1jL_Pd970h&index=4][Non-interactive Distributed Key Generation and Key Resharing]]
+*** Threshold signature scheme
++ each subnet has a public verification key
++ each node has a public share verification key, that you can use to verify, whether it's using correct shares of the signature
++ each node also has a secret share signing key
++ subnet needs to reach a given threshold (3/4) of partial signatures to create a combined signature
++ the combined signature can be verified with the subnet's public verification key
+
+[[download:_20220225_031821screenshot.png]]
+
+[[download:_20220225_031932screenshot.png]]
+
+*** Verifiable secret sharing
++ dealer provides the nodes with both their secret key shares and public key material, that they can use to verify the secret shares are correct
++ the public key material will contain the verification key for the signature scheme and also the share verification keys for the nodes
+
+[[download:_20220225_142154screenshot.png]]
+
+*** Publicly verifiable secret sharing
++ each node should be able to verify secret shares of other nodes
++ the dealer provides the public key material but also public encryptions of the secret shares to every node
++ the dealer encrypts the secret share for that node with the node's public encryption key
++ so now, without revealing actual secret key shares, every node can verify that that they are correct for every other node (zero-knowledge proof)
+
+[[download:_20220225_142926screenshot.png]]
+*** Distributed key generation
++ a set of nodes acting as dealers that encrypt key shares for the receivers
++ the shares are encrypted using a novel encryption scheme
++ each dealing comes with a zero-knowledge proof attached, attesting the validity of the encrypted share, which allows the protocol to be *non-intereactive*, meaning that the receivers do not need to be present during the execution of the protocol
++ invalid dealings are discarded
++ once sufficiently many valid dealings are collected these are combined to derive a common threshold public key
++ the recipients can decrypt their own shares and construct their own secret signature key
+
+[[download:_20220226_195237screenshot.png]]
+
+[[download:_20220226_195710screenshot.png]]
+
+*** Distributed key re-sharing
++ a node can share its secret share the same way:
+  - we can treat the share verification key of a node as a public key
+  - a node acts as a dealer and distributes shares of its secret key share with other nodes
++ i.e. when adding new nodes to the subnet
++ after re-sharing the subnet still has the same public verification key, but nodes will have fresh public share verification keys and fresh secret shares to mach
+
+ [[download:_20220225_152714screenshot.png]]
+ 
+** [[https://www.youtube.com/watch?v=9eUTcCP_ELM&list=PLuhDt1vhGcrfHG_rnRKsqZO1jL_Pd970h&index=5][Identity and Authentication on the Internet Computer]]
++ digital signatures instead of passwords
+*** Request authentication
++ caller's principle (ID) is derived by hashing the public key
++ when the IC receives a requests it checks:
+  - whether the signature is valid (was signed be the owner of the specified public key)
+  - the relation between the public key and the caller's principal (to make sure the message was indeed sent by the caller specified in the message)
+
+[[download:_20220225_154752screenshot.png]]
+*** Principals format
++ public key -> SHA-224 -> 28 bytes string
++ append one byte to differentiate principles derived from public keys from the ones used for canisters
++ = 29 bytes (internal representation)
++ prepend CRC32 error detection code (4 bytes)
++ encode in Base32 and create groups of 5 characters separated by dashes
+*** Principals delegation
++ a key can delegate the right to use the principle derived from itself to another public key
++ used to allow for interacting with the IC from multiple devices
++ sharing the same key between devices would be both tedious and insecure
++ when signing a request with the delegate key, a user includes the delegation from the delegating key in order to use the identity derived from it
+
+Delegation consists of:
+- delegate key
+- expiration
+- scope
+- signature of the delegating key
+
+[[download:_20220225_170022screenshot.png]]
+
+**** Web authentication
+***** Web 2.0. request authentication
++ assumes the session oriented client-server model
++ a user authenticates once when logging in the app and sends subsequent messages within that session
+
+Flow:
+1) The user initiates the login process by providing username and password
+2) The web server generates a random challenge and sends it to the user's browser
+3) The browser then sends the challenge to the secure device (which stores cryptographic keys) which requires user interaction before it signs the challenge
+4) The signed challenge is sent back to the server
+5) The server verifies the signature on the challene relative to the user's public key
+
+[[download:_20220225_170636screenshot.png]]
+
+***** IC request authentication
+Existing web authentication protocol is leveraged in the following way:
++ each request is authenticated individually (there is no server that can generate a challenge to be signed by the secure device, as there is no stateful session between the browser and the IC)
++ the request itself is used as a challenge and signed by the secure device
++ delegation mechanism is used, so that the user doesn't have to explicitly sign every such request (the existing protocol requires user interaction for every signature)
+
+[[download:_20220225    _210004screenshot.png]]
+
+*IC Identity Provider*
+- application that allows the user to manage their keys and identities
+- uses session key and delegation mechanisms
+
+The delegation mechanism is used in the following way:
+1) When a user first loads the front end from a given canister, he's presented with "Sign in with the IC" button.
+2) When he clicks the button, the browser is redirected to the IC Identity Provider.
+3) In the Identity Provider the user can decide whether to use the identity.
+4) If the user approves, the browser is redirected to the canister front-end and can access the canister under the user's identity.
+
+[[download:_20220225_210350screenshot.png]]
+
+****** Scoping delegations
++ keys are bound not only to the device (original delegating key) but also to particular canisters (delegates and delegators to further canisters) (???)
++ on the IC web 2.0.' "origin" roughly corresponds to one canister
+
+[[download:_20220225_212100screenshot.png]]
+
+** [[https://www.youtube.com/watch?v=HOQb0lKIy9I&list=PLuhDt1vhGcrfHG_rnRKsqZO1jL_Pd970h&index=6][Peer-to-Peer (P2P)]]
+
+ICP Protocol layers:
+[[download:_20220225_223110screenshot.png]]
+
+IC node:
+[[download:_20220225_223443screenshot.png]]
+
+P2P layer is responsible for:
++ sending out artifacts created by the layers above
++ receiving, validating, processing and distributing artifacts arriving from other nodes in the same subnet and users
++ handles artifact for state synchronization, certification etc.
+
+*** Aim
+If a correct node sends an artifact to its peers, then that artifact will eventually be received by all correct nodes in the network.
+*** Requirements
++ bounded-time / eventuall delivery despite Byzantine faults
+  - we would like to guarantee the message is delivered within a given time or an error is delivered instead
+  - with weaker assumptions we can only guarantee eventual delivery
+  - we would like to tolerate up to a certain threshold of invalid / dropped artifacts
++ reserved resources for different application components/peers
++ bounded resources
++ prioritization for different artifacts
++ high efficiency
+  - high throughput
+  - avoid duplication
+  - thus we prefer throughput over latency (we prefer to wait a bit longer for the delivery if it utilizes network better)
++ DOS/SPAM resilience
++ encryption, authenticity, integrity
+*** Interaction with other components
+
+[[download:_20220226_025957screenshot.png]]
+
+**** Artifact pool
++ contains all currently available artifacts for the gossip client application components (Consensus, DKG, Certification, Ingress Manager and State Synchronization)
++ keeps track which artifacts have been validated by application components (for example by validating signatures)
++ is agnostic to client details, but does know the artifact type (e.g. "block") and other attributes related to the artifacts for adverts
++ responsible for persisting artifacts across reboots: application components instruct the artifact pool wchich artifacts must be persisted or deleted (done for consensus artifacts)
+*** Gossip protocol
+**** Principle
+Make information available at one node (messages received or created) reach enough other nodes efficiently.
+**** P2P
++ peers determined by overlay network topology
++ everything delivered in O(diameter) hops, if:
+  - overlay is undirected and connected
+  - all nodes follow protocol
+  - no messages are dropped
+**** The Eclipse Attack Problem
+
+[[download:_20220226_023900screenshot.png]]
+
+[[download:_20220226_023922screenshot.png]]
+
++ different overlay for each node
++ for small enough subnets the entire subnet is used, no overlays
+**** Duplicate Problem
+
+[[download:_20220226_024433screenshot.png]]
+
+Instead of telling you a rumour you have already heard, a friend could ask you first: "have you heard about ...?"
+
+[[download:_20220226_024743screenshot.png]]
+
+*Advert*:
+- small message with metadata of an artifact
+- does not include the actual data
+- includes fields used for integrity verification (e.g. integrity hash) and decision making (e.g. attributes for prioritization)
+**** Prioritization
+
+[[download:_20220226_025332screenshot.png]]
+**** GOSSIP Data Structures at a node
+
+[[download:_20220226_031038screenshot.png]]
+**** Flow
+
+A node adds a new validated artifact to the pool and sends the advert to all the peers in its overlay network.
+[[download:_20220226_031632screenshot.png]]
+
+[[download:_20220226_031656screenshot.png]]
+
+[[download:_20220226_031719screenshot.png]]
+
+
+[[download:_20220226_031734screenshot.png]]
+
+
+[[download:_20220226_031751screenshot.png]]
+
+[[download:_20220226_031803screenshot.png]]
+*** Transport
++ a component below the gossip component
++ responsible for keeping connection between peers stable
++ has its own send buffers for cases of connectivity problems and congestion
++ has an internal heartbeat mechanism to ensure connections do not hang (important for providing bounded time delivery)
++ frames gossip messges with its own layer 7 headers
++ currently uses multiple TCP streams between peers (dfinity is investigating a potential switch to QUIC in the future)
+**** TLS 1.3
++ the root of trust is the registry that provides self-signed certificates for nodes
+
+[[download:_20220226_034135screenshot.png]]
+**** Connection problems
+
+[[download:_20220226_034510screenshot.png]]
+
+[[download:_20220226_034532screenshot.png]]
+
+[[download:_20220226_034646screenshot.png]]
+
+[[download:_20220226_034717screenshot.png]]
+
+** [[https://www.youtube.com/watch?v=mPjiO2bk2lI&list=PLuhDt1vhGcrfHG_rnRKsqZO1jL_Pd970h&index=8][Protocol Upgrades]]
++ lightweigth solution to protocol upgrades
++ mostly based on existing mechanisms in IC
++ allows rolling out patches in rapid succession
++ little user-perceived downtime
+*** Requirements
++ distributed and decentralized
++ need to apply upgrades at the same logical time
++ machines miht be arbitrarily far behind, might fail or be malicious
++ allow arbitrary changes to the ICP
++ preserve all canister state
++ make downtime low
++ rollouts need to be autonomous
++ triggered by Governance system based on voting
+*** Registry
++ a canister in the NNS
++ stores all configuration information for the IC
++ a version key-value store
+*** Triggering upgrades
+In order to trigger an upgrade we simply update the version information for a particular subnet in the new registry version.
+
+[[download:_20220226_040041screenshot.png]]
+*** Executing upgrades
+
+[[download:_20220226_040739screenshot.png]]
+
+**** Scope
+Upgrades might:
++ change the state machine (Execution + Message Routing)
++ change consensus details (e.g. notarization)
++ change network protocol details
+
+**** When to execute uprades
++ at the same block height
++ block height acts as a logical time
++ nodes do not arrive at that block height at the same physical time, so for a period of time nodes in a subnetwork will be running different IC versions
+**** Process
+1) subnet A is running IC version v1
+2) trigger upgrade to IC version v2 at registry version r
+3) nodes in subnet A eventually agree to use r at block height h
+4) nodes running v1 create blocks & compute states <= heigh h
+5) from height h+1, nodes running v2 will take over
+
+We need a snapshot between h and h+1 in order to carry over the state from v1 to v2.
+To do that we use a *catch-up package*.
+
+[[download:_20220226_163937screenshot.png]]
+
+*** Challenges
+*Challenge*: Ensure each node runs the correct IC version
++ all honest nodes must participate in v1 until handover CUP to v2 is reached
++ if some honest nodes run icorrect versions, we could get stuck
+
+*Obstacle*: Decentralized
++ building the CUP is a collective effort by all nodes in the subnet
++ we do not know which of the nodes created the CUP, so we need to ask all of them
++ nodes might run a different version now
+
+**** How to decide which version to start?
+1) A node goes to the registry and finds out which subnetwork to join.
+2) With that the node also finds out who the peers are.
+3) It asks all of them what the latest CUP is that they have been producing.
+4) We fetch CUP from our peers over a separate communication channel.
+5) After we've received the CUP from out peers we can check their subnet signatures to verify correctness.
+6) We take the highest CUP from all the CUPs we've received and determine the IC version we should be running from that CUP.
+
+[[download:_20220226_170210screenshot.png]]
+
+*** Catch-up Package (CUP)
+:PROPERTIES:
+:ID:       3bb43ad7-5212-4df5-b30e-89ffee367da5
+:END:
++ contains all relevant information needed for Consensus to resume from that CUP
++ includes a reference to state
++ signed by a majority of the nodes in the subnetwork
+**** Creating CUP for upgrade
+
+New version of the registry at block height 30 triggers the update.
+Consensus now knows that it has to build a CUP at that height, but it can't currently do it because it didn't yet compute the state 30.
+Before we can compute the state at height 30 we need to finalize the block 30.
+[[download:_20220226_171313screenshot.png]]
+
+In order to reach finalization on this block we need to continue producing *empty* blocks until we have a finalization for a block >= 30.
+⚠ These blocks have to be empty, as otherwise we would further modify that state.
+[[download:_20220226_171115screenshot.png]]
+
+[[download:_20220226_171139screenshot.png]]
+
+Once we have that finalized block, we can compute state 30 and cerify it.
+[[download:_20220226_171159screenshot.png]]
+
+Now we have all the necessary information for building a CUP for that height.
+[[download:_20220226_171218screenshot.png]]
+
+We use this CUP as a handover point between the two versions.
+[[download:_20220226_171353screenshot.png]]
+
+We need to make sure that artifacts from v1 will not spill over to v2, and that's why we need to annotate artifacts with version number.
+[[download:_20220226_171407screenshot.png]]
+
+** [[https://www.youtube.com/watch?v=H7HCqonSMFU&list=PLuhDt1vhGcrfHG_rnRKsqZO1jL_Pd970h&index=8][Resumption]]
++ a subnet of size n must make progress whenever >2n/3 honest replicas are online
++ this meands that an honest replica that is arbirtrarily far behind must be able to catch up and fully participate in the protocol
+
+[[download:_20220227_015116screenshot.png]]
+
+But:
+[[download:_20220227_015310screenshot.png]]
+
+[[download:_20220227_015644screenshot.png]]
+
+Imagine if replica 2 is so far behind that everybody else already parts of the blockchain that replica 2 is still looking for. How can it ever catch up?
+What about a new node?
+
+The solution is a special artifact, called *catch-up package*.
+
+[[download:_20220227_020002screenshot.png]]
+
+What should go into the *catch-up package*?
+
+[[download:_20220227_020227screenshot.png]]
+
+[[download:_20220227_020850screenshot.png]]
+
+[[download:_20220227_021317screenshot.png]]
+
+[[download:_20220227_021406screenshot.png]]
+
+1) At height 200 replicas check if its time to create CUP.
+2) They check if they have a random beacon available, a block at that height and the replicated state.
+3) Check if there is a finalized block after block 200.
+4) Replicas create CUP containing these three artifacts and sigh it with the subnet key.
+
+[[download:_20220227_021957screenshot.png]]
+
+*** Resuming from a catch-up package
+
+[[download:_20220227_022229screenshot.png]]
+
+[[download:_20220227_022244screenshot.png]]
+
+[[download:_20220227_022302screenshot.png]]
+
+[[download:_20220227_022318screenshot.png]]
+
+asdf
+** [[https://www.youtube.com/watch?v=YexfeByBXlo&list=PLuhDt1vhGcrfHG_rnRKsqZO1jL_Pd970h&index=10][Message Routing & State Management]]
+*Replication is a scalability bottleneck:*
++ if we would replicate the computation over all the nodes, our computational capacity would be kept at the computational capacity of an individual node
+
+*Solution:*
++ multiple subnets as separate instances of the IC protocol layers, that only replicate over a subset of nodes
++ easy scalability by adding more subnets
++ message routing ensures that canisters can communicate across subnet boundaries
+
+
+[[download:_20220227_172140screenshot.png]]
+
+*** Message Routing goals
+
+[[download:_20220227_171338screenshot.png]]
+
+[[download:_20220227_171529screenshot.png]]
+
+*** Relevant parts of the state
+**** Canister specific
+
+[[download:_20220227_172346screenshot.png]]
+
+*Ingress queue*: contains messages sent by users (ingress messages).
+*Input queues*: messages received from other canister (one per canister).
+*Output queues*: messages to other canister (one per canister).
+**** Subnet specific
+
+[[download:_20220227_173154screenshot.png]]
+
+*Subnet-to-subnet stream*: messages, for which the message routing has already decided where they have to go (moved from canister output queues)
+Currenclty one stream per destination subnet.
+*** Execution
+
+[[download:_20220227_173818screenshot.png]]
+- load the appropriate state after receiving a finalized block
+
+*** State manager
++ can be more or less viewed as a version repository of state
++ allows to obtain particular versions i.e. when required to execute a batch
+
+*Distributed coordination functionalities:*
++ performs state synchronization, which allows nodes that have fallen behind to catch-up
++ performs state certification
+
+[[download:_20220227_175013screenshot.png]]
+
+*State certification:*
++ triggered whenever we commit some state to the state manager
++ done by converting the state to [[id:90d4b868-bb02-469b-b122-bacab0a24f15][merkle tree]] representation and obtaining a threshold signature on the root of this tree
++ this signature will then be verifiable under the chain key of the particular subnet
++ only one certified state per height
++ allows to derive compact signatures on parts of the state based on the signature on the whole state
+*** XNet transport
+
+[[download:_20220227_180316screenshot.png]]
+
+1) Subnet X has a certified stream for subnet Y available (along with the certification) for the block makers on the destination subnet Y
+2) The bock maker can pull over the stream and include it in a block proposal
+3) Everyone contributing to finalizing the block can use the certification to verify the validity of the stream
+4) The block maker and other contributors to finalizing the block also make sure that:
+   - there are no duplicate messages in the block (processed in previous blocks)
+   - there are no gaps in between streams (e.g. stream processed in the last block ended with message 10, so current stream must start with message 11)
+*** Stream Transfer Protocol
+**** Stream data structure
+
+[[download:_20220227_181519screenshot.png]]
+
+*Header* references messages included in the stream, so that block contributors from destination subnet Y can check if e.g. some of the messages has already been processed in previous blocks and decide to start processing from a given message of the stream.
+
+*Signals* used for messaging by destination subnet Y to inform subnet X of the messages it has already processed, e.g. we could tell subnet X we have already processed up to message 5, so it can garbage collect all the messages up to message 5.
+**** Protocol
+*Goals:*
++ get messages from X to Y
++ garbae collect messages from X only if Y received them
+
+[[download:_20220227_182504screenshot.png]]
+
+In reality the following will happen in parallel:
+
+[[download:_20220227_183222screenshot.png]]
+1) at the end of every deterministic execution cycle, when we have all the messages we want to route in this round into the stream, we would add a header that references all currently available messages in the stream (along with the certification)
+
+[[download:_20220227_183331screenshot.png]]
+2) the XNet transport and consensus will make sure that a prefix of this stream eventually reaches subnet Y
+
+[[download:_20220227_183603screenshot.png]]
+3) once subnet Y has received this stream as part of a block it starts processing it:
+   - goes over all the messages and puts them into input queues
+   - for every message put in the input queue produces a signal message (for garbage collection on subnet X)
+   - includes the created signals as part of the outgoing stream to subnet X
+
+[[download:_20220227_185052screenshot.png]]
+4) prefix of the stream goes to the other subnet
+
+[[download:_20220227_185200screenshot.png]]
+5) X processes the stream the same way
+6) in addition it takes the signals from subnet Y and garbage collects related messages
+7) the incoming stream also contains some information about the state of the stream on the other subnet - the header will contain the beginning of the stream -> iif we see that for example the beginning of the stream moved by 5 messages, we can derive from that that the other subnet must have received the signals sent by us and garbage collected the stream
+
+[[download:_20220227_190016screenshot.png]]
+*** Three steps of deterministic block processing
+1) *Induction*: take messages from incoming Blocks and put them in input queues
+2) *Execution*: schedule messages from execution and execute them
+3) *XNet message routing*: take produced messaes from output queues and put them in subnet-to-subnet streams
+** [[https://www.youtube.com/watch?v=c5nv6vIG3OQ&list=PLuhDt1vhGcrfHG_rnRKsqZO1jL_Pd970h&index=11][Canister Lifecycle]]
++ canisters communicate with one another by RPCs
+*** Canister controller
++ the principal authorised to manage the canister
++ can be a user or another canister
++ can install and uprade code
++ can set the status of the canister
++ can pass the control to another principal
+*** Cycles account
++ records how many cycles the canister has
++ maintained by the system as meta-information for the canister
+*** System state
++ metadata about the canister (controller, cycles balance, ID etc.)
++ information about what the canister is processing at any given point in time:
+  - call context for each request received, where it keeps track of all calls that the canister issued as part of processing the request (for each outgoing call the system records the address of a callback on the WASM module)
+
+[[download:_20220226_175422screenshot.png]]
+*** Canister status
+*Deallocated*:
+- when it runs out of cycles
+- Wasm module and its memory are removed
+- empty shell, similar to when the fresh canister is created
+
+*Frozen*:
+- planned intermediate state, not yet included in the protocol (?)
+- doesn't delete all canister data and code when it runs out of cycles
+- threshold on cycles balance after which the canister stops accepting new requests and will only process any outstanding replies
+
+[[download:_20220226_185634screenshot.png]]
+
+*** Deploying
+1) Create an empty canister (no code, no internal state): gets assigned the subnet and the controller
+2) The controller installs a WASM module on it.
+**** Ways to change the Wasm module
+***** Reinstall
++ wipes canister state
++ call contexts are preserved: which means callbacks will point to potentially invalid locations
+***** Upgrade
++ replace the Wasm module of a canister
++ built-in mechanism for preserving data between versions
++ call contexts are preserved: can prevent canister from a successfull upgrade
++ upgrading is atomic
+  - if anything goes wrong during the upgrade the state of the canister is rolled back to the first version
+****** Flow
+1) The controller sends an upgrade request to the system (with destination canister and new Wasm module).
+2) The ~pre_upgrade~ method is called on the current version of the canister.
+3) At this point the canister can select and serialize to the stable memory any data it wants to preserve.
+4) The code that has been passed to the platform is verified, compiled and pushed into the canister.
+5) The system calls a method called ~post_upgrade~ on the new version.
+6) The canister can deserialize the data written to the stable memory back onto the application memory.
+
+[[download:_20220226_180937screenshot.png]]
+
+*Clean upgrades* (no open call contexts)
++ the controller can stop the canister
++ now the canister has no open call contexts and the upgrade can happen safely
+*** Creation and Top-up
+**** Using cycles
+(Planned enabling creation of canisters on other subnets.)
+
+[[download:_20220226_191352screenshot.png]]
+
+[[download:_20220226_191414screenshot.png]]
+
+**** Using ICP tokens
+
+[[download:_20220226_191915screenshot.png]]
+
+** [[https://www.youtube.com/watch?v=vGmlfLW3scA&list=PLuhDt1vhGcrfHG_rnRKsqZO1jL_Pd970h&index=12][Bootstrapping]]
+
+[[download:_20220226_192237screenshot.png]]
+
+Nodes are owned by node providers, which are members of the IC Association and are responsible to establish contracts with DCs and supply the agreed amount of nodes to the network.
+
+*** Decentralization aspects
+[[download:_20220226_192955screenshot.png]]
+
+*** Genesis state
+After the genesis the registration of node providers can happen using the IC itself, but before that, the outbound mechanism is needed:
+  - before genesis node providers register themselves with the IC Association
+  - in the process they generate some key pairs - separeate for registering new nodes and for governing their neuron
+
+Genesis state of the registry canister:
+[[download:_20220226_193907screenshot.png]]
+
+Genesis state of the governance canister:
+[[download:_20220226_194430screenshot.png]]
+
+Genesis state of the ledger canister:
+[[download:_20220226_194848screenshot.png]]
+*** Bootstrapping process
+
+[[download:_20220226_204252screenshot.png]]
+
+A) Create an auxiliary subnet with a single node
+   + removed afterwards
+   + as any other, has its own threshold key; however, since there is only one node, the threshold = 1 and the node has complete control of the key
+B) Install auxiliary canisters: Governance and Registry
+   + the AuxRegistry is initialized with the identities of the node providers - contributers to the genesis network
+   + the AuxRegistry also stores the root key of this auxiliary network, which is the public key of the auxiliary subnet
+C) There is only one neuron - in control of the DFinity Foundation
+
+[[download:_20220226_204836screenshot.png]]
+
+D) We add more nodes from independent DCs
+   + since the registry contains the identities of the node provider, it can add nodes to the auxiliary network
+   + this is done by installing node software on machines hosted in the DCs, and using HSM to certify their first interaction with the network
+   + during the registration each node generates key pairs; the public keys are stored in the reistry
+   + nodes initially are added as free nodes (not assigned to any subnet)
+
+[[download:_20220226_205705screenshot.png]]
+
+[[download:_20220226_205911screenshot.png]]
+
+E) The DFinity Foundation assigns the nodes to the auxiliary subnet but the key used by the subnet is still the same = can't be trusted.
+
+[[download:_20220226_210008screenshot.png]]
+
+F) A new subnet is created.
+
+[[download:_20220226_210913screenshot.png]]
+
+G) Nodes on the auxiliary subnet start running DKG protocol and act as dealers in generating keys for the new subnet.
+
+[[download:_20220226_211047screenshot.png]]
+
+H) The new subnet becomes the NNS.
+
+[[download:_20220226_211147screenshot.png]]
+
+I) Governance, Ledger and Registry canisters are installed using the genesis state.
+
+[[download:_20220226_211440screenshot.png]]
+
+** [[https://www.youtube.com/watch?v=3mZHEfICi_U&list=PLuhDt1vhGcrfHG_rnRKsqZO1jL_Pd970h&index=9][Certified Variables]]
+*** Web 2.0. calls
+Call to a server on Web 2.0.:
+[[download:_20220226_212104screenshot.png]]
+
++ response signed by the server using public key cryprography
++ knowing the public key you can validate the signature on the response
+
+*** Update calls
++ change the state of the canister
+
+[[download:_20220226_212136screenshot.png]]
+
++ nodes collaborate to create threshold signatures and thus are relatively expensive to create
++ it wouldn't scale to sign a single response
+
+[[download:_20220226_213035screenshot.png]]
+
++ responses are bundled into a single "document" and signed together
++ responses not relevant to the user are removed, but the signature is the same as for the whole document! (= a subnet can use the same sinature for many responses)
++ the user only needs to know one public key - of the root subnet (the NNS)
++ together with the response to the user the subnet can include its public key signed by the root node - a delegation from the root subnet to subnet 5
+*** Query calls
++ don't change the state of the canister
++ can be responded to by a single node using certified variables
++ require collaboration from the canister
+
+[[download:_20220226_235433screenshot.png]]
++ the canister calculates the hash of its state, which is written into the same document that records all the responses (which is signed by the subnet)
+
+[[download:_20220226_234932screenshot.png]]
++ the user receives the redacted version of the signed document
+
+[[download:_20220227_000521screenshot.png]]
+
+Response checks:
+1) checks if this response is included in the redacted copy of the document from the canister
+2) recalculate the root hash of that document
+3) checks if the hash is included in the redacted document from the subnet
+4) check the signature on it and make sure this is really signed by that subnet in the delegation, the redacted document from the root subnet
+5) check the delegation signature against the root public key
+
+*** State tree
++ the subnet maintains its state tree in a [[id:90d4b868-bb02-469b-b122-bacab0a24f15][merkle tree]]
++ contains responses to requests from users, the certified data and lots of other internal data
+
+[[download:_20220227_012521screenshot.png]]
+
++ if we want to prove the user that the certified data (containing data of the user's interest) of a given canister (i.e. abcde-fgh) has a given hash (i.e. xCAFFEE) at a given time, we can prune the tree, leaving only the relevant data
+
+[[download:_20220227_013041screenshot.png]]
+
++ given only the relevant data and the hashes the user can recalculate them and check if they match the signed root
+
+*** Certified variables in queries - a cookbook
+
+[[download:_20220227_013741screenshot.png]]
+
+** [[https://www.youtube.com/watch?v=WaNJINjGleg&list=PLuhDt1vhGcrfHG_rnRKsqZO1jL_Pd970h&index=14][State Synchronization]]
+
+[[download:_20220227_191032screenshot.png]]
+
+[[download:_20220227_192155screenshot.png]]
+- query the Registry and check if there is a subnet with the querrying node ID
+
+[[download:_20220227_192605screenshot.png]]
+- if a node has been out for just a couple of rounds (replica B), it can request the missing blocks and signatures from it's peers and execute ingress messages contained in them
+
+[[download:_20220227_192845screenshot.png]]
+- if the rest of the subnet has already moved far beyond the last block the resuming node is aware of, some of the blocks have been purged -> replica cannot fetch and replay them to catch-up
+
+  ...
+
+** Ingress Message Lifecycle
+** [[https://www.youtube.com/watch?v=UHA7W-8My_I&list=PLuhDt1vhGcrfHG_rnRKsqZO1jL_Pd970h&index=16][Execution]]
+*** Analogies
++ canisters are like processes in classical [[id:c600bf28-5935-42e5-a34d-080d1372771b][RPC]] systems
++ canisters are also like processes in classical Unix systems with separate Execution and System states
++ IC provides many classical OS functionalities like scheduling and fair sharing of resources
+*** Issues
+[[download:_20220227_030916screenshot.png]]
+
+**** Failed requests
+The canister could fail to produce a response:
+[[download:_20220227_030943screenshot.png]]
+
+The canister could crash after committing updates, but before completing a transaction:
+[[download:_20220227_031005screenshot.png]]
+
+*Solution: Call Contexts*
+[[download:_20220227_031426screenshot.png]]
+
++ for each canister the IC tracks a list of call contexts
++ a call context tracks how many requests the canister has sent for which it has not yet received the response
++ the call context also indicates if the canister has responded to the original request or not
++ when the call context has no outstanding requests and the canister has NOT responded to the original request, the IC can deduce that it is impossible for the canister to produce a response, and produces one on its behalf
+**** Shared resources
+
+[[download:_20220227_031020screenshot.png]]
+
+***** State access
+
+[[download:_20220227_032144screenshot.png]]
+
+*Execution state*: Wasm heap and globals.
+*System state*: cycle balance, ID, message queues, schedule related data structures etc. Like in unix (kernel state), access to this state is mediated by [[id:331d5765-6cba-44b5-ad62-23cb0ff0eb2b][system calls]].
+
+***** Scheduling
++ canisters are scheduled using a *priority-based fair scheduler*
++ a canister can have a priority between 0 and 99, indicating percentage of how much (roughly) of a subnet's single compute core the canister has reserved
++ over several rounds of execution, the canister is guaranteed to get that much of a compute resource, as long as it has sufficient work to do (messages to execute)
++ priority 0 = best effort scheduling
++ canisters that ask for non-zero priority have to pay for it
++ canister priority can be seen as how much resources it has reserved
++ when two canisters ask for the same priority, over multiple rounds of execution they will get similar share of the compute core
+*** Execution
+
+[[download:_20220227_034525screenshot.png]]
+
+[[download:_20220227_035056screenshot.png]]
+
+Steps:
+1) give access to the execution state along with the name of the function to be called to the Wasm embedder
+2) during execution the canister can look up the list of arguments from its input messages via system calls
+3) the canister can optionally produce additional messages for other canisters by system calls, making updates to a system state
+4) at the end of the message execution the Wasm embedder produces an updated execution state and we have access to the canister's old and modified execution and system states
+5) if the execution succeeded the modified states are retained
+6) if the execution failed (e.g. because a canister performed an illegal operation like /0) then the canister state is rolled back
+
+=> [[id:34a7fec5-363b-4b0a-ab7c-be7cfb8330d6][orthogonal persistence]]
+
+[[download:_20220227_162003screenshot.png]]
+- execute canisters till either they run out of messages or have been executed for a predetermined maximum duration
+- finally invoke the message routing component to process any output messages
+
+A feature like [[id:d984682e-aa17-4370-8971-664b4992b3af][timeslicing]] is important to ensure that a long-running canister cannot hog the system for too long.
+
+[[download:_20220227_164852screenshot.png]]
+
+1) measure canister's execution duration
+2) interrupt it when it has surpassed some set limit
+3) checkpoint at state at this point in time allowing other canisters to make progress
+4) the next time the suspended canister is scheduled, continue it's execution from where it left off
+
+*Deterministic time slices:*
++ in order to make sure all the nodes compute the same state at the and of message execution we must interrupt the canister precisely at the same point in execution on all nodes
++ straihtforward technique like a local stopwatch can't be used to measure the canister execution duration due to the inherent non-determinism in how many instructions different CPUs will execute in the same amount of time
++ instead of actual time we measure how many Wasm instructions the canister have executed (same is used to charge for consumed computational resources)
+
+*Next bits of functionalities of suspendig the canister's execution and resuming it later have currently not been fully implemented*.
+=> for the time being we treat canisters that hit the instructions limit as having performed an illeal operation an roll back their state
+*** Paying for resources
++ instructions execution: payed for in cycles
++ storage (canisters Wasm module, heap, globals etc.): charged for on a regular cadence
+
+* Questions
+** TODO How/where canister's data is actually stored?
+** TODO [[https://docs.microsoft.com/en-us/sql/relational-databases/security/encryption/always-encrypted-enclaves?view=sql-server-ver15][secure enclaves]]
