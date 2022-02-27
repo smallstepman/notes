@@ -461,9 +461,9 @@ count after c goes out of scope = 2
       cases are handled, hence no invalid pointer.
 
 ** =Ref<T>= and =RefMut<T>=, accessed via =RefCell<T>=
-     :PROPERTIES:
-     :CUSTOM_ID: reft-and-refmutt-accessed-via-refcellt
-     :END:
+:PROPERTIES:
+:CUSTOM_ID: reft-and-refmutt-accessed-via-refcellt
+:END:
 #+begin_src rust
 #[derive(Debug)]
 enum List {
@@ -516,7 +516,7 @@ c after = Cons(RefCell { value: 10 }, Cons(RefCell { value: 15 }, Nil))
 - Because =RefCell<T>= allows mutable borrows checked at runtime, I can
   mutate the value inside the =RefCell<T>= even when the RefCell is
   immutable.
--
+- RefCell uses Rust's lifetimes to implement *dynamic borrowing*
 
 ** =Cell<T>=
 :PROPERTIES:
