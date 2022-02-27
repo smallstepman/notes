@@ -135,3 +135,8 @@ fn main() {
 
 #+RESULTS:
 : Some(10)
+* comment mutability
+- immutability
+- mutability
+- inherited mutability
+- interior mutability
