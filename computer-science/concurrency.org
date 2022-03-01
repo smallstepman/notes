@@ -60,8 +60,11 @@ multiple logical threads of execution with unknown inter-task dependencies
   - when data does come in, the program may not read it immediately if it's sleeping, so the latency of the program will be poor
   - handling a large number of file descriptors with this pattern would become cumbersome
 * I/O multiplexing
-- "asynchronous I/O"
-- achived via select (POSIX), epoll (Linux), kqueue (BSD), IOCP (Windows)
+:PROPERTIES:
+:ID:       c815d940-9532-4fb2-a3b4-68fc4ef44cb5
+:ROAM_ALIASES: "asynchronous I/O"
+:END:
+- achived via select (POSIX), [[id:c7294461-2219-4132-a7db-a1fba4b6e9f9][epoll]] (Linux), kqueue (BSD), IOCP (Windows)
   - they let the kernel know what events (typically read events and write events) are of interest on a set of file descriptors, and then they block until something of interest happens
 - these methods let us hook into the OS in a way in which we can wait for many events
   - one thread is waiting for many tasks
@@ -74,9 +77,12 @@ multiple logical threads of execution with unknown inter-task dependencies
 - I/O multiplexing system calls typically do not care if the file descriptors are in blocking mode or nonblocking mode
   - the blocking or nonblocking status of a file descriptor is significant for edge-triggered polling
 ** epoll
+:PROPERTIES:
+:ID:       c7294461-2219-4132-a7db-a1fba4b6e9f9
+:END:
 - Linux kernel system call for a scalable I/O event notification mechanism
 - its function is to monitor multiple file descriptors to see whether I/O is possible on any of them
-- operates in $0(1)$ time
+- operates in $O(1)$ time
 ** readiness based model
 :PROPERTIES:
 :ID:       fe7fd1d1-6d09-434d-bac2-2cb2e0f7b6ce
@@ -86,6 +92,16 @@ multiple logical threads of execution with unknown inter-task dependencies
 - thread receives a *notification* when an operation is ready to be performed
   - (e.g. when data is ready to be read into a buffer)
 ** completion based models
+:PROPERTIES:
+:ID:       0f499771-fe80-4991-97ef-1e1c81c698bb
+:END:
 - IOCP (abbrev of Input/Output Completion Ports), is a completion-based model
 - thread receives a notification when an operation has happened.
   - e.g. when data has been read into a buffer
+* multithreading
+:PROPERTIES:
+:ID:       ba81b780-153b-46bb-a637-e420adc0a94c
+:END:
+#+begin_quote
+In a multithreaded program, each thread is responsible for executing a particular independent sequence of blocking operations, and the operating system multiplexes among the threads so that if any thread can make progress, progress is made. If one thread blocks, some other thread may still be runnable, and so the application can continue to do useful work
+#+end_quote
