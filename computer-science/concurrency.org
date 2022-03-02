@@ -7,8 +7,8 @@
 #+created_at: <2021-03-28 Sun 03:57>
 #+filetags: computer-science
 
-multiple logical threads of execution with unknown inter-task dependencies
-
+- multiple logical threads of execution with unknown inter-task dependencies
+- the ability to have multiple independent operations that can be executed at any one time
 * forward progress guarantee
 :PROPERTIES:
 :ID:       cee62cc9-b3fc-4625-89af-15ffa8e037a7
@@ -37,6 +37,13 @@ multiple logical threads of execution with unknown inter-task dependencies
 |                          | you can have orders of magnitude more tasks than OS threads, because an async runtime uses a small amount of (expensive) threads to handle a large amount of (cheap) tasks | If we poll too often, like in a loop, we will occupy a lot of CPU-time which is wasteful                                                                        |
 |--------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | thread-pool              |                                                                                                                                                                            |                                                                                                                                                                 |
+**  concurrency vs parallelism
+:PROPERTIES:
+:ID:       e11a995f-cc32-477e-a507-15ecb65a97ac
+:END:
+- concurrency (=_-_-_=) means that the execution of your tasks is interleaved
+- parallelism (=======) means that multiple tasks are executing at the same time
+- two threads can be made mutually exclusive in their execution by using a Mutex or other synchronization primitive, but that introduces additional complexity—threads want to run in parallel
 
 * blocking I/O
 :PROPERTIES:
@@ -88,7 +95,7 @@ multiple logical threads of execution with unknown inter-task dependencies
 :ID:       fe7fd1d1-6d09-434d-bac2-2cb2e0f7b6ce
 :ROAM_REFS: https://cfsamsonbooks.gitbook.io/epoll-kqueue-iocp-explained/part-1-an-express-explanation
 :END:
-- Epoll and Kqueue are "readiness based"
+- [[id:c7294461-2219-4132-a7db-a1fba4b6e9f9][epoll]] and Kqueue are "readiness based"
 - thread receives a *notification* when an operation is ready to be performed
   - (e.g. when data is ready to be read into a buffer)
 ** completion based models
@@ -101,7 +108,19 @@ multiple logical threads of execution with unknown inter-task dependencies
 * multithreading
 :PROPERTIES:
 :ID:       ba81b780-153b-46bb-a637-e420adc0a94c
+:ROAM_REFS: https://rust-for-rustaceans.com/
 :END:
-#+begin_quote
-In a multithreaded program, each thread is responsible for executing a particular independent sequence of blocking operations, and the operating system multiplexes among the threads so that if any thread can make progress, progress is made. If one thread blocks, some other thread may still be runnable, and so the application can continue to do useful work
-#+end_quote
+- each thread is responsible for executing a particular independent sequence of blocking operations, and the operating system multiplexes among the threads so that if any thread can make progress, progress is made
+- if one thread blocks, some other thread may still be runnable, and so the application can continue to do useful work
+- threads usually communicate with each other using a synchronization primitive like a lock or a channel
+- multithreading does not necessarily imply parallelism - even though you have many threads, you might have only a single core, so only one thread is executing at a given time (but the two usually go hand in hand)
+
+** shortcomings
+- keeping track of threads quickly gets cumbersome
+  - if you have to spin up a thread for every concurrent task, including simple ones like waiting for keyboard input, the threads add up fast, and so does the additional complexity needed to keep track of how all those threads interact, communicate, and coordinate
+- switching between threads gets costly the more of them there are
+  - on some platforms, spawning new threads is also a fairly heavyweight process
+  - every time one thread stops running and another one starts back up in its place, you need to do a round-trip to the operating system scheduler
+  - applications with high performance needs often mitigate this cost by reusing threads and using operating system calls that allow you to block on many related operations, but ultimately you are left with the same problem: blocking interfaces require that you have as many threads as the number of blocking calls you want to make
+- threads introduce parallelism into the program
+  - This means moving from Rc, Cell, and RefCell to the more powerful but also slower Arc and Mutex. While you may want to use the latter types in your concurrent program to enable parallelism, threading forces you to use them.

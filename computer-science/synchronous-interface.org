@@ -1,0 +1,13 @@
+:PROPERTIES:
+:ID:       5e29e27e-d012-4358-91df-572acc11c580
+:ROAM_ALIASES: "blocking interface"
+:END:
+#+title: synchronous interface
+
+- from Rust for rustaceans
+#+begin_quote
+Synchronous interfaces hide all this waiting; the application calls a function that says “write these bytes to this file,” and some time
+later, that function completes and the next line of code executes. Behind the scenes, what really happens is that the operating system
+queues up a write operation to the disk and then puts the application to sleep until the disk reports that it has finished the write. The
+application experiences this as the function taking a long time to execute, but in reality it isn’t really executing at all, just waiting.
+#+end_quote
