@@ -140,3 +140,24 @@ fn main() {
 - mutability
 - inherited mutability
 - interior mutability
+
+* comment trait-to-struct with assoc fn
+#+begin_src rust
+trait X {
+    fn a() -> Self;
+}
+
+#[derive(Debug)]
+struct W(i32);
+
+impl X for W {
+    fn a() -> Self {
+        W(3)
+    }
+}
+
+fn main() {
+    let o: W = X::a();
+    println!("{:?}", o);
+}
+#+end_src
